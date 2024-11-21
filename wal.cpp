@@ -111,7 +111,7 @@ void Wal::put(string key, string data) {
 	for (byte c : data)
 		record.push_back(c);
 
-	ofstream outFile("logs/wal_001.log", std::ios::binary | std::ios::app);
+	ofstream outFile("wal_logs/wal_001.log", std::ios::binary | std::ios::app);
 	//cout << record.size() << endl;
 
 	outFile.write(reinterpret_cast<const char*>(record.data()), record.size());
