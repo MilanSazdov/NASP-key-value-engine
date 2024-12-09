@@ -1,0 +1,205 @@
+#include "BloomFilter.h"
+#include <cmath>
+#include <fstream>
+#include <functional>
+#include <stdexcept>
+#include <random>
+
+using namespace std;
+
+/*
+	* Format zapisa:
+	* m - 4 bajta, unsigned int
+	* k - 4 bajta, unsigned int
+	* p - 8 bajta, double
+	* timeConst - 4 bajta, unsigned int
+	* h2_seed - 8 bajta, size_t pretpostavljeno 64-bitno
+	* bitSet bajtovi (m + 7) / 8 bajtova
+
+	memcpy() - is used to copy a block of memory from one location to another.
+	=> copies the specified number of bytes from one memory location to another regardless of data type stored
+	in <string.h>
+
+	size_t - unsigned integer type, used to represent the size of objects in bytes
+	* na primer sizeof() vraca size_t
+
+	automatski se prilagodjava da aplikacija radi ispravno i na 32-bitnim i na 64-bitnim sistemima
+	standardizacija: mnoge biblioteke i API-ji ocekuju size_t, pa je to onda najbolje koristiti za kompatibilnost
+
+*/
+
+BloomFilter::BloomFilter(unsigned int n, double falsePositiveRate) {
+	// Calculate size of bit set
+	m = calculateSizeOfBitSet(n, falsePositiveRate);
+	// Calculate number of hash functions
+	k = calculateNumberOfHashFunctions(n, m);
+	p = falsePositiveRate;
+	// Initialize bit set - na pocetku su svi bitovi postavljeni na 0
+	bitSet = vector<bool>(m, false);
+	// Seed for generating hash functions
+	timeConst = static_cast<unsigned int>(time(nullptr));
+
+	// Koristimo double hashing tehniku => trebaju nam dve hash funkcije
+	// h1 = hash(key)
+	// h2 = hash(to_string(h2_seed) + key)
+	
+	// Ovde sada treba generisati RAZLICITH k hash funkcija
+	mt19937 rng(timeConst); // Random number generator
+	uniform_int_distribution<size_t> dist(0, numeric_limits<size_t>::max());
+	this->h2_seed = dist(rng); // Generate a random seed for the second hash function
+
+	// Sada kreiramo k hash funkcija. Svaka ce za zadati kljuc:
+	// 1) Izracunati h1 i h2
+	// 2) Vratiti (h1 + i * h2) % m
+
+	hashFunctions.reserve(k);
+
+	for (unsigned int i = 0; i < k; ++i) {
+		hashFunctions.emplace_back(
+			[i, this](const std::string& key) {
+				size_t h1 = std::hash<std::string>()(key);
+				size_t h2 = std::hash<std::string>()(std::to_string(h2_seed) + key);
+				return (h1 + i * h2) % this->m;
+			}
+		);
+	}
+
+};
+
+bool BloomFilter::possiblyContains(const string& elem) const {
+	// Proveravamo da li je element u skupu
+	// Ako je bar jedan bit postavljen na 0, onda element sigurno nije u skupu
+	// Ako su svi bitovi postavljeni na 1, onda element mozda jeste u skupu
+	// U tom slucaju vracamo true, ali postoji verovatnoca da je to lazno pozitivan rezultat
+
+	for (const auto& hashFunction : hashFunctions) {
+		if (!bitSet[hashFunction(elem)]) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void BloomFilter::add(const string& elem) {
+	// Za svaki hahs funkciju izracunam indeks i postavimo ga na true
+	for (const auto& hashFunction : hashFunctions) {
+		bitSet[hashFunction(elem)] = true;
+	}
+}
+
+std::vector<uint8_t> BloomFilter::serialize() const {
+	// Izracunamo koliko bajtova treba za bitSet
+	size_t bitBytes = (m + 7) / 8;
+	size_t totalSize = sizeof(m) + sizeof(k) + sizeof(p) + sizeof(timeConst) + sizeof(h2_seed) + bitBytes;
+
+	std::vector<uint8_t> data(totalSize);
+	size_t offset = 0;
+
+	// m
+	std::memcpy(data.data() + offset, &m, sizeof(m));
+	offset += sizeof(m);
+
+	// k
+	std::memcpy(data.data() + offset, &k, sizeof(k));
+	offset += sizeof(k);
+
+	// p
+	std::memcpy(data.data() + offset, &p, sizeof(p));
+	offset += sizeof(p);
+
+	// timeConst
+	std::memcpy(data.data() + offset, &timeConst, sizeof(timeConst));
+	offset += sizeof(timeConst);
+
+	// h2_seed
+	std::memcpy(data.data() + offset, &h2_seed, sizeof(h2_seed));
+	offset += sizeof(h2_seed);
+
+	// Sada bitSet u bajtove
+	for (size_t i = 0; i < bitBytes; i++) {
+		uint8_t byteVal = 0;
+		for (int b = 0; b < 8; b++) {
+			size_t bitIndex = i * 8 + b;
+			if (bitIndex < m && bitSet[bitIndex]) {
+				byteVal |= (1 << b);
+			}
+		}
+		data[offset++] = byteVal;
+	}
+
+	return data;
+}
+
+BloomFilter BloomFilter::deserialize(const std::vector<uint8_t>& data) {
+	BloomFilter bf(1, 0.01); // Kreiramo privremeni, odmah cemo ga prepisati
+	// Ovaj konstruktor nije bitan, jer cemo sve parametre prepisati iz data
+	// a potom ponovo kreirati hashFunctions.
+
+	size_t offset = 0;
+
+	// m
+	std::memcpy(&bf.m, data.data() + offset, sizeof(bf.m));
+	offset += sizeof(bf.m);
+
+	// k
+	std::memcpy(&bf.k, data.data() + offset, sizeof(bf.k));
+	offset += sizeof(bf.k);
+
+	// p
+	std::memcpy(&bf.p, data.data() + offset, sizeof(bf.p));
+	offset += sizeof(bf.p);
+
+	// timeConst
+	std::memcpy(&bf.timeConst, data.data() + offset, sizeof(bf.timeConst));
+	offset += sizeof(bf.timeConst);
+
+	// h2_seed
+	std::memcpy(&bf.h2_seed, data.data() + offset, sizeof(bf.h2_seed));
+	offset += sizeof(bf.h2_seed);
+
+	// bitSet
+	bf.bitSet = std::vector<bool>(bf.m, false);
+	size_t bitBytes = (bf.m + 7) / 8;
+
+	for (size_t i = 0; i < bitBytes; i++) {
+		uint8_t byteVal = data[offset++];
+		for (int b = 0; b < 8; b++) {
+			size_t bitIndex = i * 8 + b;
+			if (bitIndex < bf.m && (byteVal & (1 << b)) != 0) {
+				bf.bitSet[bitIndex] = true;
+			}
+		}
+	}
+
+	// Sada ponovo kreiramo hashFunctions
+	bf.hashFunctions.clear();
+	bf.hashFunctions.reserve(bf.k);
+	for (unsigned int i = 0; i < bf.k; ++i) {
+		bf.hashFunctions.emplace_back(
+			[i, &bf](const std::string& key) {
+				size_t h1 = std::hash<std::string>()(key);
+				size_t h2 = std::hash<std::string>()(std::to_string(bf.h2_seed) + key);
+				return (h1 + i * h2) % bf.m;
+			}
+		);
+	}
+
+	return bf;
+}
+
+
+static unsigned int calculateSizeOfBitSet(unsigned int expectedElements, double falsePositiveRate) {
+	// m = ceil(-n * log(p) / (log(2)^2))
+	return static_cast<unsigned int>(ceil(-expectedElements * log(falsePositiveRate) / (log(2) * log(2))));
+}
+
+static unsigned int calculateNumberOfHashFunctions(unsigned int expectedElements, unsigned int m) {
+	// k = round((m / n) * log(2))
+	unsigned int k = static_cast<unsigned int>(round((m / (double)expectedElements) * log(2)));
+	return (k == 0) ? 1 : k; // Ensure at least 1
+}
+
+
+
+
