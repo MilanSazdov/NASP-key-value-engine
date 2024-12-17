@@ -46,3 +46,11 @@ void MemtableHashMap::loadFromWal(const string& wal_file) {
 	}
 	file.close();
 }
+
+vector<pair<string, string>> MemtableHashMap::getAllKeyValuePairs() const {
+	vector<pair<string, string>> result;
+	for (const auto& [key, value] : table) {
+		result.push_back({ key, value });
+	}
+	return result;
+}

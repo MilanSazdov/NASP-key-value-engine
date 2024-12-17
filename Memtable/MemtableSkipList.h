@@ -1,5 +1,7 @@
 #pragma once
 
+#pragma once
+
 #include "IMemtable.h"
 #include "SkipList.h"
 #include <string>
@@ -30,6 +32,8 @@ public:
 
     // loadFromWal ucitava podatke iz WAL fajla.
     void loadFromWal(const std::string& wal_file) override;
+
+    vector<pair<string, string>> getAllKeyValuePairs() const override;
 
 private:
     SkipList skiplist_;

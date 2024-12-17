@@ -25,4 +25,5 @@ public:
 
 	virtual void loadFromWal(const string& wal_file) = 0;
 
+	virtual vector<pair<string, string>> getAllKeyValuePairs() const = 0;
 };

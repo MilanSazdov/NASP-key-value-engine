@@ -24,6 +24,8 @@ public:
 
 	void loadFromWal(const string& wal_file) override;
 
+	vector<pair<string, string>> getAllKeyValuePairs() const override;
+
 private:
 	unordered_map<string, string> table;
 	size_t maxSize;
