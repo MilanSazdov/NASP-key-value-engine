@@ -6,6 +6,8 @@ using namespace std;
 
 typedef unsigned char byte;
 typedef pair<int, string> composite_key;
+const int block_size = 4096;	//in bytes
+const int cache_size = 15;		//in blocks
 
 struct Block {
 	composite_key key;
@@ -15,11 +17,12 @@ struct Block {
 	Block(composite_key k);
 	~Block();
 
-	void set_data(byte* data);
+	void set_data(char* data);
 
 	bool operator == (const Block& b);
 	byte operator[] (const int i);
-	Block(const Block& other);
+	Block(const Block& other);				//copy constructor (deep copy)
+	Block& operator=(const Block& other);	//asignment operator (deep copy)
 };
 struct Node{
 	Block block;
