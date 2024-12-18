@@ -2,7 +2,7 @@
 
 #include <string>
 #include <optional>
-#include "../../Memtable/IMemtable.h"
+#include "IMemtable.h"
 
 using namespace std;
 
