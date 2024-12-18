@@ -17,6 +17,11 @@ template<int ORDER> class BTree : public IMemtable
 
         int numKeys;
 
+        ~BTreeNode()
+        {
+            delete[] children;
+        }
+
         BTreeNode() : numKeys(0)
         {
             for(int i = 0; i < ORDER; i++)
@@ -30,6 +35,11 @@ template<int ORDER> class BTree : public IMemtable
             return children[0] == nullptr;
         }
     };
+
+    ~BTree() override
+    {
+        delete root;
+    }
 
     void splitChild(BTreeNode* parent, BTreeNode* child, int childPos);
 
