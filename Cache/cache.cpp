@@ -5,8 +5,6 @@
 typedef unsigned char byte;
 typedef pair<int, string> composite_key;
 using namespace std;
-const int block_size = 1024;
-const int cache_size = 15;	//u blokovima
 
 Block::Block() {
 	key = make_pair(-1, "");
@@ -19,14 +17,20 @@ Block::Block(const Block& other) : key(other.key) {
 	this->data = new byte[block_size];
 	memcpy(this->data, other.data, block_size); // Deep copy the data array
 }
+Block& Block::operator=(const Block& other) {
+	if (this != &other) {  // Self-assignment check
+		delete[] data;  // Free existing memory
+		data = new byte[block_size];
+		copy(other.data, other.data + block_size, data);
+	}
+	return *this;
+}
 Block::~Block() {
 	//cout << "Deleting: " << key.first << " " << key.second << endl;
 	delete[] data;
 }
-void Block::set_data(byte* data) {
-	for (int i = 0; i < block_size; i++) {
-		this->data[i] = data[i];
-	}
+void Block::set_data(char* data) {
+	memcpy(this->data, data, block_size);
 }
 bool Block::operator == (const Block& b) {
 	return (b.key == key);
