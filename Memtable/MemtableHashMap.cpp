@@ -1,6 +1,7 @@
 #include "MemtableHashMap.h"
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 
@@ -52,5 +53,6 @@ vector<pair<string, string>> MemtableHashMap::getAllKeyValuePairs() const {
 	for (const auto& [key, value] : table) {
 		result.push_back({ key, value });
 	}
+	sort(result.begin(), result.end());
 	return result;
 }
