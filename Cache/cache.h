@@ -1,27 +1,32 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <cstddef>
 
 using namespace std;
 
-typedef unsigned char byte;
 typedef pair<int, string> composite_key;
+const int block_size = 100;	    //in bytes
+const int cache_size = 5;		//in blocks
+const std::byte padding_character = (std::byte)'0';
 
 struct Block {
 	composite_key key;
-	byte* data;
+	std::byte* data;
 
 	Block();
 	Block(composite_key k);
 	~Block();
 
-	void set_data(byte* data);
+	void set_data(char* data);
 
 	bool operator == (const Block& b);
-	byte operator[] (const int i);
-	Block(const Block& other);
+	std::byte operator[] (const int i);
+	Block(const Block& other);				//copy constructor (deep copy)
+	Block& operator=(const Block& other);	//asignment operator (deep copy)
 };
-struct Node{
+
+struct Node {
 	Block block;
 	Node* next;
 	Node* prev;
