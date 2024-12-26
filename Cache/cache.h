@@ -1,17 +1,19 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <cstddef>
 
 using namespace std;
 
-typedef unsigned char byte;
 typedef pair<int, string> composite_key;
-const int block_size = 4096;	//in bytes
-const int cache_size = 15;		//in blocks
+const int block_size = 100;	    //in bytes
+const int cache_size = 5;		//in blocks
+const std::byte padding_character = (std::byte)'0';
+const int int_padding_character = (int)'0';
 
 struct Block {
 	composite_key key;
-	byte* data;
+	std::byte* data;
 
 	Block();
 	Block(composite_key k);
@@ -20,10 +22,11 @@ struct Block {
 	void set_data(char* data);
 
 	bool operator == (const Block& b);
-	byte operator[] (const int i);
+	std::byte operator[] (const int i);
 	Block(const Block& other);				//copy constructor (deep copy)
 	Block& operator=(const Block& other);	//asignment operator (deep copy)
 };
+
 struct Node{
 	Block block;
 	Node* next;

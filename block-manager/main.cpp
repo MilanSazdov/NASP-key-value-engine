@@ -2,7 +2,7 @@
 #include <iostream>
 
 using namespace std;
-const string file_name = "testing.dat";
+const string file_name = "wal_001.log";
 
 void testing() {
 	Block_manager bm;
@@ -14,14 +14,14 @@ void testing() {
 	attempt.push_back('b');
 	attempt.push_back('c');
 
-	//bm.write_data(file_name, attempt);
+	bm.write_data(file_name, attempt);
 
 	attempt[0] = '1';
 	attempt[1] = '2';
 	attempt[2] = '3';
 	attempt.push_back('4');
 	attempt.push_back('5');
-	//bm.write_data(file_name, attempt);
+	bm.write_data(file_name, attempt);
 
 	bool error;
 	vector<char> data;
@@ -32,6 +32,7 @@ void testing() {
 		cout << c;
 	}
 	cout << endl;
+	cout << "testiranje block-managera";
 }
 int main() {
 	testing();
