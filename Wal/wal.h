@@ -49,16 +49,24 @@ struct Record {
 };
 
 class Wal {
-	int segment_size;	//in blocks
+private:
+	int segment_size;
+	string min_segment;
 	Block_manager bm;
-	//Block find_next_empty_block(Block b);
-	void write_record(string key, string value, byte tombstone = 0);
+	const string first_segment = "wal_logs/wal_001.log";
+
 	Block find_next_empty_block(Block b);
+	void write_record(string key, string value, byte tombstone = (byte)0);
+
 public:
 	Wal();
 	Wal(int segment_size);
+
 	void put(string key, string data);
 	void del(string key);
 	vector<Record> get_all_records();
-	//string get(string key);	//ovo u sustini ne treba, ali dok ga testiram nek stoji
+	//void debug_records();
+	string find_min_segment();
+	void update_min_segment();
+	void delete_old_logs(string target_file);
 };
