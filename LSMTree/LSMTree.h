@@ -102,10 +102,10 @@ private:
 		vector<char>& crcBytes,
 		string& timestamp,
 		unsigned char& tombstone,
-		uint64_t keyLen,
-		uint64_t valueLen,
-		const string& key,
-		const string& value
+		uint64_t& keyLen,
+		uint64_t& valueLen,
+		string& key,
+		string& value
 	);
 
 	//Updates the first 8 bytes of the data file with the number of records
@@ -128,11 +128,10 @@ private:
 
 	void WriteSummary(const vector<string>& keys, vector<uint64_t>& offsets, const string& summaryFileName );
 
-	void writeTOC(const string& baseFilename);
+	void WriteTOC(const string& baseFilename);
 
-	void writeBloomFilter(const string& filterFileName, const vector<string>& keys);
+	void WriteBloomFilter(const string& filterFileName, const vector<string>& keys);
 
-	void writeMetadata(const string& metadataFileName, const vector<string>& metadata);
 
 	class Index {
 	public:
