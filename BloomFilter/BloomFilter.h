@@ -24,6 +24,7 @@ private:
 public:
 
     BloomFilter(unsigned int n, double falsePositiveRate);
+    BloomFilter();
 
     // Add an element to the Bloom Filter
     void add(const string& elem);
@@ -38,8 +39,8 @@ public:
     static BloomFilter deserialize(const vector<uint8_t>& data);
 
     // Helper functions
-    static unsigned int calculateSizeOfBitSet(int expectedElements, double falsePositiveRate);
+    static unsigned int calculateSizeOfBitSet(unsigned expectedElements, double falsePositiveRate);
 
-    static unsigned int calculateNumberOfHashFunctions(int expectedElements, unsigned int m);
+    static unsigned int calculateNumberOfHashFunctions(unsigned expectedElements, unsigned m);
 
 };

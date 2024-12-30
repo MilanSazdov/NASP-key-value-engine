@@ -2,7 +2,6 @@
 #include <cmath>
 #include <fstream>
 #include <functional>
-#include <stdexcept>
 #include <random>
 
 using namespace std;
@@ -27,7 +26,6 @@ using namespace std;
 	standardizacija: mnoge biblioteke i API-ji ocekuju size_t, pa je to onda najbolje koristiti za kompatibilnost
 
 */
-
 BloomFilter::BloomFilter(unsigned int n, double falsePositiveRate) {
 	// Calculate size of bit set
 	m = calculateSizeOfBitSet(n, falsePositiveRate);
@@ -65,6 +63,8 @@ BloomFilter::BloomFilter(unsigned int n, double falsePositiveRate) {
 	}
 
 };
+
+BloomFilter::BloomFilter(): m(0), k(0), p(0), timeConst(0), h2_seed(0) {}
 
 bool BloomFilter::possiblyContains(const string& elem) const {
 	// Proveravamo da li je element u skupu
@@ -189,12 +189,12 @@ BloomFilter BloomFilter::deserialize(const std::vector<uint8_t>& data) {
 }
 
 
-static unsigned int calculateSizeOfBitSet(unsigned int expectedElements, double falsePositiveRate) {
+unsigned int BloomFilter::calculateSizeOfBitSet(unsigned int expectedElements, double falsePositiveRate) {
 	// m = ceil(-n * log(p) / (log(2)^2))
-	return static_cast<unsigned int>(ceil(-expectedElements * log(falsePositiveRate) / (log(2) * log(2))));
+	return static_cast<unsigned int>(ceil(-static_cast<int>(expectedElements) * log(falsePositiveRate) / (log(2) * log(2))));
 }
 
-static unsigned int calculateNumberOfHashFunctions(unsigned int expectedElements, unsigned int m) {
+unsigned int BloomFilter::calculateNumberOfHashFunctions(unsigned int expectedElements, unsigned int m) {
 	// k = round((m / n) * log(2))
 	unsigned int k = static_cast<unsigned int>(round((m / (double)expectedElements) * log(2)));
 	return (k == 0) ? 1 : k; // Ensure at least 1

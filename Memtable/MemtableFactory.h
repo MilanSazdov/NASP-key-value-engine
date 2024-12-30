@@ -3,7 +3,8 @@
 #include "IMemtable.h"
 #include <string>
 #include "MemtableHashMap.h"
-#include "MemtableSkipList.h"
+//#include "MemtableSkipList.h"
+#include "BTree.h"
 
 class MemtableFactory {
 public:

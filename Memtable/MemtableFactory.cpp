@@ -1,12 +1,18 @@
 #include "MemtableFactory.h"
 
 IMemtable* MemtableFactory::createMemtable(const std::string& type) {
+    
     if (type == "hash") {
         return new MemtableHashMap();
     }
     else if (type == "skiplist") {
-        return new MemtableSkipList();
+        //return new MemtableSkipList();
     }
+
+	else if (type == "btree") {
+		return new BTree<4>(5);
+	}
+
 
     // Ako tip nije prepoznat, vracamo default, npr. hash
     return new MemtableHashMap();
