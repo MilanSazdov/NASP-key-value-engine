@@ -1,5 +1,4 @@
-#ifndef LSM_TREE_H
-#define LSM_TREE_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -166,5 +165,3 @@ private:
 	Index CreateIndex(const vector<string>& keys, const vector<uint64_t>& offs, const string& indexFillename);
 
 };
-
-#endif
