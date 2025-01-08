@@ -55,5 +55,5 @@ void MemtableSkipList::loadFromWal(const std::string& wal_file) {
 }
 
 std::vector<std::pair<std::string, std::string>> MemtableSkipList::getAllKeyValuePairs() const {
-	return skiplist_.getAllKeyValuePairs();
+	return getAllKeyValuePairs();
 }

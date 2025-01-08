@@ -3,8 +3,6 @@
 #include <iostream>
 
 
-
-
 SkipList::SkipList(int maxLevels, double p)
     : maxLevels(maxLevels),
     p(p),
