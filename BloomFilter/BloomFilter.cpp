@@ -1,11 +1,4 @@
 #include "BloomFilter.h"
-#include <cmath>
-#include <fstream>
-#include <functional>
-#include <stdexcept>
-#include <random>
-
-using namespace std;
 
 /*
 	* Format zapisa:
@@ -189,15 +182,13 @@ BloomFilter BloomFilter::deserialize(const std::vector<uint8_t>& data) {
 }
 
 
-static unsigned int calculateSizeOfBitSet(unsigned int expectedElements, double falsePositiveRate) {
-	// m = ceil(-n * log(p) / (log(2)^2))
-	return static_cast<unsigned int>(ceil(-expectedElements * log(falsePositiveRate) / (log(2) * log(2))));
+unsigned int BloomFilter::calculateSizeOfBitSet(unsigned int expectedElements, double falsePositiveRate) {
+	return static_cast<unsigned int>(ceil(-static_cast<double>(expectedElements) * log(falsePositiveRate) / (log(2) * log(2))));
 }
 
-static unsigned int calculateNumberOfHashFunctions(unsigned int expectedElements, unsigned int m) {
-	// k = round((m / n) * log(2))
-	unsigned int k = static_cast<unsigned int>(round((m / (double)expectedElements) * log(2)));
-	return (k == 0) ? 1 : k; // Ensure at least 1
+unsigned int BloomFilter::calculateNumberOfHashFunctions(unsigned int expectedElements, unsigned int m) {
+	unsigned int k = static_cast<unsigned int>(round((m / static_cast<double>(expectedElements)) * log(2)));
+	return (k == 0) ? 1 : k;
 }
 
 
