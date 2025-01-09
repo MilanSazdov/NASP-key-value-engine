@@ -15,11 +15,13 @@ private:
 
         string key;
         string value;
+        bool tombstone;
+		uint64_t timestamp; // vreme poslednje izmene
         // forward[i] ukazuje na cvor u nivou i
         vector<Node*> forward;
 
-        Node(const std::string& k, const std::string& v, int level)
-            : key(k), value(v), forward(level, nullptr) {}
+        Node(const std::string& k, const std::string& v, bool t, uint64_t ts, int level)
+            : key(k), value(v), tombstone(t), timestamp(ts), forward(level, nullptr) {}
     };
 
     // Generise nasumicni nivo za novi cvor
@@ -45,7 +47,7 @@ public:
     ~SkipList();
 
     // Umece ili azurira (key, value)
-    void insert(const string& key, const string& value);
+    void insert(const string& key, const string& value, bool tombstone, uint64_t timestamp);
 
     // Brise cvor s datim kljucem (ako postoji)
     void remove(const string& key);
@@ -53,9 +55,12 @@ public:
     // Pronalazenje value po key. Ako ne postoji, vraca NULL
     optional<string> get(const string& key) const;
 
+	// Vraca cvor s datim kljucem (ako postoji)
+	Node* getNode(const string& key) const;
+
     // Vraca velicinu (broj elemenata)
     size_t Size() const { return size; }
 
-
+	vector<pair<string, string>> getAllKeyValuePairs() const;
 };
 
