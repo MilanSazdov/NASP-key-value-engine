@@ -56,8 +56,7 @@ BloomFilter::BloomFilter(unsigned int n, double falsePositiveRate) {
 			}
 		);
 	}
-
-};
+}
 
 bool BloomFilter::possiblyContains(const string& elem) const {
 	// Proveravamo da li je element u skupu
@@ -181,7 +180,6 @@ BloomFilter BloomFilter::deserialize(const std::vector<uint8_t>& data) {
 	return bf;
 }
 
-
 unsigned int BloomFilter::calculateSizeOfBitSet(unsigned int expectedElements, double falsePositiveRate) {
 	return static_cast<unsigned int>(ceil(-static_cast<double>(expectedElements) * log(falsePositiveRate) / (log(2) * log(2))));
 }
@@ -190,7 +188,3 @@ unsigned int BloomFilter::calculateNumberOfHashFunctions(unsigned int expectedEl
 	unsigned int k = static_cast<unsigned int>(round((m / static_cast<double>(expectedElements)) * log(2)));
 	return (k == 0) ? 1 : k;
 }
-
-
-
-

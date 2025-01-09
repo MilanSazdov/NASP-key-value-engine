@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{c925acb9-baa1-45e2-b9b9-7119c12f3540}</ProjectGuid>
-    <RootNamespace>BloomFilter</RootNamespace>
+    <ProjectGuid>{8d9bd6ce-9ff7-4514-91c8-da81f2a162e4}</ProjectGuid>
+    <RootNamespace>MerkleTree</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -127,11 +127,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="BloomFilter.h" />
+    <ClInclude Include="MerkleTree.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BloomFilter.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MerkleTree.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
