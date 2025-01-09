@@ -61,7 +61,6 @@ BloomFilter::BloomFilter(unsigned int n, double falsePositiveRate) {
 	}
 }
 
-};
 
 bool BloomFilter::possiblyContains(const string& elem) const {
 	// Proveravamo da li je element u skupu
