@@ -1,4 +1,3 @@
-﻿
 #include "MerkleTree.h"
 #include <stdexcept> // Za izuzetke
 #include <openssl/sha.h> // OpenSSL za SHA256 heširanje
@@ -19,12 +18,11 @@ MerkleTree::MerkleTree(const std::vector<std::string>& data) {
     rootHash = buildTree(leaves);
 }
 
-
 std::string MerkleTree::getRootHash() const {
 	return rootHash;
 }
 
-std::string MerkleTree::hash(const std::string& data){
+std::string MerkleTree::hash(const std::string& data) {
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256(reinterpret_cast<const unsigned char*>(data.c_str()), data.size(), hash);
 
@@ -57,7 +55,6 @@ std::string MerkleTree::buildTree(const std::vector<std::string>& hashes) {
 
     return currentLevel->front();
 }
-
 
 std::vector<std::pair<std::string, bool>> MerkleTree::generateProof(const std::string& data) const {
     std::vector<std::pair<std::string, bool>> proof;
