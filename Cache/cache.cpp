@@ -96,7 +96,7 @@ void Cache::add_node(Node* n) {
 			head->block = n->block;
 			return;
 		}
-
+    
 		Node* exit = head;
 		while (exit != nullptr) {
 			if (exit->block.key == n->block.key) {
@@ -121,7 +121,7 @@ void Cache::add_node(Node* n) {
 		n->next = nullptr;
 		head->next = n;
 		head = n;
-
+    
 		return;
 	}
 	//adding to map
@@ -156,7 +156,7 @@ void Cache::add_node(Node* n) {
 
 }
 
-bool Cache::get_block(const composite_key key, Block& b) {
+bool Cache::get_block(const composite_key key, Block& b){
 	Block* temp = new Block();
 
 	if (blocks.find(key) != blocks.end()) {

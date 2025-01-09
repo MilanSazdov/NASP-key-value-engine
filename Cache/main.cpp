@@ -37,16 +37,16 @@ void testing() {
 
 	c.print_cache();
 
+	
+}
+
+int main() {
+	testing();
 	nadji(make_pair(1, "a"));
 	nadji(make_pair(2, "b"));
 	nadji(make_pair(3, "c"));
 	nadji(make_pair(4, "ffa"));
 	nadji(make_pair(5, "egh"));
-}
-
-int main() {
-	testing();
-	
 	cout << "Cache ok\n";
 	return 0;
 }

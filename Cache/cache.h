@@ -9,6 +9,7 @@ typedef pair<int, string> composite_key;
 const int block_size = 100;	    //in bytes
 const int cache_size = 5;		//in blocks
 const std::byte padding_character = (std::byte)'0';
+const int int_padding_character = (int)'0';
 
 struct Block {
 	composite_key key;
@@ -26,7 +27,7 @@ struct Block {
 	Block& operator=(const Block& other);	//asignment operator (deep copy)
 };
 
-struct Node {
+struct Node{
 	Block block;
 	Node* next;
 	Node* prev;
