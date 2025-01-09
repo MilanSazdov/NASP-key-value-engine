@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{696a9cf6-8afa-4d64-bf62-878d6b29c179}</ProjectGuid>
-    <RootNamespace>SkipList</RootNamespace>
+    <ProjectGuid>{98da3a64-2fbb-44dd-8f1a-e53990fc8985}</ProjectGuid>
+    <RootNamespace>SSTable</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -44,7 +44,6 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
-    <LanguageStandard>stdcpp17</LanguageStandard>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -71,6 +70,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>C:\Users\milan\OneDrive\Desktop\NASP Projekat\BloomFilter;C:\Users\milan\OneDrive\Desktop\NASP Projekat\Memtable;C:\Users\milan\OneDrive\Desktop\NASP Projekat\MerkleTree;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -129,11 +131,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="SkipList.h" />
+    <ClInclude Include="SSTable.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="SkipList.cpp" />
+    <ProjectReference Include="..\BloomFilter\BloomFilter.vcxproj">
+      <Project>{c925acb9-baa1-45e2-b9b9-7119c12f3540}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Memtable\Memtable.vcxproj">
+      <Project>{c45940cd-1736-4b0a-8801-edb702e39602}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\MerkleTree\MerkleTree.vcxproj">
+      <Project>{8d9bd6ce-9ff7-4514-91c8-da81f2a162e4}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="SSTable.cpp" />
+    <ClCompile Include="SSTableTest.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

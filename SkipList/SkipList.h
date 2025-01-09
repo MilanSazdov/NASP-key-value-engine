@@ -12,11 +12,10 @@ class SkipList {
 
 private:
     struct Node {
-
         string key;
         string value;
         bool tombstone;
-		uint64_t timestamp; // vreme poslednje izmene
+        uint64_t timestamp; // vreme poslednje izmene
         // forward[i] ukazuje na cvor u nivou i
         vector<Node*> forward;
 
@@ -38,7 +37,6 @@ private:
     mt19937_64 rng;
     uniform_real_distribution<double> dist;
 
-
 public:
     // Konstruktor prima maksimalan broj nivoa i vjerovatnocu za visinu
     // novih cvorova. maxLevels = maksimalni nivoi, p = vjerovatnoca povecanja nivoa (obicno 0.5)
@@ -55,12 +53,11 @@ public:
     // Pronalazenje value po key. Ako ne postoji, vraca NULL
     optional<string> get(const string& key) const;
 
-	// Vraca cvor s datim kljucem (ako postoji)
-	Node* getNode(const string& key) const;
+    // Vraca cvor s datim kljucem (ako postoji)
+    Node* getNode(const string& key) const;
 
     // Vraca velicinu (broj elemenata)
     size_t Size() const { return size; }
 
-	vector<pair<string, string>> getAllKeyValuePairs() const;
+    vector<pair<string, string>> getAllKeyValuePairs() const;
 };
-

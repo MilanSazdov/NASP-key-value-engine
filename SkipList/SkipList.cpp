@@ -2,7 +2,6 @@
 #include <limits>
 #include <iostream>
 
-
 SkipList::SkipList(int maxLevels, double p)
     : maxLevels(maxLevels),
     p(p),
@@ -15,7 +14,6 @@ SkipList::SkipList(int maxLevels, double p)
     // On nece imati valjan key/value, sluzi kao pocetna tacka
     head = new Node("", "", false, 0, maxLevels);
 }
-
 
 SkipList::~SkipList() {
     Node* current = head;
@@ -132,12 +130,11 @@ SkipList::Node* SkipList::getNode(const std::string& key) const {
 }
 
 vector<pair<string, string>> SkipList::getAllKeyValuePairs() const {
-	vector<pair<string, string>> result;
-	Node* current = head->forward[0];
-	while (current != nullptr) {
-		result.push_back({ current->key, current->value });
-		current = current->forward[0];
-	}
-	return result;
+    vector<pair<string, string>> result;
+    Node* current = head->forward[0];
+    while (current != nullptr) {
+        result.push_back({ current->key, current->value });
+        current = current->forward[0];
+    }
+    return result;
 }
-
