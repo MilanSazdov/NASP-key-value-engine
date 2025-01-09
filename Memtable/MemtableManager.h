@@ -5,7 +5,7 @@
 #include <string>
 #include <optional>
 #include "IMemtable.h"
-#include "../SSTable/SSTManager.h"
+#include "SSTManager.h"
 
 class MemtableManager {
 public:
@@ -13,8 +13,8 @@ public:
      * @param type tip Memtable ("hash", "skiplist", "btree")
      * @param N maksimalan broj memtable instanci u memoriji
      * @param maxSizePerTable koliko elemenata moze stati u svaku memtable
-     * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./". 
-     */
+     * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./".
+     **/
     MemtableManager(const std::string& type,
         size_t N,
         size_t maxSizePerTable,
@@ -36,15 +36,15 @@ public:
 
     // Kad zelimo rucno flush (npr. gasenje programa),
     // ili ako se popune sve N memtables
-    void flushAll() const;
+    void flushAll();
 
 private:
     std::string type_;   // sacuvamo koji tip je korisnik izabrao
     size_t N_;           // max broj memtable
     size_t maxSize_;     // max broj elemenata u svakoj
-    
+
     SSTManager sstManager;
-    
+
     // N instanci memtable
     std::vector<std::unique_ptr<IMemtable>> memtables_;
 
@@ -57,3 +57,4 @@ private:
     // Ako se aktivna memtable popuni, prelazimo na novu
     void switchToNewMemtable();
 };
+

@@ -2,14 +2,15 @@
 
 #include <string>
 #include <optional>
-#include "../Wal/wal.h"
+#include "wal.h"
+#include <vector>
 
 using namespace std;
 
 /**
  * Struktura koja enkapsulira sve sto cuvamo u memtable-u.
  * (key, value, tombstone, timestamp)
- * 
+ *
 */
 
 struct MemtableEntry {
@@ -21,7 +22,7 @@ struct MemtableEntry {
 	bool operator<(const MemtableEntry& other) const {
 		return key < other.key;
 	}
-};;
+};
 
 class IMemtable {
 
@@ -39,7 +40,7 @@ public:
 	virtual void loadFromWal(const string& walFilePath) = 0;
 
 	// Ova funkcija mi vraca sve rekorde iz svih wal (segmenata) fajlova
-	virtual void loadFromRecords(const vector<Record>& records) = 0;
+	// virtual void loadFromRecords(const vector<Record>& records) = 0;
 
 	// Za Flush - uzimamo sve key, value parove iz memtable-a (mozemo ih i sortirati)
 	// virtual vector<pair<string, string>> getAllKeyValuePairs() const = 0;

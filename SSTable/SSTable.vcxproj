@@ -71,7 +71,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\milan\OneDrive\Desktop\NASP Projekat\BloomFilter;C:\Users\milan\OneDrive\Desktop\NASP Projekat\Memtable;C:\Users\milan\OneDrive\Desktop\NASP Projekat\MerkleTree;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\milan\OneDrive\Desktop\NASP Projekat - Copy\BloomFilter;C:\Users\milan\OneDrive\Desktop\NASP Projekat - Copy\Memtable;C:\Users\milan\OneDrive\Desktop\NASP Projekat - Copy\MerkleTree;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -79,10 +79,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Wal;$(ProjectDir)..\block-manager;$(ProjectDir)..\Cache;$(ProjectDir)..\BloomFilter;C:\Program Files\OpenSSL-Win64\include;$(ProjectDir)..\MerkleTree</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\Wal\x64\Debug\wal.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -93,12 +95,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Wal;$(ProjectDir)..\block-manager;$(ProjectDir)..\Cache;$(ProjectDir)..\BloomFilter;C:\Program Files\OpenSSL-Win64\include;$(ProjectDir)..\MerkleTree</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\Wal\x64\Debug\wal.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -108,10 +112,12 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Wal;$(ProjectDir)..\block-manager;$(ProjectDir)..\Cache;$(ProjectDir)..\BloomFilter;C:\Program Files\OpenSSL-Win64\include;$(ProjectDir)..\MerkleTree</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\Wal\x64\Debug\wal.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -122,31 +128,32 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Wal;$(ProjectDir)..\block-manager;$(ProjectDir)..\Cache;$(ProjectDir)..\BloomFilter;C:\Program Files\OpenSSL-Win64\include;$(ProjectDir)..\MerkleTree</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\Wal\x64\Debug\wal.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="SSTable.h" />
+    <ClInclude Include="SSTManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BloomFilter\BloomFilter.vcxproj">
       <Project>{c925acb9-baa1-45e2-b9b9-7119c12f3540}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\Memtable\Memtable.vcxproj">
-      <Project>{c45940cd-1736-4b0a-8801-edb702e39602}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\MerkleTree\MerkleTree.vcxproj">
-      <Project>{8d9bd6ce-9ff7-4514-91c8-da81f2a162e4}</Project>
+    <ProjectReference Include="..\Wal\Wal.vcxproj">
+      <Project>{22cd70c5-c8ce-4905-9700-acc6de081255}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SSTable.cpp" />
     <ClCompile Include="SSTableTest.cpp" />
+    <ClCompile Include="SSTManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

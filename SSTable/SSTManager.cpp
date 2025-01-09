@@ -1,22 +1,21 @@
-﻿#include "SSTManager.h"
-#include <filesystem>
+﻿#include <filesystem>
 #include <fstream>
 #include <iostream>
-
+#include "SSTManager.h"
 #include "SSTable.h"
-#include "../BloomFilter/BloomFilter.h"
+#include "BloomFilter.h"
 
 namespace fs = std::filesystem;
 
 std::string SSTManager::get(const std::string& key) const
 {
-    vector<Record> matches;
-    
+    std::vector<Record> matches;
+
     for (const auto& entry : fs::directory_iterator(directory))
     {
         if (entry.is_regular_file()) {
             std::string filename = entry.path().filename().string();
-            
+
             // Prolazimo kroz sve filter fajlove
             if (filename.rfind("filter", 0) == 0) {
 
@@ -32,7 +31,7 @@ std::string SSTManager::get(const std::string& key) const
 
                 file.read(reinterpret_cast<char*>(fileData.data()), fileSize);
 
-                
+
                 BloomFilter bloom = BloomFilter::deserialize(fileData);
 
                 if (bloom.possiblyContains(key)) {
@@ -45,17 +44,18 @@ std::string SSTManager::get(const std::string& key) const
                     }
 
                     std::string numStr = filename.substr(underscorePos + 1, dotPos - underscorePos - 1);
-                    std::string ending = numStr+".sst";
-                    
-                    SSTable sst((directory + "sstable_"+ending),
-                        (directory + "index_"+ending),
-                        (directory + "filter_"+ending),
-                        (directory + "summary_"+ending),
-                        (directory + "meta_"+ending));
+                    std::string ending = numStr + ".sst";
+
+                    SSTable sst((directory + "sstable_" + ending),
+                        (directory + "index_" + ending),
+                        (directory + "filter_" + ending),
+                        (directory + "summary_" + ending),
+                        (directory + "meta_" + ending));
 
                     //Sve recorde sa odgovarajucim key-em stavljamo u vektor
-                    vector<Record> found = sst.get(key);
-                    matches.insert(matches.end(), found.begin(), found.end());                }
+                    std::vector<Record> found = sst.get(key);
+                    matches.insert(matches.end(), found.begin(), found.end());
+                }
             }
         }
     }
@@ -63,20 +63,20 @@ std::string SSTManager::get(const std::string& key) const
     Record rMax;
     ull tsMax = 0;
 
-    for(Record r : matches)
+    for (Record r : matches)
     {
-        if(r.timestamp > tsMax)
+        if (r.timestamp > tsMax)
         {
             tsMax = r.timestamp;
             rMax = r;
         }
     }
 
-    if(static_cast<int>(rMax.tombstone) == 1 || tsMax == 0)
+    if (static_cast<int>(rMax.tombstone) == 1 || tsMax == 0)
     {
         return "";
     }
-    
+
     return rMax.value;
 }
 
@@ -84,13 +84,13 @@ void SSTManager::write(const std::vector<Record>& sortedRecords) const
 {
     int num = findNextIndex();
     std::string numStr = to_string(num);
-    std::string ending = numStr+".sst";
+    std::string ending = numStr + ".sst";
 
-    SSTable sst(("sstable_"+ending),
-        ("index_"+ending),
-        ("filter_"+ending),
-        ("summary_"+ending),
-        ("meta_"+ending));
+    SSTable sst(("sstable_" + ending),
+        ("index_" + ending),
+        ("filter_" + ending),
+        ("summary_" + ending),
+        ("meta_" + ending));
 
     sst.build(sortedRecords);
 }

@@ -1,5 +1,4 @@
 ﻿#include "SSTable.h"
-#include <iostream>
 
 static const size_t SPARSITY = 64;
 
@@ -7,12 +6,14 @@ SSTable::SSTable(const std::string& dataFile,
     const std::string& indexFile,
     const std::string& filterFile,
     const std::string& summaryFile,
-    const std::string& metaFile)
-    : dataFile_(dataFile),
-      indexFile_(indexFile),
-      filterFile_(filterFile),
-      summaryFile_(summaryFile),
-      metaFile_(metaFile) {}
+    const std::string& metaFile): 
+    dataFile_(dataFile),
+    indexFile_(indexFile),
+    filterFile_(filterFile),
+    summaryFile_(summaryFile),
+    metaFile_(metaFile)
+{
+}
 
 void SSTable::build(const std::vector<Record>& records)
 {
@@ -24,13 +25,13 @@ void SSTable::build(const std::vector<Record>& records)
     index_ = writeDataMetaFiles(records);
 
     BloomFilter bf(records.size(), 0.01); // TODO: Config
-    for (auto& r : records) {
+    for (const auto& r : records) {
         bf.add(r.key);
     }
     bloom_ = bf;
 
     // Index u fajl
-    vector<IndexEntry> summaryAll = writeIndexToFile();
+    std::vector<IndexEntry> summaryAll = writeIndexToFile();
 
     summary_.summary.reserve(summaryAll.size() / SPARSITY + 1);
 
@@ -38,8 +39,7 @@ void SSTable::build(const std::vector<Record>& records)
         summary_.summary.push_back(summaryAll[i]);
     }
     if (!summaryAll.empty() &&
-        ((summaryAll.size() - 1) % SPARSITY) != 0)
-    {
+        ((summaryAll.size() - 1) % SPARSITY) != 0) {
         summary_.summary.push_back(summaryAll.back());
     }
 
@@ -64,6 +64,7 @@ void SSTable::build(const std::vector<Record>& records)
         << " zapisa u " << dataFile_ << ".\n";
 }
 
+
 // Funkcija NE PROVERAVA bloomfilter, pretpostavlja da je vec provereno
 vector<Record> SSTable::get(const std::string& key)
 {
@@ -73,7 +74,7 @@ vector<Record> SSTable::get(const std::string& key)
     // 3) binarna pretraga -> offset
     bool found;
     uint64_t startOffset = findDataOffset(key, found);
-    if(!found)
+    if (!found)
     {
         return matches;
     }
@@ -81,7 +82,7 @@ vector<Record> SSTable::get(const std::string& key)
     // 4) Otvorimo dataFile, idemo od startOffset redom
     std::ifstream in(dataFile_, std::ios::binary);
     if (!in.is_open()) {
-        cerr<<"[SSTable] get: Problem sa ucitavanjem fajla" << endl;
+        std::cerr << "[SSTable] get: Problem sa ucitavanjem fajla" << std::endl;
         return matches;
     }
     in.seekg(startOffset, std::ios::beg);
@@ -89,22 +90,22 @@ vector<Record> SSTable::get(const std::string& key)
 
     while (true) {
         // citamo polja Record-a
-        uint32_t crc;
+        uint32_t crc = 0;
         if (!in.read(reinterpret_cast<char*>(&crc), sizeof(crc))) break;
 
         char flag;
         if (!in.read(reinterpret_cast<char*>(&flag), sizeof(flag))) break;
 
-        uint64_t ts;
+        uint64_t ts = 0;
         if (!in.read(reinterpret_cast<char*>(&ts), sizeof(ts))) break;
 
         char tomb;
         if (!in.read(reinterpret_cast<char*>(&tomb), sizeof(tomb))) break;
 
-        uint64_t kSize;
+        uint64_t kSize = 0;
         if (!in.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
 
-        uint64_t vSize;
+        uint64_t vSize = 0;
         if (!in.read(reinterpret_cast<char*>(&vSize), sizeof(vSize))) break;
 
         std::string rkey(kSize, '\0');
@@ -112,7 +113,7 @@ vector<Record> SSTable::get(const std::string& key)
 
         std::string rvalue(vSize, '\0');
         if (!in.read(&rvalue[0], vSize)) break;
-        
+
 
         if (rkey == key) {
             Record r;
@@ -144,7 +145,7 @@ SSTable::range_scan(const std::string& startKey, const std::string& endKey)
     readBloomFromFile();
     readIndexFromFile();
 
-    // pocetni offset 
+    // pocetni offset
     uint64_t offset = findDataOffset(startKey);
 
     std::ifstream in(dataFile_, std::ios::binary);
@@ -183,7 +184,7 @@ SSTable::range_scan(const std::string& startKey, const std::string& endKey)
     return result;
 }
 */
-
+// TODO: Da se koristi Merkle Tree
 string SSTable::buildMerkleTree(const vector<string>& leaves)
 {
     tree.clear();
@@ -197,9 +198,9 @@ string SSTable::buildMerkleTree(const vector<string>& leaves)
         for (size_t i = 0; i < currentLevel.size(); i += 2) {
             std::string left = currentLevel[i];
             std::string right = (i + 1 < currentLevel.size()) ? currentLevel[i + 1] : left;
-            
-            nextLevel.push_back(std::to_string(hasher(left+right)));
-            tree.push_back(std::to_string(hasher(left+right)));
+
+            nextLevel.push_back(std::to_string(hasher(left + right)));
+            tree.push_back(std::to_string(hasher(left + right)));
 
         }
         currentLevel = nextLevel;
@@ -213,7 +214,7 @@ SSTable::writeDataMetaFiles(const std::vector<Record>& sortedRecords) const
 {
     std::vector<IndexEntry> ret;
     ret.reserve(sortedRecords.size());
-    
+
     std::ofstream out(dataFile_, std::ios::binary | std::ios::out);
     if (!out.is_open()) {
         throw std::runtime_error("Ne mogu otvoriti " + dataFile_);
@@ -259,12 +260,12 @@ SSTable::writeDataMetaFiles(const std::vector<Record>& sortedRecords) const
 std::vector<IndexEntry> SSTable::writeIndexToFile()
 {
     std::vector<IndexEntry> ret;
-    
+
     std::ofstream idx(indexFile_, std::ios::binary | std::ios::out);
     if (!idx.is_open()) {
         throw std::runtime_error("Ne mogu otvoriti " + indexFile_);
     }
-    
+
     uint64_t count = index_.size();
     idx.write(reinterpret_cast<char*>(&count), sizeof(count));
 
@@ -275,7 +276,7 @@ std::vector<IndexEntry> SSTable::writeIndexToFile()
         summEntry.key = ie.key;
         summEntry.offset = offset;
         ret.push_back(summEntry);
-        
+
         uint64_t kSize = ie.key.size();
         idx.write(reinterpret_cast<char*>(&kSize), sizeof(kSize));
         idx.write(ie.key.data(), kSize);
@@ -289,7 +290,7 @@ std::vector<IndexEntry> SSTable::writeIndexToFile()
 
 void SSTable::writeSummaryToFile()
 {
-    
+
     std::ofstream idx(summaryFile_, std::ios::binary | std::ios::out);
     if (!idx.is_open()) {
         throw std::runtime_error("Ne mogu otvoriti " + summaryFile_);
@@ -302,7 +303,7 @@ void SSTable::writeSummaryToFile()
     uint64_t maxKeyLength = summary_.max.size();
     idx.write(reinterpret_cast<char*>(&maxKeyLength), sizeof(maxKeyLength));
     idx.write(summary_.max.data(), maxKeyLength);
-    
+
     uint64_t count = summary_.summary.size();
     idx.write(reinterpret_cast<char*>(&count), sizeof(count));
 
@@ -323,7 +324,7 @@ void SSTable::writeMetaToFile() const
 {
     std::ofstream metaFile(metaFile_, std::ios::binary | std::ios::out);
     if (!metaFile.is_open()) {
-        cerr << "[SSTable] writeMetaToFile: Ne mogu da ucitam fajl " + metaFile_ << endl;
+        std::cerr << "[SSTable] writeMetaToFile: Ne mogu da ucitam fajl " + metaFile_ << std::endl;
         return;
     }
 
@@ -332,26 +333,26 @@ void SSTable::writeMetaToFile() const
 
     for (const auto& hashStr : tree) {
         if (hashStr.size() != sizeof(uint64_t)) {
-            cerr << "[SSTable] writeMetaToFile: Ocekuju se vrednosti duzine 8 byte, a duzina hash-a je " + to_string(hashStr.size()) + " bajtova." << endl;
+            std::cerr << "[SSTable] writeMetaToFile: Ocekuju se vrednosti duzine 8 byte, a duzina hash-a je " + to_string(hashStr.size()) + " bajtova." << std::endl;
             return;
         }
         metaFile.write(hashStr.data(), sizeof(uint64_t));
     }
 
-    metaFile.close();    
+    metaFile.close();
 }
 
 void SSTable::readMetaFromFile()
 {
     std::ifstream metaFile(metaFile_, std::ios::binary | std::ios::in);
     if (!metaFile.is_open()) {
-        cerr << "[SSTable] readMetaFromFile: Ne mogu da ucitam fajl " + metaFile_ << endl;
+        std::cerr << "[SSTable] readMetaFromFile: Ne mogu da ucitam fajl " + metaFile_ << std::endl;
         return;
     }
 
-    uint64_t treeSize;
+    uint64_t treeSize = 0;
     if (!metaFile.read(reinterpret_cast<char*>(&treeSize), sizeof(treeSize))) {
-        cerr << "[SSTable] writeMetaToFile: Ne mogu da ucitam duzinu stabla" << endl;
+        std::cerr << "[SSTable] writeMetaToFile: Ne mogu da ucitam duzinu stabla" << std::endl;
         return;
     }
 
@@ -361,7 +362,7 @@ void SSTable::readMetaFromFile()
     for (uint64_t i = 0; i < treeSize; ++i) {
         char hashBuffer[sizeof(uint64_t)];
         if (!metaFile.read(hashBuffer, sizeof(uint64_t))) {
-            cerr << "[SSTable] writeMetaToFile: Ne mogu da ucitam hash" << endl;
+            std::cerr << "[SSTable] writeMetaToFile: Ne mogu da ucitam hash" << std::endl;
             return;
         }
         tree.emplace_back(hashBuffer, sizeof(uint64_t));
@@ -387,12 +388,12 @@ void SSTable::readIndexFromFile()
     }
     index_.reserve(count);
     for (uint64_t i = 0; i < count; i++) {
-        uint64_t kSize;
+        uint64_t kSize = 0;
         if (!idx.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
         std::string kbuf(kSize, '\0');
         if (!idx.read(&kbuf[0], kSize)) break;
 
-        uint64_t off;
+        uint64_t off = 0;
         if (!idx.read(reinterpret_cast<char*>(&off), sizeof(off))) break;
 
         IndexEntry ie;
@@ -445,7 +446,7 @@ void SSTable::readSummaryFromFile()
         return;
     }
 
-    uint64_t minKeyLength;
+    uint64_t minKeyLength = 0;
     if (!idx.read(reinterpret_cast<char*>(&minKeyLength), sizeof(minKeyLength))) {
         return;
     }
@@ -454,7 +455,7 @@ void SSTable::readSummaryFromFile()
         return;
     }
 
-    uint64_t maxKeyLength;
+    uint64_t maxKeyLength = 0;
     if (!idx.read(reinterpret_cast<char*>(&maxKeyLength), sizeof(maxKeyLength))) {
         return;
     }
@@ -463,23 +464,23 @@ void SSTable::readSummaryFromFile()
         return;
     }
 
-    uint64_t count;
+    uint64_t count = 0;
     if (!idx.read(reinterpret_cast<char*>(&count), sizeof(count))) {
         return;
     }
 
     summary_.summary.reserve(count);
     for (uint64_t i = 0; i < count; ++i) {
-        uint64_t kSize;
+        uint64_t kSize = 0;
         if (!idx.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
 
         std::string key(kSize, '\0');
         if (!idx.read(key.data(), kSize)) break;
 
-        uint64_t offset;
+        uint64_t offset = 0;
         if (!idx.read(reinterpret_cast<char*>(&offset), sizeof(offset))) break;
 
-        summary_.summary.push_back({key, offset});
+        summary_.summary.push_back({ key, offset });
     }
 
     idx.close();
@@ -489,11 +490,11 @@ uint64_t SSTable::findDataOffset(const std::string& key, bool& found) const
 {
     //TODO: Block manager
     if (key < summary_.min) {
-        found=false;
+        found = false;
         return 0ULL;
     }
     if (key > summary_.max) {
-        found=false;
+        found = false;
         return 0ULL;
     }
 
@@ -506,7 +507,8 @@ uint64_t SSTable::findDataOffset(const std::string& key, bool& found) const
         if (summary_.summary[mid].key <= key) {
             ans = mid;
             left = mid + 1;
-        } else {
+        }
+        else {
             right = mid - 1;
         }
     }
@@ -515,30 +517,30 @@ uint64_t SSTable::findDataOffset(const std::string& key, bool& found) const
 
     std::ifstream in(indexFile_, std::ios::binary);
     if (!in.is_open()) {
-        cerr<<"[SSTable] findOffset: Problem sa ucitavanjem fajla " + indexFile_ << endl;
+        std::cerr << "[SSTable] findOffset: Problem sa ucitavanjem fajla " + indexFile_ << std::endl;
         found = false;
         return 0ULL;
     }
     in.seekg(offset, std::ios::beg);
 
     while (true) {
-        uint64_t kSize;
+        uint64_t kSize = 0;
         if (!in.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
         std::string rkey(kSize, '\0');
         if (!in.read(&rkey[0], kSize)) break;
 
-        uint64_t off;
+        uint64_t off = 0;
         if (!in.read(reinterpret_cast<char*>(&off), sizeof(off))) break;
 
         if (rkey == key) {
-            found=true;
+            found = true;
             return off;
         }
         if (rkey > key) {
-            found=false;
+            found = false;
             return 0ULL;
         }
     }
-    found=false;
+    found = false;
     return 0ULL;
 }

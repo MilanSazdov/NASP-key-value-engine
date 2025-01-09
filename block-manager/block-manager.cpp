@@ -126,7 +126,7 @@ vector<char> Block_manager::read_data(string file_name) {
 		Block b = read_block(id, file_name, error);
 		if (error) break;
 		for (int i = 0; i < block_size; i++)
-			ret.push_back((int)b[i]);
+			ret.push_back((char)b[i]);
 		id++;
 	}
 

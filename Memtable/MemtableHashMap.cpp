@@ -1,28 +1,24 @@
-﻿#include "MemtableHashMap.h"
-
-#include <algorithm>
-#include <fstream>
+﻿#include <fstream>
+#include <optional>
+#include <string>
+#include <vector>
+#include <algorithm> // Za sort
 #include <iostream>
-#include "../Wal/wal.h"  // zbog Record strukture (ako treba)
+#include "MemtableHashMap.h"
 
-using namespace std;
 
 MemtableHashMap::MemtableHashMap()
     : maxSize(1000) // default TODO: Citanje iz config
-{
-}
+{}
 
 // put => upis (key, value), tombstone= false, timestamp = currentTime
 void MemtableHashMap::put(const string& key, const string& value) {
     // Ako smo premašili maxSize, a ključ ne postoji, nećemo ubaciti (ili flush?)
     if (table_.size() >= maxSize && table_.find(key) == table_.end()) {
-        cerr << "[MemtableHashMap] Max size reached, cannot insert new key: " << key << "\n";
+        std::cerr << "[MemtableHashMap] Max size reached, cannot insert new key: " << key << "\n";
         return;
     }
-    Entry e;
-    e.value = value;
-    e.tombstone = false;
-    e.timestamp = currentTime();  // ili nešto drugo
+    Entry e{ value, false, currentTime() };
     table_[key] = e;
 }
 
@@ -30,22 +26,16 @@ void MemtableHashMap::put(const string& key, const string& value) {
 
 
 // remove => postavimo tombstone = true, value = ""
-void MemtableHashMap::remove(const string& key) {
+void MemtableHashMap::remove(const std::string& key) {
     auto it = table_.find(key);
-
     // Kljuc ne postoji, provera da li mozemo da ga insertujemo
-    if (it == table_.end()) {
-        if (table_.size() >= maxSize && table_.find(key) == table_.end()) {
-            cerr << "[MemtableHashMap] Max size reached, cannot insert new key: " << key << "\n";
-            return;
-        }
+    if (it == table_.end() && table_.size() >= maxSize) {
+        std::cerr << "[MemtableHashMap] Max size reached, cannot insert new key: " << key << "\n";
+        return;
     }
 
     // Kljuc postoji, ili ima mesta da ga dodamo. Gazimo stari entry / upisujemo novi
-    Entry e;
-    e.value = "";
-    e.tombstone = true;
-    e.timestamp = currentTime();
+    Entry e{ "", true, currentTime() };
     table_[key] = e;
 }
 
@@ -96,9 +86,10 @@ void MemtableHashMap::loadFromWal(const string& wal_file) {
 
 // loadFromWal (vector<Record>) => punimo memtable 
 // ako record.tombstone == 1 => remove, else => put
+/*
 void MemtableHashMap::loadFromRecords(const vector<Record>& records) {
     for (const auto& r : records) {
-        if (static_cast<int>(r.tombstone) == 1){
+        if (static_cast<int>(r.tombstone) == 1) {
             // remove
             Entry e;
             e.value = "";
@@ -116,7 +107,7 @@ void MemtableHashMap::loadFromRecords(const vector<Record>& records) {
         }
     }
 }
-
+*/
 // getAllKeyValuePairs => samo (key, value) za one koji nisu tombstone
 /*
 vector<pair<string, string>> MemtableHashMap::getAllKeyValuePairs() const {

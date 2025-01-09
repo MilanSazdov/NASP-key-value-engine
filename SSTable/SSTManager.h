@@ -1,15 +1,15 @@
 ﻿#pragma once
+
 #include <string>
 #include <vector>
 #include <filesystem>
-
-#include "../Wal/wal.h"
+#include "wal.h"
 
 class SSTManager
 {
     std::string directory;
     // Format imena: filter_x.sst, summary_x.sst, index_x.sst, sstable_x.sst, meta_x.sst   
-    
+
     int findNextIndex() const
     {
         int freeIndex = 0;
@@ -22,12 +22,12 @@ class SSTManager
             ++freeIndex;
         }
     }
-        
+
 public:
-    
+
     SSTManager(const std::string& directory)
-    : directory(directory) {}
-    
+        : directory(directory) {}
+
     std::string get(const std::string& key) const;
     void write(const std::vector<Record>& sortedRecords) const;
 };

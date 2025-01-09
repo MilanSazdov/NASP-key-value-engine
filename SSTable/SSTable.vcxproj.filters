@@ -18,12 +18,18 @@
     <ClInclude Include="SSTable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SSTManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SSTable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SSTableTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SSTManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

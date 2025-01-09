@@ -10,19 +10,26 @@ MemtableSkipList::MemtableSkipList()
 
 void MemtableSkipList::put(const std::string& key, const std::string& value) {
     // Ako je dostignuta max velicina a kljuc nije vec prisutan, ne mozemo dodati novi par
+	uint64_t timestamp = currentTime();
     if (skiplist_.Size() >= maxSize_ && !skiplist_.get(key).has_value()) {
         std::cerr << "[MemtableSkipList] Dostignut maxSize, ne moze se ubaciti novi kljuc: " << key << "\n";
         return;
     }
-    skiplist_.insert(key, value);
+    skiplist_.insert(key, value, false, timestamp);
 }
 
 void MemtableSkipList::remove(const std::string& key) {
-    skiplist_.remove(key);
+    uint64_t timestamp = currentTime();
+    skiplist_.insert(key, "", true, timestamp);  // Prazan value, tombstone postavljen na true
 }
 
+// NOVO: Koristi novu metodu getNode iz SkipList-e 
 std::optional<std::string> MemtableSkipList::get(const std::string& key) const {
-    return skiplist_.get(key);
+    auto node = skiplist_.getNode(key); // Koristi novu metodu getNode iz SkipList-a
+    if (node && !node->tombstone) {
+        return node->value;
+    }
+    return std::nullopt;
 }
 
 size_t MemtableSkipList::size() const {
@@ -54,6 +61,20 @@ void MemtableSkipList::loadFromWal(const std::string& wal_file) {
     file.close();
 }
 
-std::vector<std::pair<std::string, std::string>> MemtableSkipList::getAllKeyValuePairs() const {
-	return skiplist_.getAllKeyValuePairs();
+std::vector<MemtableEntry> MemtableSkipList::getAllMemtableEntries() const {
+    std::vector<MemtableEntry> entries;
+    auto pairs = skiplist_.getAllKeyValuePairs();
+    for (const auto& [key, value] : pairs) {
+        auto node = skiplist_.getNode(key);
+        if (node) {
+            entries.push_back({ node->key, node->value, node->tombstone, node->timestamp });
+        }
+    }
+    return entries;
 }
+
+/*
+std::vector<std::pair<std::string, std::string>> MemtableSkipList::getAllKeyValuePairs() const {
+    return skiplist_.getAllKeyValuePairs();
+}
+*/

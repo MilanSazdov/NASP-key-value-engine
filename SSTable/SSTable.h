@@ -1,16 +1,15 @@
 ﻿#pragma once
-
 #include <string>
 #include <vector>
 #include <fstream>
 #include <cstdint>
 #include <algorithm>
 #include <stdexcept>
+#include <iostream>
+#include <openssl/sha.h> // OpenSSL za SHA256 heširanje
 
-// Uvozimo 'Record' iz wal.h
-#include "../Wal/wal.h"
-// Uvozimo BloomFilter
-#include "../BloomFilter/BloomFilter.h"
+#include "wal.h"
+#include "BloomFilter.h"
 
 /**
  * Struktura za indeks: (key, offset),
@@ -21,14 +20,13 @@ struct IndexEntry {
     uint64_t offset;
 };
 
-struct Summary
-{
+struct Summary{
     std::vector<IndexEntry> summary;
-    string min;
-    string max;
+    std::string min;
+    std::string max;
 };
 
-class     SSTable {
+class SSTable {
 public:
     /**
      * Konstruktor prima putanje do tri fajla:
@@ -36,7 +34,8 @@ public:
      *  - indexFile (npr. "index.sst")
      *  - filterFile (npr. "filter.sst")
      */
-    SSTable(const std::string& dataFile,
+    SSTable(
+        const std::string& dataFile,
         const std::string& indexFile,
         const std::string& filterFile,
         const std::string& summaryFile,
@@ -61,17 +60,17 @@ public:
      *   - ako kaze "mozda ima", binarno pretrazi index, pa cita data fajl
      *     dok ne nadje key ili ga ne predje (data fajl je sortiran)
      */
-    vector<Record> get(const std::string& key);
+    std::vector<Record> get(const std::string& key);
 
     /**
      * (Opciono) range_scan(startKey, endKey):
      *    vraca sve (key,value) koji su izmedju startKey i endKey
-     */
+     
     std::vector<std::pair<std::string, std::string>>
         range_scan(const std::string& startKey, const std::string& endKey);
-
+     */
 private:
-    // putanje do tri fajla
+    // putanje do fajlova
     std::string dataFile_;
     std::string indexFile_;
     std::string filterFile_;
@@ -84,9 +83,9 @@ private:
     BloomFilter bloom_;
 
     std::vector<std::string> tree;
-    string rootHash;
+    std::string rootHash;
 
-    string buildMerkleTree(const vector<string>& leaves);
+    std::string buildMerkleTree(const std::vector<std::string>& leaves);
 
     // ----- pomoćne metode -----
 

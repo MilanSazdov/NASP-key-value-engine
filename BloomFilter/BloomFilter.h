@@ -4,27 +4,27 @@
 #include <string>
 #include <cmath>
 #include <functional>
-#include <bitset>
 #include <ctime>
-#include <iostream>
+#include <cstring> // For memcpy
+#include <stdexcept>
+#include <random>
 
 using namespace std;
 
-class BloomFilter
-{
+class BloomFilter {
 private:
     unsigned int m; // Size of the bit set/array
     unsigned int k; // Number of hash functions
-    double p; // false - positive probability
+    double p;       // False-positive probability
     vector<bool> bitSet; // Bit set/array
     vector<function<size_t(const string&)>> hashFunctions; // Hash functions
     unsigned int timeConst; // Seed for generating hash functions
-    size_t h2_seed; // Seed for the second hash function 
+    size_t h2_seed;         // Seed for the second hash function
 
 public:
-
-    BloomFilter(unsigned int n, double falsePositiveRate);
+    // Constructor
     BloomFilter();
+    BloomFilter(unsigned int n, double falsePositiveRate);
 
     // Add an element to the Bloom Filter
     void add(const string& elem);
@@ -32,15 +32,14 @@ public:
     // Check if an element is present
     bool possiblyContains(const string& elem) const;
 
-    // Serialize Bloom Filter to a file
+    // Serialize Bloom Filter to a vector of bytes
     vector<uint8_t> serialize() const;
 
-    // Deserialize Bloom Filter from a file
+    // Deserialize Bloom Filter from a vector of bytes
     static BloomFilter deserialize(const vector<uint8_t>& data);
 
     // Helper functions
-    static unsigned int calculateSizeOfBitSet(unsigned expectedElements, double falsePositiveRate);
+    static unsigned int calculateSizeOfBitSet(unsigned int expectedElements, double falsePositiveRate);
 
-    static unsigned int calculateNumberOfHashFunctions(unsigned expectedElements, unsigned m);
-
+    static unsigned int calculateNumberOfHashFunctions(unsigned int expectedElements, unsigned int m);
 };

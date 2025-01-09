@@ -1,5 +1,4 @@
-#pragma once
-
+﻿
 #pragma once
 
 #include "IMemtable.h"
@@ -8,6 +7,7 @@
 #include <optional>
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 // Ova klasa implementira IMemtable koristeci skip listu kao pozadinsku strukturu podataka.
 
@@ -33,9 +33,16 @@ public:
     // loadFromWal ucitava podatke iz WAL fajla.
     void loadFromWal(const std::string& wal_file) override;
 
-    vector<pair<string, string>> getAllKeyValuePairs() const override;
+    // vector<pair<string, string>> getAllKeyValuePairs() const override;
+
+    std::vector<MemtableEntry> getAllMemtableEntries() const override;
 
 private:
     SkipList skiplist_;
     size_t maxSize_;
+
+    // Pomoćna funkcija: dohvat trenutnog UNIX vremena
+    uint64_t currentTime() const {
+        return static_cast<uint64_t>(std::chrono::system_clock::now().time_since_epoch().count());
+    }
 };

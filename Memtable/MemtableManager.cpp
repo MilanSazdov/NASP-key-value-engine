@@ -1,12 +1,6 @@
-#include "MemtableManager.h"
+﻿#include "MemtableManager.h"
 #include "MemtableFactory.h"
-
-// Pretpostavimo da imate definisanu klasu `SSTable` 
-// s metodom build(...) koji prima vector<Record> (ili nesto slicno).
-#include "../SSTable/SSTable.h"
-
-// Takodje pretpostavljamo da imate definisanu `Record` strukturu 
-// negde (u Wal ili slicno) koja sadrzi: key, value, tombstone, itd.
+#include <memory>
 
 MemtableManager::MemtableManager(const std::string& type,
     size_t N,
@@ -26,10 +20,10 @@ MemtableManager::MemtableManager(const std::string& type,
 }
 
 MemtableManager::MemtableManager(const std::string& type, size_t N, size_t maxSizePerTable)
-: type_(type),
-N_(N),
-maxSize_(maxSizePerTable),
-sstManager("./")
+    : type_(type),
+    N_(N),
+    maxSize_(maxSizePerTable),
+    sstManager("./")
 {
     memtables_.reserve(N_);
     // Kreiramo prvu memtable (aktivnu)
@@ -55,6 +49,7 @@ void MemtableManager::put(const std::string& key, const std::string& value) {
             switchToNewMemtable();
         }
         else {
+            // TODO: Kada popunimo svih N, FLUSUHJEMO PRVU NAPRAVLJENU (NAJSTARIJU) i od nje pravimo novi SSTable
             // Popunili smo svih N -> flushAll
             flushAll();
             // i ponovo kreiramo jednu memtable
@@ -104,64 +99,35 @@ std::optional<std::string> MemtableManager::get(const std::string& key) const {
     return std::nullopt;
 }
 
-void MemtableManager::flushAll() const
-{
-    std::vector<Record> allRecords;
-
-    // getAllMemEntries vraca sortirano, radimo merge kao u mergesort
-    for (auto& mem : memtables_) {
-        std::vector<Record> merged;
-        vector<MemtableEntry> entries = mem->getAllMemtableEntries();
-
-        merged.reserve(entries.size()+allRecords.size());
-
-        int i = 0, j = 0;
-        int allRecordsSize = allRecords.size();
-        int entriesSize = entries.size();
-
-        while (i < allRecordsSize && j < entriesSize) {
-            if (allRecords[i].key < entries[j].key)
-            {
-                merged.push_back(allRecords[i]);
-                ++i;
-            }
-            else
-            {
-                MemtableEntry e = entries[j];
-                Record r;
-                r.key = e.key;
-                r.key_size = e.key.size();
-                r.value = e.value;
-                r.value_size = e.value.size();
-                r.tombstone = (e.tombstone ? std::byte{ 1 } : std::byte{ 0 });
-                r.timestamp = e.timestamp;
-                merged.push_back(r);
-                ++j;
-            }
-        }
-
-        while (i < allRecordsSize)
-            merged.push_back(allRecords[i++]);
-        
-        while (j < entriesSize)
-        {
-            MemtableEntry e = entries[j];
-            Record r;
-            r.key = e.key;
-            r.key_size = e.key.size();
-            r.value = e.value;
-            r.value_size = e.value.size();
-            r.tombstone = (e.tombstone ? std::byte{ 1 } : std::byte{ 0 });
-            r.timestamp = e.timestamp;
-            merged.push_back(r);
-            ++j;
-        }
-
-        allRecords = merged;
+void MemtableManager::flushAll() {
+    if (memtables_.empty()) {
+        return; // Nema aktivnih memtables za flush
     }
-    
-    sstManager.write(allRecords);
+
+    // Uzimamo najstariju memtable (prva u vektoru)
+    auto& oldestMemtable = memtables_.front();
+
+    // Pretvaramo njene unose u zapise za SSTable
+    std::vector<Record> records;
+    for (const auto& entry : oldestMemtable->getAllMemtableEntries()) {
+        Record r;
+        //TODO: CRC treba dodati
+        r.key = entry.key;
+        r.key_size = entry.key.size();
+        r.value = entry.value;
+        r.value_size = entry.value.size();
+        r.tombstone = (entry.tombstone ? std::byte{ 1 } : std::byte{ 0 });
+        r.timestamp = entry.timestamp;
+        records.push_back(r);
+    }
+
+    // Pišemo ove zapise u SSTable koristeći sstManager
+    sstManager.write(records);
+
+    // Brišemo najstariju memtable iz memorije
+    memtables_.erase(memtables_.begin());
 }
+
 
 IMemtable* MemtableManager::createNewMemtable() const {
     return MemtableFactory::createMemtable(type_);
