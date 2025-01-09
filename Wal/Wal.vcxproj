@@ -21,10 +21,9 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{a440936e-9b40-409f-8ccb-2870acc8af8f}</ProjectGuid>
-    <RootNamespace>CMS</RootNamespace>
+    <ProjectGuid>{5da9bc8b-8645-418b-9050-1b0e61e1121a}</ProjectGuid>
+    <RootNamespace>Wal</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>Cms</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -105,10 +104,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -128,14 +130,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="cms.cpp" />
-    <ClCompile Include="large.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MurmurHash3.cpp" />
+    <ClCompile Include="wal.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cms.h" />
-    <ClInclude Include="MurmurHash3.h" />
+    <ClInclude Include="wal.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\block-manager\block-manager.vcxproj">
+      <Project>{6228c74d-ae1e-441e-b7cb-f26bc73c89b6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Cache\Cache.vcxproj">
+      <Project>{bbe2b400-ec22-4474-bdef-8923446cf937}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
