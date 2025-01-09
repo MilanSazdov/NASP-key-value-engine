@@ -154,12 +154,6 @@
     <ClCompile Include="MemtableSkipList.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\block-manager\block-manager.vcxproj">
-      <Project>{d2d81735-20d5-45c5-98fe-9bca4766fbaf}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\cache\cache.vcxproj">
-      <Project>{068741c1-8bca-4398-a2e3-5b3a000e6a79}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\SkipList\SkipList.vcxproj">
       <Project>{696a9cf6-8afa-4d64-bf62-878d6b29c179}</Project>
     </ProjectReference>
@@ -167,7 +161,7 @@
       <Project>{98da3a64-2fbb-44dd-8f1a-e53990fc8985}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Wal\Wal.vcxproj">
-      <Project>{22cd70c5-c8ce-4905-9700-acc6de081255}</Project>
+      <Project>{5da9bc8b-8645-418b-9050-1b0e61e1121a}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cache", "..\Cache\Cache.vcxproj", "{BBE2B400-EC22-4474-BDEF-8923446CF937}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cache", "..\Cache\Cache.vcxproj", "{BBE2B400-EC22-4474-BDEF-8923446CF937}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "block-manager", "..\block-manager\block-manager.vcxproj", "{6228C74D-AE1E-441E-B7CB-F26BC73C89B6}"
 EndProject
@@ -21,6 +21,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NASP key-value-engine", "NASP key-value-engine.vcxproj", "{764A778A-9FCD-42A8-B1D2-3FD20B4ADD15}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cms", "..\CMS\CMS.vcxproj", "{A440936E-9B40-409F-8CCB-2870ACC8AF8F}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "System", "..\System\System.vcxproj", "{370092AF-36A0-4027-95B3-B42D9E53BFAA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -110,6 +112,14 @@ Global
 		{A440936E-9B40-409F-8CCB-2870ACC8AF8F}.Release|x64.Build.0 = Release|x64
 		{A440936E-9B40-409F-8CCB-2870ACC8AF8F}.Release|x86.ActiveCfg = Release|Win32
 		{A440936E-9B40-409F-8CCB-2870ACC8AF8F}.Release|x86.Build.0 = Release|Win32
+		{370092AF-36A0-4027-95B3-B42D9E53BFAA}.Debug|x64.ActiveCfg = Debug|x64
+		{370092AF-36A0-4027-95B3-B42D9E53BFAA}.Debug|x64.Build.0 = Debug|x64
+		{370092AF-36A0-4027-95B3-B42D9E53BFAA}.Debug|x86.ActiveCfg = Debug|Win32
+		{370092AF-36A0-4027-95B3-B42D9E53BFAA}.Debug|x86.Build.0 = Debug|Win32
+		{370092AF-36A0-4027-95B3-B42D9E53BFAA}.Release|x64.ActiveCfg = Release|x64
+		{370092AF-36A0-4027-95B3-B42D9E53BFAA}.Release|x64.Build.0 = Release|x64
+		{370092AF-36A0-4027-95B3-B42D9E53BFAA}.Release|x86.ActiveCfg = Release|Win32
+		{370092AF-36A0-4027-95B3-B42D9E53BFAA}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

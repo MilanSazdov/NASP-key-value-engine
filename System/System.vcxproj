@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{764a778a-9fcd-42a8-b1d2-3fd20b4add15}</ProjectGuid>
-    <RootNamespace>NASPkeyvalueengine</RootNamespace>
+    <ProjectGuid>{370092af-36a0-4027-95b3-b42d9e53bfaa}</ProjectGuid>
+    <RootNamespace>System</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -76,10 +76,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Wal;$(SolutionDir)..\Memtable;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SSTable</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableManager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableFactory.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableSkipList.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableHashMap.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\Wal\x64\Debug\Wal.obj;$(SolutionDir)..\CMS\x64\Debug\cms.obj;$(SolutionDir)..\CMS\x64\Debug\MurmurHash3.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -90,12 +93,15 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Wal;$(SolutionDir)..\Memtable;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SSTable</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableManager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableFactory.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableSkipList.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableHashMap.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\Wal\x64\Debug\Wal.obj;$(SolutionDir)..\CMS\x64\Debug\cms.obj;$(SolutionDir)..\CMS\x64\Debug\MurmurHash3.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -104,10 +110,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Wal;$(SolutionDir)..\Memtable;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SSTable</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableManager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableFactory.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableSkipList.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableHashMap.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\Wal\x64\Debug\Wal.obj;$(SolutionDir)..\CMS\x64\Debug\cms.obj;$(SolutionDir)..\CMS\x64\Debug\MurmurHash3.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -118,17 +127,36 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Wal;$(SolutionDir)..\Memtable;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SSTable</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableManager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableFactory.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableSkipList.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableHashMap.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\Wal\x64\Debug\Wal.obj;$(SolutionDir)..\CMS\x64\Debug\cms.obj;$(SolutionDir)..\CMS\x64\Debug\MurmurHash3.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\System\System.vcxproj">
-      <Project>{370092af-36a0-4027-95b3-b42d9e53bfaa}</Project>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="System.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="System.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\block-manager\block-manager.vcxproj">
+      <Project>{6228c74d-ae1e-441e-b7cb-f26bc73c89b6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Cache\Cache.vcxproj">
+      <Project>{bbe2b400-ec22-4474-bdef-8923446cf937}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Memtable\Memtable.vcxproj">
+      <Project>{c45940cd-1736-4b0a-8801-edb702e39602}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Wal\Wal.vcxproj">
+      <Project>{5da9bc8b-8645-418b-9050-1b0e61e1121a}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
