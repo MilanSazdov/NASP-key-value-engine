@@ -96,7 +96,7 @@ void Cache::add_node(Node* n) {
 			head->block = n->block;
 			return;
 		}
-		
+    
 		Node* exit = head;
 		while (exit != nullptr) {
 			if (exit->block.key == n->block.key) {
@@ -121,7 +121,7 @@ void Cache::add_node(Node* n) {
 		n->next = nullptr;
 		head->next = n;
 		head = n;
-		
+    
 		return;
 	}
 	//adding to map
