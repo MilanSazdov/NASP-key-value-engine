@@ -2,9 +2,6 @@
 #include <limits>
 #include <iostream>
 
-
-
-
 SkipList::SkipList(int maxLevels, double p)
     : maxLevels(maxLevels),
     p(p),
@@ -15,9 +12,8 @@ SkipList::SkipList(int maxLevels, double p)
 {
     // Kreiramo head cvor (sentinel) sa maksimalnim nivoima
     // On nece imati valjan key/value, sluzi kao pocetna tacka
-    head = new Node("", "", maxLevels);
+    head = new Node("", "", false, 0, maxLevels);
 }
-
 
 SkipList::~SkipList() {
     Node* current = head;
@@ -29,7 +25,7 @@ SkipList::~SkipList() {
 }
 
 int SkipList::generateRandomLevel() {
-    int level = 1;
+    unsigned int level = 1;
     while (dist(rng) < p && level < maxLevels) {
         level++;
     }
@@ -48,7 +44,7 @@ void SkipList::findPrevNodes(const string& key, vector<Node*>& update) const {
     }
 }
 
-void SkipList::insert(const std::string& key, const std::string& value) {
+void SkipList::insert(const std::string& key, const std::string& value, bool tombstone, uint64_t timestamp) {
     // update vektor za pointere prethodnika
     std::vector<Node*> update(maxLevels, nullptr);
     findPrevNodes(key, update);
@@ -57,6 +53,8 @@ void SkipList::insert(const std::string& key, const std::string& value) {
     // Ako postoji cvor s tim kljucem, samo update value
     if (next != nullptr && next->key == key) {
         next->value = value;
+        next->tombstone = tombstone;
+        next->timestamp = timestamp;
         return;
     }
 
@@ -69,7 +67,7 @@ void SkipList::insert(const std::string& key, const std::string& value) {
         currentLevel = newLevel - 1;
     }
 
-    Node* newNode = new Node(key, value, newLevel);
+    Node* newNode = new Node(key, value, tombstone, timestamp, newLevel);
     for (int i = 0; i < newLevel; i++) {
         newNode->forward[i] = update[i]->forward[i];
         update[i]->forward[i] = newNode;
@@ -117,12 +115,26 @@ std::optional<std::string> SkipList::get(const string& key) const {
     return std::nullopt;
 }
 
+SkipList::Node* SkipList::getNode(const std::string& key) const {
+    Node* current = head;
+    for (int i = currentLevel; i >= 0; i--) {
+        while (current->forward[i] != nullptr && current->forward[i]->key < key) {
+            current = current->forward[i];
+        }
+    }
+    current = current->forward[0];
+    if (current != nullptr && current->key == key) {
+        return current;
+    }
+    return nullptr;
+}
+
 vector<pair<string, string>> SkipList::getAllKeyValuePairs() const {
-	vector<pair<string, string>> result;
-	Node* current = head->forward[0];
-	while (current != nullptr) {
-		result.push_back({ current->key, current->value });
-		current = current->forward[0];
-	}
-	return result;
+    vector<pair<string, string>> result;
+    Node* current = head->forward[0];
+    while (current != nullptr) {
+        result.push_back({ current->key, current->value });
+        current = current->forward[0];
+    }
+    return result;
 }
