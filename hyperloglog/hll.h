@@ -1,7 +1,4 @@
 #pragma once
-#ifndef HLL_H
-#define HLL_H
-
 #include <string>
 #include <vector>
 #include <cmath>
@@ -31,4 +28,3 @@ public:
     }
 };
 
-#endif // HLL_H

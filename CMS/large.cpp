@@ -90,7 +90,7 @@ void testCMS() {
     }
 }
 
-int main() {
+int mainl() {
     testCMS();
     return 0;
 }

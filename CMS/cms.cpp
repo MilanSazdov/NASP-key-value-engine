@@ -1,4 +1,5 @@
 #include "cms.h"
+#include "../MurmurHash3/MurmurHash3.h"
 #include <ctime>
 #include <cmath>
 #include <algorithm>

@@ -1,5 +1,5 @@
 #include "simhash.h"
-#include "MurmurHash3.h"
+#include "../MurmurHash3/MurmurHash3.h"
 #include <stdexcept>
 
 

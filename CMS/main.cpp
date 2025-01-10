@@ -29,7 +29,7 @@ void testSerialization(const CountMinSketch& cms) {
     }
 }
 
-int mains() {
+int main() {
     CountMinSketch cms(0.01, 0.01);
 
     vector<string> elements;

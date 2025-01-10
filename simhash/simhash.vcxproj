@@ -24,6 +24,7 @@
     <ProjectGuid>{78e45c51-cbcb-4a2d-85cd-044e20dc9743}</ProjectGuid>
     <RootNamespace>simhash</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>SimHash</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -129,12 +130,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MurmurHash3.cpp" />
     <ClCompile Include="simhash.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MurmurHash3.h" />
     <ClInclude Include="simhash.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MurmurHash3\MurmurHash3.vcxproj">
+      <Project>{6a57d5a4-8e6d-4d4c-b4b3-157b8f6f729a}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

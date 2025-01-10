@@ -114,7 +114,7 @@ void testHLL() {
     }
 }
 
-int main() {
+int mainc() {
     testHLL();
     return 0;
 }

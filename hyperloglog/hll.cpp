@@ -1,5 +1,5 @@
 #include "hll.h"
-#include "MurmurHash3.h" //hash funkcija
+#include "../MurmurHash3/MurmurHash3.h" 
 #include <vector>
 #include <cmath>
 #include <algorithm>

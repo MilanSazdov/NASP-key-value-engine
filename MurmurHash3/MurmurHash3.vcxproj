@@ -21,10 +21,9 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{c305a871-ab18-4136-889f-5f453477c26a}</ProjectGuid>
-    <RootNamespace>hyperloglog</RootNamespace>
+    <ProjectGuid>{6a57d5a4-8e6d-4d4c-b4b3-157b8f6f729a}</ProjectGuid>
+    <RootNamespace>MurmurHash3</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>HyperLogLog</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -41,7 +40,7 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
@@ -128,17 +127,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="hll.h" />
+    <ClInclude Include="MurmurHash3.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="hll.cpp" />
-    <ClCompile Include="complexTest.cpp" />
-    <ClCompile Include="test.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\MurmurHash3\MurmurHash3.vcxproj">
-      <Project>{6a57d5a4-8e6d-4d4c-b4b3-157b8f6f729a}</Project>
-    </ProjectReference>
+    <ClCompile Include="MurmurHash3.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
