@@ -1,8 +1,4 @@
 ﻿#include "MerkleTree.h"
-#include <stdexcept> // Za izuzetke
-#include <openssl/sha.h> // OpenSSL za SHA256 heširanje
-#include <sstream> // Za formatiranje heša
-#include <iomanip> // Za std::setw i std::setfill
 
 MerkleTree::MerkleTree(const std::vector<std::string>& data) {
     if (data.empty()) {

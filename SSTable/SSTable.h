@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
-#include <openssl/sha.h> // OpenSSL za SHA256 heširanje
+//#include <additional/sha.h> // OpenSSL za SHA256 heširanje
 
 #include "wal.h"
 #include "BloomFilter.h"

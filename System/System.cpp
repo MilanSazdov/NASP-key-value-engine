@@ -6,8 +6,6 @@ System::System() {
 }
 
 void System::put(string key, string value, bool tombstone) {
-
 	wal->put(key, value);
 	memtable->put(key, value);
 }
-
