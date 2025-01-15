@@ -112,6 +112,9 @@ public:
 
     std::vector<MemtableEntry> getAllMemtableEntries() const override;
 
+	std::optional<MemtableEntry> getEntry(const std::string& key) const override;
+
+	void updateEntry(const std::string& key, const MemtableEntry& entry) override;
 };
 
 
@@ -598,4 +601,44 @@ void BTree<ORDER>::inorder(BTreeNode* node, std::vector<MemtableEntry>& entries)
     // Najdesniji cvor
     if (!node->isLeaf())
         inorder(node->children[node->numKeys], entries);
+}
+
+// OVO TREBA TESTIRATI NIJE STO POSTO SIGURNO
+template <int ORDER>
+std::optional<MemtableEntry> BTree<ORDER>::getEntry(const std::string& key) const {
+    int location;
+    BTreeNode* node = findNode(root, key, location);
+
+    if (node == nullptr) {
+        return std::nullopt; // Ako ključ ne postoji, vraćamo std::nullopt
+    }
+
+    const Entry& entry = node->entries[location];
+
+    // Vraćamo MemtableEntry sa informacijama o ključu
+    return MemtableEntry{
+        key,
+        entry.value,
+        entry.tombstone,
+        entry.timestamp
+    };
+}
+
+template <int ORDER>
+void BTree<ORDER>::updateEntry(const std::string& key, const MemtableEntry& entry) {
+    int location;
+    BTreeNode* node = findNode(root, key, location);
+
+    if (node == nullptr) {
+        // Ako ključ ne postoji, ispisujemo grešku
+        std::cerr << "[BTree] Key '" << key << "' not found for update.\n";
+        return;
+    }
+
+    // Ažuriramo vrednosti u postojećem čvoru
+    node->entries[location].value = entry.value;
+    node->entries[location].tombstone = entry.tombstone;
+    node->entries[location].timestamp = entry.timestamp;
+
+    std::cout << "[BTree] Key '" << key << "' updated successfully.\n";
 }

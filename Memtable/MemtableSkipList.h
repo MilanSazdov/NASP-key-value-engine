@@ -37,6 +37,12 @@ public:
 
     std::vector<MemtableEntry> getAllMemtableEntries() const override;
 
+	// NOVO: dohvata jedan zapis
+	std::optional<MemtableEntry> getEntry(const std::string& key) const override;
+
+	// NOVO: ažurira zapis
+	void updateEntry(const std::string& key, const MemtableEntry& entry) override;
+
 private:
     SkipList skiplist_;
     size_t maxSize_;

@@ -137,3 +137,20 @@ vector<MemtableEntry> MemtableHashMap::getAllMemtableEntries() const {
     sort(result.begin(), result.end());
     return result;
 }
+
+std::optional<MemtableEntry> MemtableHashMap::getEntry(const string& key) const {
+	auto it = table_.find(key);
+	if (it == table_.end()) {
+        return std::nullopt;
+	}
+	return MemtableEntry{ key, it->second.value, it->second.tombstone, it->second.timestamp };
+}
+
+void MemtableHashMap::updateEntry(const string& key, const MemtableEntry& entry) {
+    auto it = table_.find(key);
+    if (it == table_.end()) {
+        throw std::runtime_error("Key not found for update: " + key);
+    }
+    table_[key] = { entry.value, entry.tombstone, entry.timestamp };
+}
+

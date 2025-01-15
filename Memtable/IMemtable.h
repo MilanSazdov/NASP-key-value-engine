@@ -47,4 +47,8 @@ public:
 
 	// NOVA metoda: vraća *sve* zapise, uključujući tombstone i timestamp.
 	virtual std::vector<MemtableEntry> getAllMemtableEntries() const = 0;
+
+	virtual std::optional<MemtableEntry> getEntry(const std::string& key) const = 0;
+	virtual void updateEntry(const std::string& key, const MemtableEntry& entry) = 0;
+
 };

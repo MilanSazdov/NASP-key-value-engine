@@ -1,4 +1,4 @@
-
+﻿
 #include "MemtableSkipList.h"
 #include <fstream>
 #include <iostream>
@@ -71,6 +71,26 @@ std::vector<MemtableEntry> MemtableSkipList::getAllMemtableEntries() const {
         }
     }
     return entries;
+}
+
+std::optional<MemtableEntry> MemtableSkipList::getEntry(const std::string& key) const {
+    auto node = skiplist_.getNode(key); // Koristimo getNode da dobijemo čvor
+    if (node) {
+        return MemtableEntry{ node->key, node->value, node->tombstone, node->timestamp };
+    }
+    return std::nullopt; // Ako čvor ne postoji
+}
+
+void MemtableSkipList::updateEntry(const std::string& key, const MemtableEntry& entry) {
+    auto node = skiplist_.getNode(key);
+    if (node) {
+        // Ažuriramo postojeći čvor
+        skiplist_.insert(key, entry.value, entry.tombstone, entry.timestamp);
+        std::cout << "[MemtableSkipList] Key '" << key << "' updated successfully.\n";
+    }
+    else {
+        std::cerr << "[MemtableSkipList] Key '" << key << "' not found for update.\n";
+    }
 }
 
 /*

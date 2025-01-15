@@ -38,6 +38,12 @@ public:
     // ili ako se popune sve N memtables
     void flushAll();
 
+    // Kada se sistem pokrene, Memtable treba popuniti zapisima iz WAL-a
+    void loadFromWal(const std::vector<Record>& records);
+
+	// Print all data from memtables
+	void printAllData() const;
+
 private:
     std::string type_;   // sacuvamo koji tip je korisnik izabrao
     size_t N_;           // max broj memtable
@@ -56,5 +62,6 @@ private:
 
     // Ako se aktivna memtable popuni, prelazimo na novu
     void switchToNewMemtable();
+
 };
 
