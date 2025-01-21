@@ -43,6 +43,8 @@ void MemtableManager::put(const std::string& key, const std::string& value) {
     auto& active = memtables_[activeIndex_];
     active->put(key, value);
 
+	std::cout << "[MemtableManager] Key '" << key << "' added.\n";
+
     // Ako predje maxSize -> prelazimo na nov memtable
     if (active->size() >= maxSize_) {
         if (memtables_.size() < N_) {
@@ -139,4 +141,64 @@ void MemtableManager::switchToNewMemtable() {
     newMem->setMaxSize(maxSize_);
     memtables_.push_back(std::move(newMem));
     activeIndex_ = memtables_.size() - 1;
+}
+
+// Trazenje kljuca u aktivnoj tabeli, ako ga ne nadjemo => dodajemo
+// Ako ga nadjem, menjam tombstone i timestamp
+// TODO: LANMI MAJAMI
+void MemtableManager::loadFromWal(const std::vector<Record>& records) {
+    for (const auto& record : records) {
+
+        // Proveravamo da li kljuc vec postoji u aktivnoj memtable
+        auto existingValue = memtables_[activeIndex_]->get(record.key);
+
+        if (existingValue.has_value()) {
+            // Dobijamo trenutni zapis iz opcionalnog rezultata
+            MemtableEntry currentEntry = memtables_[activeIndex_]->getEntry(record.key).value();
+            currentEntry.tombstone = static_cast<bool>(record.tombstone);
+            currentEntry.timestamp = record.timestamp;
+
+            // Čuvamo ažurirani zapis nazad u Memtable
+            memtables_[activeIndex_]->updateEntry(record.key, currentEntry);
+            std::cout << "[MemtableManager] Key '" << record.key << "' updated with new tombstone and timestamp.\n";
+        }
+        else {
+            // Ako ključ ne postoji, dodajemo ga
+            std::string compositeValue = record.value;
+            memtables_[activeIndex_]->put(record.key, compositeValue);
+            std::cout << "[MemtableManager] Key '" << record.key << "' added.\n";
+        }
+
+        // Provera da li je aktivna Memtable popunjena
+        if (memtables_[activeIndex_]->size() >= maxSize_) {
+            if (memtables_.size() < N_) {
+                switchToNewMemtable();
+				std::cout << "[MemtableManager] Switched to new Memtable.\n";
+            }
+            else {
+                // Ako su sve Memtable popunjene, flushujemo najstariju i kreiramo novu
+				std::cout << "[MemtableManager] Flushing all Memtables.\n";
+                flushAll();
+                auto newMemtable = std::unique_ptr<IMemtable>(createNewMemtable());
+                newMemtable->setMaxSize(maxSize_);
+                memtables_.push_back(std::move(newMemtable));
+                activeIndex_ = memtables_.size() - 1;
+            }
+        }
+    }
+
+    std::cout << "[MemtableManager] Records from WAL loaded into Memtable.\n";
+}
+
+void MemtableManager::printAllData() const {
+    for (size_t i = 0; i < memtables_.size(); ++i) {
+        std::cout << "Memtable " << i << (i == activeIndex_ ? " (READ WRITE)" : " (READ ONLY)") << ":\n";
+        std::vector<MemtableEntry> entries = memtables_[i]->getAllMemtableEntries();
+        for (const auto& entry : entries) {
+            std::cout << "  Key: " << entry.key
+                << ", Value: " << entry.value
+                << ", Tombstone: " << entry.tombstone
+                << ", Timestamp: " << entry.timestamp << "\n";
+        }
+    }
 }

@@ -2,12 +2,12 @@
 
 #include "wal.h"
 #include "MemtableManager.h"
-
-using namespace std;
+#include <iostream>
 
 class System {
 	
-private:
+public:
+
 	Wal* wal;
 	MemtableManager* memtable;
 
@@ -15,8 +15,6 @@ public:
 
 	System();
 
-	void put(string key, string value, bool tombstone);
-	// string get(string key, bool& found);
-	// bool Delete(string key, bool& found);
+	void put(std::string key, std::string value, bool tombstone);
 
 };

@@ -12,7 +12,7 @@ void extractDataFromCSV(const string& filename, vector<string>& customer_ids, ve
     string line;
 
     if (!file.is_open()) {
-        cout << "Greška: Fajl " << filename << " nije mogao da se otvori!" << endl;
+        cout << "GreÅ¡ka: Fajl " << filename << " nije mogao da se otvori!" << endl;
         return; 
     }
 

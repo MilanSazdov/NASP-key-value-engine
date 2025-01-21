@@ -7,6 +7,7 @@
 
 class SSTManager
 {
+private:
     std::string directory;
     // Format imena: filter_x.sst, summary_x.sst, index_x.sst, sstable_x.sst, meta_x.sst   
 
