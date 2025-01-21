@@ -18,7 +18,7 @@ const string fn = "wal_logs/wal_001.log";
     Neka podesavanja, recimo padding_character, sada je podesen na '0' radi debugovanja, treba da bude 0, cahche size, block size ...
 */
 
-void input_test_data(Wal& w1) {
+void input_test_data1(Wal& w1) {
     w1.put("apple", "fruit");
     w1.put("dog", "animal");
     w1.put("rose", "flower");
@@ -60,6 +60,7 @@ void input_test_data(Wal& w1) {
     w1.put("music", "art");
     w1.put("dream", "thought");
 }
+
 void input_test_data2(Wal& w1) {
     w1.put("the sun rises in the east", "natural phenomenon");
     w1.put("a journey of a thousand miles begins with a single step", "philosophical saying");
@@ -101,8 +102,34 @@ void print_files_in_folder(const string& folder_path) {
     }
 }
 
+void delete_all_files(string folderPath) {
+    try {
+        // Check if the folder exists
+        if (fs::exists(folderPath) && fs::is_directory(folderPath)) {
+            for (const auto& entry : fs::directory_iterator(folderPath)) {
+                if (fs::is_regular_file(entry)) { // Check if it's a file
+                    fs::remove(entry); // Delete the file
+                    //std::cout << "Deleted: " << entry.path() << std::endl;
+                }
+            }
+            std::cout << "All files in the folder have been deleted." << std::endl << std::endl;
+        }
+        else {
+            std::cout << "Folder does not exist or is not a directory." << std::endl;
+        }
+    }
+    catch (const fs::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+}
+
 int main() {
     string folder_path = "wal_logs";
+    delete_all_files(folder_path);
+
 
     // Step 1: Display files in 'wal_logs' before execution
     cout << "Files in '" << folder_path << "' before execution:\n";
@@ -114,12 +141,14 @@ int main() {
     Wal w1;
 
     cout << "Inputting test data...\n";
-    input_test_data(w1);
+    
+    input_test_data1(w1);
     input_test_data2(w1);
 
-    cout << "Deleting records using delete_more functions...\n";
+    cout << "\nDeleting records using delete_more functions...\n";
     delete_more(w1);
     delete_more2(w1);
+    w1.put("apple", "FRUIT");
 
     // Step 3: Display files in 'wal_logs' after Wal methods execution
     cout << "\nFiles in '" << folder_path << "' after Wal methods execution:\n";
@@ -128,23 +157,23 @@ int main() {
 
     // Step 4: Retrieve and display all records from Wal
     vector<Record> ret = w1.get_all_records();
-    cout << "Total records in Wal: " << ret.size() << endl;
+    cout << "\nTotal records in Wal: " << ret.size() << endl;
     for (const Record& r : ret) {
-        cout << r.key << " " << r.value << endl;
+        cout << r.key << " " << r.value << " " << (int)(r.tombstone) << endl;
     }
     cout << endl;
-
+    
     // Step 5: Test find_min_segment and delete_old_logs functionality
-    cout << "Testing find_min_segment and delete_old_logs...\n";
+    cout << "\nTesting find_min_segment and delete_old_logs...\n";
     cout << "Minimum segment: " << w1.find_min_segment() << endl;
 
-    cout << "Deleting logs older than 'wal_002.log'...\n";
+    cout << "\nDeleting logs older than 'wal_002.log'...\n";
     w1.delete_old_logs("wal_002.log");
     cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
 
-    cout << "Deleting logs older than 'wal_004.log'...\n";
-    w1.delete_old_logs("wal_004.log");
-    cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
+    //cout << "Deleting logs older than 'wal_004.log'...\n";
+    //w1.delete_old_logs("wal_004.log");
+    //cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
 
     // Step 6: Final display of files in 'wal_logs'
     cout << "\nFiles in '" << folder_path << "' after all operations:\n";

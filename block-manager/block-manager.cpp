@@ -3,11 +3,36 @@
 #include <fstream>
 #include <iostream>
 
-Block Block_manager::read_block(composite_key key, bool& error) {
+string make_string_from_pair(int x, string s) {
+	string poc = to_string(x);
+	return (poc + "_" + s);
+}
+
+pair<int, string> make_pair_from_string(string s) {
+	pair<int, string> ret;
+	string str = "";
+	for (char c : s) {
+		if (c == '_') break;
+		str.push_back(c);
+	}
+
+	ret.first = stoi(str);
+	ret.second = s.substr(str.size()+1);
+
+	//cout << ret.first << " " << ret.second << endl;
+
+	return ret;
+}
+
+Block Block_manager::read_block(string key_string, bool& error) {
 	bool exists;
-	Block my_block(key);
+	Block my_block(key_string);
 	error = false;
-	exists = c.get_block(key, my_block);
+	exists = c.get_block(key_string, my_block);
+
+	pair<int, string> key;
+	key = make_pair_from_string(key_string);
+
 
 	if (!exists) {
 		//cout << "It exists";
@@ -23,6 +48,7 @@ Block Block_manager::read_block(composite_key key, bool& error) {
 				error = false;
 				memset(my_block.data, int_padding_character, block_size);
 				c.add_block(my_block);
+				file.close();
 				return my_block;
 			}
 
@@ -30,6 +56,7 @@ Block Block_manager::read_block(composite_key key, bool& error) {
 			if (!file.read(buffer, block_size)) {	//unsuccesful read
 				error = true;
 				//throw("Unsuccesful read block from file " + key.second);
+				file.close();
 				return my_block;
 			}
 			
@@ -42,6 +69,7 @@ Block Block_manager::read_block(composite_key key, bool& error) {
 			memset(my_block.data, (int)padding_character, block_size);
 			//cout << "File is not open";
 			//throw("Error opening file: " + key.second);
+			file.close();
 			return my_block;
 		}
 
@@ -52,19 +80,22 @@ Block Block_manager::read_block(composite_key key, bool& error) {
 }
 
 Block Block_manager::read_block(int id, string file_name, bool& error) {
-	return read_block(make_pair(id, file_name), error);
+	return read_block(make_string_from_pair(id, file_name), error);
 }
 
 void Block_manager::write_block(Block b) {
-	ofstream out_file(b.key.second, ios::in | ios::out | ios::binary);
+	pair<int, string> key;
+	key = make_pair_from_string(b.key);
+
+	ofstream out_file(key.second, ios::in | ios::out | ios::binary);
 	if (!out_file.is_open()) {
 		// If file doesnt exist create it
-		out_file.open(b.key.second, ios::binary | ios::out);
+		out_file.open(key.second, ios::binary | ios::out);
 		if (!out_file.is_open()) {
-			throw("Failed to create file: " + b.key.second);
+			throw("Failed to create file: " + key.second);
 		}
 	}
-	int new_pos = b.key.first * block_size;
+	int new_pos = key.first * block_size;
 	//cout << "New pos: " << new_pos << endl;
 	out_file.seekp(new_pos);
 	out_file.write(reinterpret_cast<const char*>(b.data), block_size);
@@ -91,7 +122,7 @@ void Block_manager::write_data(string file_name, vector<char> data) {
 		//	cout << data[i];
 		//cout << endl;
 
-		Block b(make_pair(0, file_name));
+		Block b(make_string_from_pair(0, file_name));
 
 		b.set_data(&data[0]);
 		//for (int i = 0; i < block_size; i++)
@@ -102,7 +133,7 @@ void Block_manager::write_data(string file_name, vector<char> data) {
 		return;
 	}
 	for (int i = block_size-1; i < n; i += block_size) {
-		Block b(make_pair(last, file_name));
+		Block b(make_string_from_pair(last, file_name));
 		b.set_data(&data[i - block_size+1]);
 		write_block(b);
 
@@ -112,7 +143,7 @@ void Block_manager::write_data(string file_name, vector<char> data) {
 	if (last * block_size == n) return;
 
 	fill_in_padding(data);
-	Block b_end(make_pair(last, file_name));
+	Block b_end(make_string_from_pair(last, file_name));
 	n = data.size();
 	b_end.set_data(&data[n - block_size]);
 	write_block(b_end);

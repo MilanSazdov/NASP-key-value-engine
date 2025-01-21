@@ -150,16 +150,6 @@ ull byte_to_uint(byte* c) {
 	return ret;
 }
 
-int stoint(string& s) {
-	int ten = 1;
-	int ret = 0;
-	for (int i = 2; i >= 0; i--) {
-		ret += ten * (s[i] - '0');
-		ten *= 10;
-	}
-	return ret;
-}
-
 string inttos3(int& x) {
 	string ret = "000";
 	for (int i = 0; i < 3; i++) {
@@ -179,35 +169,39 @@ void fill_in_padding(vector<byte>& bad_data) {
 	}
 }
 
-composite_key next_key(composite_key key, int segment_size) {
-	int id = key.first;
-	string name = key.second;
-	composite_key ret;
+string next_key(string key, int segment_size) {
+	pair<int, string> temp = make_pair_from_string(key);
+	
+	int id = temp.first;
+	string file_name = temp.second;
+
+	string ret;
+
 	if ((id + 1) < segment_size) {
 		id++;
 		//cout << "  id == " << id << endl;
-		ret = make_pair(id, name);
+		ret = make_string_from_pair(id, file_name);
 	}
 	else {
-		string file_name = key.second;
 		string broj = "";
 		for (char c : file_name) {
 			if (c >= '0' && c <= '9') broj.push_back(c);
 		}
-		int broj_int = stoint(broj);
-		//cout << "novi brojh == " << broj_int << endl;
+		int broj_int = stoi(broj);
+
 		broj_int++;
 		string new_name = "wal_logs/wal_" + inttos3(broj_int) + ".log";
 
 		//cout << new_name << endl;
 
-		ret = make_pair(0, new_name);
+		ret = make_string_from_pair(0, new_name);
 	}
+
 	return ret;
 }
 
 void debugf(Block b) {
-	cout << "key: " << b.key.first << " " << b.key.second << endl;
+	cout << "key: " << b.key << endl;
 	cout << "data:";
 	for (int i = 0; i < block_size; i++) cout << byte_to_int(b[i]);
 	cout << "kraj\n";
@@ -218,6 +212,11 @@ Block Wal::find_next_empty_block(Block b) {
 	int pok = 0;
 	Block b2 = b;
 
+	pair<int, string> temp = make_pair_from_string(b.key);
+	
+	string file_name = temp.second;
+	int block_id = temp.first;
+
 	do {
 		pok++;
 		//cout << "Checking block: " << b2.key.second << ", key: " << b2.key.first << endl;
@@ -225,14 +224,19 @@ Block Wal::find_next_empty_block(Block b) {
 		b2 = bm.read_block(b2.key, error);
 		if (error) {
 			// Create new file
-			ofstream new_file(b2.key.second, ios::binary | ios::out);
+			temp = make_pair_from_string(b2.key);
+			
+			ofstream new_file(temp.second, ios::binary | ios::out);
 			if (!new_file.is_open()) {
-				cout << "Failed to create file: " << b2.key.second << endl;
+				cout << "Failed to create file: " << file_name << endl;
 				exit(1);
 			}
 
 			// Initialize the block with padding characters
 			memset(b2.data, int_padding_character, block_size);
+			
+			cout << b2.key << endl;
+
 			bm.write_block(b2); // Write the initialized block
 
 			return b2;
@@ -297,7 +301,7 @@ void extract_data(vector<byte>& record, uint crc, byte flag, ull timestamp, byte
 
 void Wal::write_record(string key, string value, byte tombstone) {
 	string current_file = min_segment;
-	Block first_block(make_pair(0, current_file));
+	Block first_block(make_string_from_pair(0, current_file));
 	Block b;
 
 	b = find_next_empty_block(first_block);
@@ -462,7 +466,7 @@ string Wal::find_min_segment() {
 
 		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
 			string index_str = filename.substr(4, 3);
-			int index = stoint(index_str);
+			int index = stoi(index_str);
 
 			if (index < min_index) {
 				min_index = index;
@@ -487,7 +491,7 @@ void Wal::delete_old_logs(string target_file) {
 	 * (e.g., "wal_001.log"), and deletes them. Logs success or error for each deletion.
 	 */
 	string index_str = target_file.substr(4, 3);
-	int target_index = stoint(index_str);
+	int target_index = stoi(index_str);
 
 	vector<string> files_to_delete;
 
@@ -496,7 +500,7 @@ void Wal::delete_old_logs(string target_file) {
 
 		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
 			string current_index_str = filename.substr(4, 3);
-			int current_index = stoint(current_index_str);
+			int current_index = stoi(current_index_str);
 
 			if (current_index < target_index) {
 				files_to_delete.push_back("wal_logs/" + filename);
@@ -523,9 +527,9 @@ vector<Record> Wal::get_all_records() {
 
 	bool er;
 	int rec_pos, valid;
+	cout << "min segment == " << min_segment << endl;
 
-	composite_key tren_key(0, min_segment);
-	Block b(tren_key);
+	Block b(make_string_from_pair(0, min_segment));
 
 	string big_key, big_value;
 	bool all_good;
@@ -583,10 +587,14 @@ vector<Record> Wal::get_all_records() {
 		b.key = next_key(b.key, segment_size);
 	}
 
-	vector<Record> ret2;
+	/// OVO JE KOD KOJI JE FIZICKI BRISAO OBRISANE RECORDE, I VRACAO SAMO PRISUTNE.
+	/// KASNIJE SMO SKONTALI DA JE TO LOSA IDEJA, DA WAL NE TREBA DA VODI O TOME RACUNA
+	/// TAKO DA WAL VRACA S V E ZAPISE REDOM KAKO SU POZVANI
+
+
+	/*vector<Record> ret2;
 	ret2.clear();
 
-	//cout << "KRAJ\n";
 	for (int i = 0; i < ret.size(); i++) {
 		if (map_deleted[ret[i].key] % 2 == 0) {
 			//cout << "Erasing\n";
@@ -598,8 +606,9 @@ vector<Record> Wal::get_all_records() {
 			already_in[ret[i].key] = 1;
 			//cout << endl;
 		}
-	}
-	return ret2;
+	}*/
+
+	return ret;
 }
 
 /*string Wal::get(string key) {

@@ -3,16 +3,14 @@
 #include <iostream>
 #include <cstddef>
 
-typedef pair<int, string> composite_key;
-using namespace std;
 
 Block::Block() {
-	key = make_pair(-1, "");
+	key = "";
 	data = new std::byte[block_size];
 	memset(data, (int)padding_character, block_size);
 }
 
-Block::Block(composite_key k) : key(k) {
+Block::Block(std::string k) : key(k) {
 	this->data = new std::byte[block_size];
 	memset(data, (int)padding_character, block_size);
 }
@@ -54,10 +52,10 @@ std::byte Block::operator[] (const int i) {
 
 void print_node(Node* n) {
 	if (n == nullptr) {
-		cout << "Node is nullptr\n";
+		std::cout << "Node is nullptr\n";
 		return;
 	}
-	cout << "Node: " << n->block.key.first << " " << n->block.key.second << endl;
+	std::cout << "Node: " << n->block.key << std::endl;
 }
 
 Node::Node(Block b) : block(b) {
@@ -73,18 +71,18 @@ Cache::Cache() {
 }
 
 void Cache::print_cache() {
-	cout << "Printing cache\n";
-	cout << "Map:\n";
+	std::cout << "Printing cache\n";
+	std::cout << "Map:\n";
 	for (auto it = blocks.begin(); it != blocks.end(); it++) {
-		cout << it->first.first << " " << it->first.second << endl;
+		std::cout << it->first << std::endl;
 	}
-	cout << "List:\n";
+	std::cout << "List:\n";
 	Node* temp = tail;
 	while (temp != nullptr) {
-		cout << temp->block.key.first << " " << temp->block.key.second << endl;
+		std::cout << temp->block.key << std::endl;
 		temp = temp->next;
 	}
-	cout << endl;
+	std::cout << std::endl;
 }
 
 void Cache::add_node(Node* n) {
@@ -146,17 +144,9 @@ void Cache::add_node(Node* n) {
 	head->next = n;
 	n->prev = head;
 	head = n;
-	/*cout << "List after insert:\n";
-	Node* temp = tail;
-	while (temp != nullptr) {
-		cout << temp->block.key.first << " " << temp->block.key.second << endl;
-		temp = temp->next;
-	}
-	cout << endl;*/
-
 }
 
-bool Cache::get_block(const composite_key key, Block& b){
+bool Cache::get_block(const std::string key, Block& b){
 	Block* temp = new Block();
 
 	if (blocks.find(key) != blocks.end()) {
