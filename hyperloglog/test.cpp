@@ -116,7 +116,7 @@ double estimatePrinter(uint64_t M, uint8_t P, const std::vector<uint8_t>& Reg) {
         std::cout << "Korigovana procjena (veliki podaci): " << estimation << std::endl;
     }
 
-    std::cout << "Konačna procjena kardinalnosti: " << estimation << std::endl;
+    std::cout << "Konacna procjena kardinalnosti: " << estimation << std::endl;
     return estimation;
 }
 
@@ -138,7 +138,7 @@ void testPrecisionEstimates(const std::vector<std::string>& elements) {
     }
 }
 
-int mains() {
+int main() {
     std::cout << "Testiranje HyperLogLog funkcionalnosti...\n";
 
     uint8_t precision = 4; // Prilagoditi preciznost po potrebi

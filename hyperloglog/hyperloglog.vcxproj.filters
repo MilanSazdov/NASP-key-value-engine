@@ -18,18 +18,12 @@
     <ClInclude Include="hll.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MurmurHash3.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hll.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="complexTest.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MurmurHash3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test.cpp">

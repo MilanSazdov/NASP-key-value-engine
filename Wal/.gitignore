@@ -12,6 +12,6 @@
 *.idb
 *.class
 *.dll
-*.vcxproj.filters
-*.vcxproj.user
+Wal/Wal/
 x64/
+!wal_logs/*.log

@@ -1,0 +1,34 @@
+﻿#pragma once
+
+#include <string>
+#include <vector>
+#include <filesystem>
+#include "wal.h"
+
+class SSTManager
+{
+private:
+    std::string directory;
+    // Format imena: filter_x.sst, summary_x.sst, index_x.sst, sstable_x.sst, meta_x.sst   
+
+    int findNextIndex() const
+    {
+        int freeIndex = 0;
+        namespace fs = std::filesystem;
+        while (true) {
+            fs::path filePath = fs::path(directory) / ("sstable_" + std::to_string(freeIndex) + ".sst");
+            if (!fs::exists(filePath)) {
+                return freeIndex;
+            }
+            ++freeIndex;
+        }
+    }
+
+public:
+
+    SSTManager(const std::string& directory)
+        : directory(directory) {}
+
+    std::string get(const std::string& key) const;
+    void write(const std::vector<Record>& sortedRecords) const;
+};
