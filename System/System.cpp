@@ -19,7 +19,6 @@ void ensureDirectory(const std::string& path) {
     }
 }
 
-
 System::System() {
 
     std::cout << "[SYSTEM] Starting initialization... \n";
