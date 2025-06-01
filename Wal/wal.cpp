@@ -55,12 +55,26 @@ void init_crc32_table() {
 	}
 }
 
-Wal::Wal() : segment_size(12), min_segment("wal_logs/wal_001.log") {
+void Wal::ensure_wal_folder_exists() {
+	if (!fs::exists("../wal/wal_logs")) {
+		if (fs::create_directory("../wal/wal_logs")) {
+			std::cout << "[WAL] Created folder: wal_logs\n";
+		}
+		else {
+			std::cerr << "[WAL] ERROR: Could not create folder: wal_logs\n";
+			throw std::runtime_error("Failed to create WAL folder.");
+		}
+	}
+}
+
+Wal::Wal() : segment_size(12), min_segment("../wal/wal_logs/wal_001.log") {
+	ensure_wal_folder_exists();
 	init_crc32_table();
 	update_min_segment();
 }
 
-Wal::Wal(int segment_size) : segment_size(segment_size), min_segment("wal_logs/wal_001.log") {
+Wal::Wal(int segment_size) : segment_size(segment_size), min_segment("../wal/wal_logs/wal_001.log") {
+	ensure_wal_folder_exists();
 	init_crc32_table();
 	update_min_segment();
 };
@@ -198,7 +212,7 @@ composite_key next_key(composite_key key, int segment_size) {
 		int broj_int = stoint(broj);
 		//cout << "novi brojh == " << broj_int << endl;
 		broj_int++;
-		string new_name = "wal_logs/wal_" + inttos3(broj_int) + ".log";
+		string new_name = "../wal/wal_logs/wal_" + inttos3(broj_int) + ".log";
 
 		//cout << new_name << endl;
 
@@ -458,7 +472,7 @@ string Wal::find_min_segment() {
 	vector<string> segment_files;
 	int min_index = 999;
 
-	for (const auto& entry : fs::directory_iterator("wal_logs")) {
+	for (const auto& entry : fs::directory_iterator("../wal/wal_logs")) {
 		string filename = entry.path().filename().string();
 
 		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
@@ -474,7 +488,7 @@ string Wal::find_min_segment() {
 		min_index = 1;
 	}
 	string min_index_str = inttos3(min_index);
-	return "wal_logs/wal_" + min_index_str + ".log";
+	return "../wal/wal_logs/wal_" + min_index_str + ".log";
 }
 
 void Wal::delete_old_logs(string target_file) {
@@ -492,7 +506,7 @@ void Wal::delete_old_logs(string target_file) {
 
 	vector<string> files_to_delete;
 
-	for (const auto& entry : fs::directory_iterator("wal_logs")) {
+	for (const auto& entry : fs::directory_iterator("../wal/wal_logs")) {
 		string filename = entry.path().filename().string();
 
 		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
@@ -500,7 +514,7 @@ void Wal::delete_old_logs(string target_file) {
 			int current_index = stoint(current_index_str);
 
 			if (current_index < target_index) {
-				files_to_delete.push_back("wal_logs/" + filename);
+				files_to_delete.push_back("../wal/wal_logs/" + filename);
 			}
 		}
 	}

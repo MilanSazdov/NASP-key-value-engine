@@ -57,6 +57,7 @@ private:
 
 	Block find_next_empty_block(Block b);
 	void write_record(string key, string value, byte tombstone = (byte)0);
+	void ensure_wal_folder_exists();
 
 public:
 	Wal();

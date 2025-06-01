@@ -1,12 +1,41 @@
 #include "System.h"
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+void ensureDirectory(const std::string& path) {
+    if (!fs::exists(path)) {
+        try {
+            if (fs::create_directory(path)) {
+                std::cout << "[SYSTEM INFO] Created missing folder: " << path << "\n";
+            }
+            else {
+                std::cerr << "[SYSTEM ERROR] Failed to create folder (unknown reason): " << path << "\n";
+            }
+        }
+        catch (const fs::filesystem_error& e) {
+            std::cerr << "[SYSTEM ERROR] Exception while creating folder '" << path << "': " << e.what() << "\n";
+        }
+    }
+}
+
 
 System::System() {
 
+    std::cout << "[SYSTEM] Starting initialization... \n";
+
+    // --- Folder checks ---
+    ensureDirectory("../data");
+
+    // --- WAL setup ---
     std::cout << "[Debug] Initializing WAL...\n";
     wal = new Wal(15);
+
+    // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
     memtable = new MemtableManager("hash", 5, 15);
 
+    // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";
     std::vector<Record> records = wal->get_all_records();
 
