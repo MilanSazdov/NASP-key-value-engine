@@ -1,8 +1,9 @@
 #pragma once
 
+#include <iostream>
 #include "wal.h"
 #include "MemtableManager.h"
-#include <iostream>
+
 
 class System {
 	
