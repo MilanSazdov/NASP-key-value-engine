@@ -3,12 +3,21 @@
 #include <fstream>
 #include <vector>
 #include <filesystem> 
-//#include "block-manager.h"
-
+#include "block-manager.h"
 #include "wal.h"
+
 namespace fs = std::filesystem;
 using namespace std;
-const string fn = "wal_logs/wal_001.log";
+
+const string WAL_FOLDER = "wal_logs";
+
+void ensure_wal_folder_exists() {
+
+    if (!fs::exists(WAL_FOLDER)) {
+        fs::create_directory(WAL_FOLDER);
+        cout << "[INFO] Created missing folder: " << WAL_FOLDER << "\n";
+    }
+}
 
 /*
     STA TREBA DODATI?
@@ -102,28 +111,32 @@ void print_files_in_folder(const string& folder_path) {
 }
 
 int main() {
-    string folder_path = "wal_logs";
+    
+    ensure_wal_folder_exists();
 
     // Step 1: Display files in 'wal_logs' before execution
-    cout << "Files in '" << folder_path << "' before execution:\n";
-    print_files_in_folder(folder_path);
+    cout << "\nFiles in '" << WAL_FOLDER << "' before execution:\n";
+    print_files_in_folder(WAL_FOLDER);
     cout << endl;
 
     // Step 2: Create a Wal object and test its methods
     cout << "Testing Wal class methods...\n";
     Wal w1;
 
+    cout << "\n[INFO] Inputting test data...\n";
     cout << "Inputting test data...\n";
+
     input_test_data(w1);
     input_test_data2(w1);
 
+    cout << "[INFO] Deleting some records...\n";
     cout << "Deleting records using delete_more functions...\n";
     delete_more(w1);
     delete_more2(w1);
 
     // Step 3: Display files in 'wal_logs' after Wal methods execution
-    cout << "\nFiles in '" << folder_path << "' after Wal methods execution:\n";
-    print_files_in_folder(folder_path);
+    cout << "\nFiles in '" << WAL_FOLDER << "' after Wal methods execution:\n";
+    print_files_in_folder(WAL_FOLDER);
     cout << endl;
 
     // Step 4: Retrieve and display all records from Wal
@@ -147,8 +160,8 @@ int main() {
     cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
 
     // Step 6: Final display of files in 'wal_logs'
-    cout << "\nFiles in '" << folder_path << "' after all operations:\n";
-    print_files_in_folder(folder_path);
+    cout << "\nFiles in '" << WAL_FOLDER << "' after all operations:\n";
+    print_files_in_folder(WAL_FOLDER);
 
 
     return 0;

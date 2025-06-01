@@ -25,6 +25,7 @@ using namespace std;
 
 /*
 	sta treba update? Citanje i pisanje preko block managera.
+	--------- OVO BI TREBALO DA JE ODRADJENO ----------------------
 
 */
 
@@ -431,7 +432,7 @@ Record read_record(Block b, int& pos, int& valid) {
 
 	pos += 30 + r.value_size + r.key_size;
 
-	return r;
+	return r; 
 }
 
 void Wal::put(string key, string data) {
