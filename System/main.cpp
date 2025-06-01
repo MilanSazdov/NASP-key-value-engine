@@ -48,6 +48,9 @@ int main() {
 
     std::cout << "[Main] Launching system...\n";
     System sys;
+    
+
+
     std::cout << "[Main] System launched successfully.\n";
 
     // Dodavanje novih ključeva i vrednosti
