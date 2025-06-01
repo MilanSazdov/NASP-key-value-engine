@@ -38,6 +38,16 @@ System::System() {
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";
     std::vector<Record> records = wal->get_all_records();
+    std::cout << "[Debug] WAL Records:\n";
+    for (const Record& r : records) {
+        std::cout << "-----------------------------------\n";
+        std::cout << "Key       : " << r.key << "\n";
+        std::cout << "Value     : " << r.value << "\n";
+        std::cout << "Tombstone : " << static_cast<int>(r.tombstone) << "\n";
+        std::cout << "Timestamp : " << r.timestamp << "\n";
+        std::cout << "CRC       : " << r.crc << "\n";
+    }
+    std::cout << "-----------------------------------\n";
 
     std::cout << "[Debug] Loading records into Memtable...\n";
     memtable->loadFromWal(records);

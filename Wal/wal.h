@@ -66,7 +66,7 @@ public:
 	void put(string key, string data);
 	void del(string key);
 	vector<Record> get_all_records();
-	//void debug_records();
+	// void debug_records();
 	string find_min_segment();
 	void update_min_segment();
 	void delete_old_logs(string target_file);
