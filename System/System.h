@@ -18,4 +18,7 @@ public:
 
 	void put(std::string key, std::string value, bool tombstone);
 
+	void debugWal() const;
+	void debugMemtable() const;
+
 };

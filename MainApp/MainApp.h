@@ -8,6 +8,9 @@ class MainApp {
 private:
 	System* system;
 
+	void debugWal();
+	void debugMemtable();
+
 public:
 
 	MainApp();

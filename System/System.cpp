@@ -63,3 +63,22 @@ void System::put(std::string key, std::string value, bool tombstone) {
 
 	memtable->put(key, value);
 }
+
+void System::debugWal() const {
+    std::vector<Record> records = wal->get_all_records();
+    std::cout << "[Debug] WAL Records: \n";
+
+    for (const auto& r : records) {
+        std::cout << "-----------------------------------\n";
+        std::cout << "Key       : " << r.key << "\n";
+        std::cout << "Value     : " << r.value << "\n";
+        std::cout << "Tombstone : " << (int)r.tombstone << "\n";
+        std::cout << "Timestamp : " << r.timestamp << "\n";
+        std::cout << "CRC       : " << r.crc << "\n";
+    }
+    std::cout << "-----------------------------------\n";
+}
+
+void System::debugMemtable() const {
+    memtable->printAllData();
+}

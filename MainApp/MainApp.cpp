@@ -9,6 +9,16 @@ MainApp::~MainApp() {
     delete system;
 }
 
+void MainApp::debugWal() {
+    std::cout << "[DEBUG] Printing WAL contents...\n";
+    system->debugWal();
+}
+
+void MainApp::debugMemtable() {
+    std::cout << "[DEBUG] Printing Memtable contents...\n";
+    system->debugMemtable();
+}
+
 void MainApp::showMenu() {
     std::cout << "\n========== Key-Value Engine ==========\n";
     std::cout << "1. PUT(key, value)   - Add or update a key-value pair\n";
@@ -55,6 +65,10 @@ void MainApp::run() {
         case 4:
             std::cout << "Exiting...\n";
             return;
+        case 404:
+            debugWal();
+            debugMemtable();
+            break;
         default:
             std::cout << "Invalid choice.\n";
         }
