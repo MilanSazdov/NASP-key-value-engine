@@ -530,6 +530,33 @@ void Wal::delete_old_logs(string target_file) {
 	update_min_segment();
 }
 
+// TREBA PROVERITI OVU FUNKCIJU -- BAJAGA
+std::vector<Record> Wal::get_all_records() {
+	std::vector<Record> records;
+	bool error = false;
+	composite_key key(0, min_segment);
+	Block block = bm.read_block(key, error);
+
+	while (!error) {
+		int pos = 0;
+		while (true) {
+			int valid;
+			Record r = read_record(block, pos, valid);
+			if (valid == 2) break;         // Kraj bloka
+			if (valid == 1) records.push_back(r);  // Validan rekord => ubaci
+
+			// Ako je CRC nevalidan (valid == 0), ignoriši samo taj record
+		}
+		key = next_key(key, segment_size);
+		block = bm.read_block(key, error);
+	}
+
+	return records;
+}
+
+
+
+/*
 vector<Record> Wal::get_all_records() {
 	vector<Record> ret;
 	Record r;
@@ -600,7 +627,8 @@ vector<Record> Wal::get_all_records() {
 
 	vector<Record> ret2;
 	ret2.clear();
-
+	
+	// ---------------------------MISLIM DA OVAJ DEO NE TREBA, JER JA IZ WALA IDEM INSTRUKCIJA PO INSTRUKCIJA, NE ZANIMA ME DA LI JE BILO BRISANJE DODAVANJE STAGOD, TO SE KASNIJE HANDLUJE
 	//cout << "KRAJ\n";
 	for (int i = 0; i < ret.size(); i++) {
 		if (map_deleted[ret[i].key] % 2 == 0) {
@@ -615,7 +643,7 @@ vector<Record> Wal::get_all_records() {
 		}
 	}
 	return ret2;
-}
+}*/
 
 /*string Wal::get(string key) {
 	string ret="";
