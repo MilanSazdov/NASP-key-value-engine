@@ -103,33 +103,34 @@ NoSQL is not a one-size-fits-all solution — but it excels in scenarios such as
 
 ## 🎯 Project Goal
 
-The objective of this project is to **design and implement a custom NoSQL key-value database engine** from the ground up — inspired by the architectural principles used in modern storage engines like **LevelDB**, **RocksDB**, and **Cassandra**.
+The primary goal of this project is to **design and implement a fully functional NoSQL key-value storage engine** from scratch — modeled after modern high-performance storage systems such as **LevelDB**, **RocksDB**, and **Apache Cassandra**.
 
-### This project aims to:
+This system is developed with an emphasis on **modularity, configurability, and extensibility**, allowing it to serve both as a practical engine and a learning framework for exploring the internals of real-world NoSQL databases.
 
-- Build an efficient **write path**, consisting of:
-  - **Write-Ahead Logging (WAL)** for durability
-  - **Memtable** structures (with pluggable backends like `HashMap` or `SkipList`)
-  - **Automatic flushing** of Memtables into **SSTable** files on disk
+Through the careful construction of this system, the project explores a wide range of core components commonly found in production-grade NoSQL engines. These include:
 
-- Build a robust **read path**, enabling:
-  - Efficient querying via **Bloom Filters**, **Summary Files**, and **Sparse Indexes**
-  - Partial block reading using a **Block Manager**
-  - Data validation via **Merkle Trees**
+- **Write-Ahead Log (WAL)** with integrity checks and segment management  
+- **In-memory Memtables** with support for HashMap, Skip List, or B-Tree structures  
+- **SSTable generation**, including Data, Index, Summary, Filter, Metadata, and TOC components  
+- **LSM-tree organization** with configurable compaction strategies (size-tiered and leveled)  
+- **Block Manager and Block Cache** for paged I/O operations  
+- **LRU-based Cache** for accelerating reads  
+- **Probabilistic structures** such as Bloom Filter, Count-Min Sketch, HyperLogLog, and SimHash  
+- **Support for scans and iterators**, including paginated prefix and range queries  
+- **Rate limiting** via the Token Bucket algorithm  
+- **Configuration via external files**, ensuring full modularity and flexibility
 
-- Support for **probabilistic data structures**, such as:
-  - **Bloom Filter** for set membership
-  - **Count-Min Sketch** for frequency estimation
-  - **HyperLogLog** for cardinality approximation
-  - **SimHash** for similarity detection
+This comprehensive foundation reflects not only how data flows through a NoSQL engine — from ingestion to durable storage and retrieval — but also how complex systems balance performance, correctness, and extensibility.
 
-- Enable **iterators** and **scanning capabilities**, such as:
-  - Prefix-based and range-based scans with pagination
-  - Cursor-based iteration over large sorted keyspaces
+All of these components are explored in greater depth throughout the remainder of this document.
 
-- Incorporate **external configuration**, rate-limiting mechanisms, and modular architecture for easy testing, benchmarking, and extensibility.
 
-By implementing this system from scratch, the project showcases a deep understanding of how modern NoSQL databases are designed, optimized, and integrated into real-world applications.
+- How persistent key-value storage is structured and maintained
+- How efficient reads are achieved in large-scale systems
+- How write-intensive workloads are optimized via batching and compaction
+- How probabilistic and compressed structures enhance performance and scalability
+
+By building this engine end-to-end, we aim to provide insight into the architecture and mechanics of modern NoSQL systems — including **data ingestion, organization, indexing, fault tolerance, and approximate querying** — all while maintaining control over every layer of the data path.
 
 ---
 
