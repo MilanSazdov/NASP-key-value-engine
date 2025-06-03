@@ -136,57 +136,121 @@ By building this engine end-to-end, we aim to provide insight into the architect
 
 This project demonstrates a **custom-built key-value NoSQL storage engine**, reflecting these core principles by incorporating modular in-memory structures, a durable write-ahead logging system, SSTables, probabilistic filters, and scalable read/write logic.
 
+---
 
+## 🧭 Table of Contents
 
-## 🚀 Features
+- [📌 Project Scope](#-project-scope)
+- [🎯 Project Goal](#-project-goal)
+- [📚 Overview](#-overview)
+  - [What is NoSQL?](#what-is-nosql)
+  - [When to Use NoSQL](#when-to-use-nosql)
+  - [Core Characteristics](#core-characteristics)
+  - [Types of NoSQL Databases](#types-of-nosql-databases)
 
-- **Core Operations**:  
-  - `PUT(key, value)`: Inserts or updates a key-value pair  
-  - `GET(key)`: Retrieves the value associated with a key  
-  - `DELETE(key)`: Marks a key as deleted (tombstone support)  
+- [🧩 Features](#-features)
+  - [Key-Value Operations](#key-value-operations)
+  - [Caching Mechanism (LRU)](#caching-mechanism-lru)
+  - [User Request Limitation (Token Bucket)](#user-request-limitation-token-bucket)
+  - [Configuration File (JSON/YAML)](#configuration-file-jsonyaml)
 
-- **In-Memory Storage (Memtable)**  
-  - Supports multiple backends: `HashMap` or `SkipList`  
-  - Configurable max size and instance count  
-  - Automatically flushed to disk as SSTable on capacity  
+- [📝 Write Path](#-write-path)
+  - [Write-Ahead Log (WAL)](#write-ahead-log-wal)
+  - [Memtable (HashMap / SkipList / B-Tree)](#memtable-hashmap--skiplist--b-tree)
+  - [SSTable Creation](#sstable-creation)
+  - [LSM Tree Structure and Compactions](#lsm-tree-structure-and-compactions)
+  - [Merkle Tree Validation](#merkle-tree-validation)
+  - [Logical Deletes and In-Place Edits](#logical-deletes-and-in-place-edits)
 
-- **Write-Ahead Logging (WAL)**  
-  - Ensures durability before committing to Memtable  
-  - Segment-based logs with CRC checks for data integrity  
-  - Fragmentation-aware and supports recovery on startup  
+- [🔍 Read Path](#-read-path)
+  - [Query Flow](#query-flow)
+  - [In-Memory Structures](#in-memory-structures)
+  - [Block Manager & Block Cache](#block-manager--block-cache)
 
-- **SSTables**  
-  - Immutable sorted files on disk  
-  - Support for:
-    - Data, Index, Summary, Filter, Metadata (Merkle Tree)  
-    - Sparse indexing and configurable summary granularity  
-    - Compressed numeric encodings & optional dictionary compression  
-  - Optimized read paths using Bloom Filters and multi-level Indexing  
+- [🧪 Probabilistic Structures](#-probabilistic-structures)
+  - [Bloom Filter](#bloom-filter)
+  - [Count-Min Sketch](#count-min-sketch)
+  - [HyperLogLog](#hyperloglog)
+  - [SimHash](#simhash)
 
-- **LSM-tree with Compaction**  
-  - Size-tiered and leveled compaction strategies  
-  - Automatic triggering and level-based SSTable hierarchy  
-  - Metadata-driven management of SSTable generations  
+- [🔎 Query Extensions](#-query-extensions)
+  - [Prefix & Range Scanning](#prefix--range-scanning)
+  - [Iterators (Prefix/Range)](#iterators-prefixrange)
 
-- **Caching and Block Management**  
-  - LRU Cache support for recently accessed data  
-  - Block Manager abstracts disk IO over page-aligned blocks  
-  - Configurable block sizes (4KB, 8KB, 16KB)  
+- [⚙️ Getting Started](#️-getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Dependencies](#dependencies)
 
-- **Probabilistic Structures**  
-  - Native support for:  
-    - Bloom Filter (membership queries)  
-    - Count-Min Sketch (event frequency tracking)  
-    - HyperLogLog (cardinality estimation)  
-    - SimHash (text fingerprinting and similarity)  
-  - Serialized and hidden from standard operations  
-
-- **Scan & Iterate**  
-  - `PREFIX_SCAN` and `RANGE_SCAN` with pagination  
-  - `PREFIX_ITERATE` and `RANGE_ITERATE` with interactive cursor-based access  
-
-- **Configuration & Rate Limiting**  
-  - Fully configurable via external JSON/YAML  
-  - Built-in Token Bucket algorithm for access throttling  
+- [📂 Usage Examples](#-usage-examples)
+- [🧑‍💻 Authors](#-authors)
 
 ---
+
+## 🧩 Features
+
+This engine offers a rich set of features designed to provide reliability, flexibility, performance, and extensibility — essential attributes for a modern key-value NoSQL storage system.
+
+### 🔑 Key-Value Operations
+
+- **PUT** – Inserts a new key-value pair or updates an existing one.  
+- **GET** – Retrieves the value associated with a given key.  
+- **DELETE** – Performs logical deletion by writing a tombstone instead of immediately removing the data.  
+- These operations serve as the foundation for both write and read paths and are compatible with in-memory and on-disk structures.
+---
+  
+### 📈 Additional Operations for Probabilistic Structures
+
+In addition to standard key-value manipulation, the engine offers specialized operations for managing **probabilistic data structures**, which enable approximate computing with low memory overhead.
+
+These include:
+
+- **HyperLogLog** – for cardinality estimation  
+- **Count-Min Sketch** – for frequency counting  
+- **Bloom Filter** – for probabilistic set membership queries  
+- **SimHash** – for similarity detection via Hamming distance
+
+Each structure supports:
+- Creation and deletion
+- Insertion of new elements or events
+- Querying approximate results (e.g., count, presence, similarity)
+
+These operations are managed independently from regular key-value records and are **not visible via standard `GET`, `PUT`, or `DELETE` calls**. Instead, they are handled through a dedicated API layer that internally utilizes both **read and write path** logic, with persistence and serialization.
+
+By supporting these structures, the system is capable of handling large-scale, approximate analytics tasks with minimal resource usage — ideal for real-time telemetry, recommendation engines, and pattern recognition use cases.
+
+---
+
+### 🧠 Caching Mechanism (LRU)
+
+- The system uses an **LRU (Least Recently Used)** caching strategy to store frequently accessed records in memory.
+- Users can configure the **maximum cache size**, and the system ensures that stale data is purged when necessary.
+- The cache layer is automatically updated on read/write operations to maintain consistency with the underlying data store.
+
+---
+
+### ⛔ User Request Limitation (Token Bucket)
+
+- A **Token Bucket** algorithm is implemented to control access frequency and rate-limit user operations.
+- Parameters such as **token refill interval** and **bucket capacity** are externally configurable.
+- The token state is persistently stored, ensuring resilience across system restarts.
+- These internal entries are hidden from the user's data layer and are not exposed via standard operations like `GET` or `PUT`.
+
+---
+
+### ⚙️ Configuration File (JSON/YAML)
+
+- Every aspect of the system is configurable via an **external configuration file**:
+  - Memtable type and size
+  - Number of memtable instances
+  - Bloom filter settings
+  - Block size (e.g., 4KB, 8KB, 16KB)
+  - Compaction algorithm (size-tiered or leveled)
+  - Index/Summary density
+  - Enabling/disabling compression
+- The system applies default values if any configuration fields are missing.
+- Supported formats: **JSON**, **YAML** (user-defined).
+
+---
+
+These features together form the backbone of a lightweight, yet powerful NoSQL key-value engine suitable for experimentation, research, and educational insight into low-level database systems.
