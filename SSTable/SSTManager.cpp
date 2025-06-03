@@ -80,17 +80,29 @@ std::string SSTManager::get(const std::string& key) const
     return rMax.value;
 }
 
-void SSTManager::write(const std::vector<Record>& sortedRecords) const
+void SSTManager::write(const std::vector<Record>& sortedRecords, int level) const
 {
-    int num = findNextIndex();
+
+    std::string levelDir = directory + "/level_" + std::to_string(level);
+    
+    // Kreiramo direktorijum ako ne postoji
+    if (!fs::exists(levelDir)) {
+        fs::create_directory(levelDir);
+    }
+
+    // Pronalazimo sledeci slobodan indeks u tom izvoru
+    int num = findNextIndex(levelDir);
     std::string numStr = to_string(num);
     std::string ending = numStr + ".sst";
 
-    SSTable sst(("sstable_" + ending),
-        ("index_" + ending),
-        ("filter_" + ending),
-        ("summary_" + ending),
-        ("meta_" + ending));
+    // Kreiramo putanje
+    SSTable sst(
+        levelDir + "/sstable_" + ending,
+        levelDir + "/index_" + ending,
+        levelDir + "/filter_" + ending,
+        levelDir + "/summary_" + ending,
+        levelDir + "/meta_" + ending
+    );
 
     sst.build(sortedRecords);
 }

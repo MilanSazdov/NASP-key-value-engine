@@ -93,6 +93,11 @@ void MemtableSkipList::updateEntry(const std::string& key, const MemtableEntry& 
     }
 }
 
+std::vector<MemtableEntry> MemtableSkipList::getSortedEntries() const {
+
+    return std::vector<MemtableEntry>{};
+}
+
 /*
 std::vector<std::pair<std::string, std::string>> MemtableSkipList::getAllKeyValuePairs() const {
     return skiplist_.getAllKeyValuePairs();

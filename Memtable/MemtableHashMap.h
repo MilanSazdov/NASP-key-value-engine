@@ -36,6 +36,8 @@ public:
 	// NOVO: ažurira zapis
 	void updateEntry(const std::string& key, const MemtableEntry& entry) override;
 
+    virtual std::vector<MemtableEntry> getSortedEntries() const override;
+
 private:
     // Struktura koju čuvamo u memoriji: (value, tombstone, timestamp)
     struct Entry {

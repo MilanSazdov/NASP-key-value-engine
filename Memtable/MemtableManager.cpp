@@ -53,6 +53,8 @@ void MemtableManager::put(const std::string& key, const std::string& value) {
         else {
             // TODO: Kada popunimo svih N, FLUSUHJEMO PRVU NAPRAVLJENU (NAJSTARIJU) i od nje pravimo novi SSTable
             // Popunili smo svih N -> flushAll
+            // Pre flushovanja, Memtable treba da bude sortirana po kljucevima
+            // TO ce omoguciti da se napravi ispravan SSTable koji ocekuje sortirane zapise
             flushAll();
             // i ponovo kreiramo jednu memtable
             memtables_.clear();
@@ -109,9 +111,11 @@ void MemtableManager::flushAll() {
     // Uzimamo najstariju memtable (prva u vektoru)
     auto& oldestMemtable = memtables_.front();
 
+    std::vector<MemtableEntry> entries = oldestMemtable->getSortedEntries();
+
     // Pretvaramo njene unose u zapise za SSTable
     std::vector<Record> records;
-    for (const auto& entry : oldestMemtable->getAllMemtableEntries()) {
+    for (const auto& entry : entries) {
         Record r;
         //TODO: CRC treba dodati
         r.key = entry.key;
@@ -124,10 +128,12 @@ void MemtableManager::flushAll() {
     }
 
     // Pišemo ove zapise u SSTable koristeći sstManager
+    std::cout << "[MemtableManager] Flushing to SSTable...\n";
     sstManager.write(records);
 
     // Brišemo najstariju memtable iz memorije
     memtables_.erase(memtables_.begin());
+    std::cout << "[MemtableManager] Flushed and removed the oldest Memtable.\n";
 }
 
 

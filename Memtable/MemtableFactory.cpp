@@ -9,10 +9,10 @@ IMemtable* MemtableFactory::createMemtable(const std::string& type) {
         return new MemtableSkipList();
     }
 
-    
+    /*
     else if (type == "btree") {
         return new BTree<4>(5);
-    }
+    }*/
 
 
     // Ako tip nije prepoznat, vracamo default, npr. hash

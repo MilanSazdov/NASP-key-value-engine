@@ -1,5 +1,5 @@
 ﻿#pragma once
-
+/*
 #include <string>
 #include <optional>
 #include "IMemtable.h"
@@ -115,6 +115,8 @@ public:
 	std::optional<MemtableEntry> getEntry(const std::string& key) const override;
 
 	void updateEntry(const std::string& key, const MemtableEntry& entry) override;
+
+    virtual std::vector<MemtableEntry> getSortedEntries() const override;
 };
 
 
@@ -642,3 +644,4 @@ void BTree<ORDER>::updateEntry(const std::string& key, const MemtableEntry& entr
 
     std::cout << "[BTree] Key '" << key << "' updated successfully.\n";
 }
+*/

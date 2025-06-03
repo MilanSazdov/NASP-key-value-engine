@@ -43,6 +43,8 @@ public:
 	// NOVO: ažurira zapis
 	void updateEntry(const std::string& key, const MemtableEntry& entry) override;
 
+    virtual std::vector<MemtableEntry> getSortedEntries() const override;
+
 private:
     SkipList skiplist_;
     size_t maxSize_;
