@@ -28,11 +28,11 @@ System::System() {
 
     // --- WAL setup ---
     std::cout << "[Debug] Initializing WAL...\n";
-    wal = new Wal(15);
+    wal = new Wal(2);
 
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
-    memtable = new MemtableManager("hash", 5, 15);
+    memtable = new MemtableManager("hash", 2, 2);
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";
