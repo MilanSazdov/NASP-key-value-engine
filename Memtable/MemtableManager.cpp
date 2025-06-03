@@ -9,7 +9,8 @@ MemtableManager::MemtableManager(const std::string& type,
     : type_(type),
     N_(N),
     maxSize_(maxSizePerTable),
-    sstManager(directory)
+    sstManager(directory),
+    lsmManager(directory, /* maxLevel = */ 4, /* compactionThreshold = */ 3)
 {
     memtables_.reserve(N_);
     // Kreiramo prvu memtable (aktivnu)
@@ -23,7 +24,8 @@ MemtableManager::MemtableManager(const std::string& type, size_t N, size_t maxSi
     : type_(type),
     N_(N),
     maxSize_(maxSizePerTable),
-    sstManager("./")
+    sstManager("./"),
+    lsmManager("./", 4, 3)
 {
     memtables_.reserve(N_);
     // Kreiramo prvu memtable (aktivnu)
@@ -129,7 +131,7 @@ void MemtableManager::flushAll() {
 
     // Pišemo ove zapise u SSTable koristeći sstManager
     std::cout << "[MemtableManager] Flushing to SSTable...\n";
-    sstManager.write(records);
+    lsmManager.flushToLevel0(records);
 
     // Brišemo najstariju memtable iz memorije
     memtables_.erase(memtables_.begin());

@@ -6,6 +6,7 @@
 #include <optional>
 #include "IMemtable.h"
 #include "SSTManager.h"
+#include "LSMManager.h"
 
 class MemtableManager {
 public:
@@ -50,6 +51,8 @@ private:
     size_t maxSize_;     // max broj elemenata u svakoj
 
     SSTManager sstManager;
+
+    LSMManager lsmManager;
 
     // N instanci memtable
     std::vector<std::unique_ptr<IMemtable>> memtables_;

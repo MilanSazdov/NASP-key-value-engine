@@ -112,7 +112,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(SolutionDir)..\SSTable;$(SolutionDir)..\Wal;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SkipList;$(SolutionDir)..\MerkleTree;$(SolutionDir)..\BloomFilter</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(SolutionDir)..\SSTable;$(SolutionDir)..\Wal;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SkipList;$(SolutionDir)..\MerkleTree;$(SolutionDir)..\BloomFilter;$(SolutionDir)..\LSM</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -154,6 +154,9 @@
     <ClCompile Include="MemtableSkipList.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\LSM\LSM.vcxproj">
+      <Project>{f4305f7b-8b94-41f6-8f5d-bacc683716f8}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\SkipList\SkipList.vcxproj">
       <Project>{696a9cf6-8afa-4d64-bf62-878d6b29c179}</Project>
     </ProjectReference>

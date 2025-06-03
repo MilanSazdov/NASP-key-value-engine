@@ -23,7 +23,7 @@ struct IndexEntry {
 struct Summary{
     std::vector<IndexEntry> summary;
     std::string min;
-    std::string max;
+    std::string max; 
 };
 
 class SSTable {
