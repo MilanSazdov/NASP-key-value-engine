@@ -248,9 +248,101 @@ By supporting these structures, the system is capable of handling large-scale, a
   - Compaction algorithm (size-tiered or leveled)
   - Index/Summary density
   - Enabling/disabling compression
+
 - The system applies default values if any configuration fields are missing.
 - Supported formats: **JSON**, **YAML** (user-defined).
 
 ---
 
 These features together form the backbone of a lightweight, yet powerful NoSQL key-value engine suitable for experimentation, research, and educational insight into low-level database systems.
+
+---
+
+## 📝 Write Path
+
+The **write path** is responsible for ensuring reliable and efficient ingestion of incoming data (`PUT` and `DELETE` operations). It guarantees durability through logging, fast memory access through in-memory structures, and long-term persistence through disk-based SSTables.
+
+The complete flow involves several key stages, shown below:
+
+![Write Path](write_path.png)
+
+---
+
+### ✏️ 1. Write-Ahead Log (WAL)
+
+Every modification to the database (inserts or deletions) is first recorded in the **Write-Ahead Log**:
+- Structured as a **segmented log**, where each segment holds a fixed number of records or bytes (user-defined).
+- Each WAL record includes metadata fields such as **CRC** for integrity verification.
+- Segments cannot be deleted until data is flushed to disk.
+- WAL recovery is supported on startup to rebuild the Memtable state.
+
+---
+
+### 🧠 2. Memtable (HashMap / SkipList / B-Tree)
+
+Once the WAL confirms the write, data is inserted into a **Memtable**, a fast in-memory structure that supports:
+- Hash Map (unordered, fast access)
+- Skip List (ordered, logarithmic operations)
+- B-Tree (balanced, disk-friendly access patterns)
+
+Key characteristics:
+- Configurable maximum size (in elements)
+- Supports **N concurrent Memtable instances**: one writable and (N−1) read-only
+- Flush is triggered when all instances are full
+- Memtable content is initialized from WAL during system boot
+
+---
+
+### 💾 3. SSTable Creation
+
+Upon flushing, Memtable contents are:
+- **Sorted by key**
+- Persisted to disk as immutable **SSTables**
+
+Each SSTable includes:
+- **Data block** (key-value pairs)
+- **Bloom Filter** for fast set-membership rejection
+- **Index** with key-offset mapping
+- **Summary** with sampled keys and range bounds
+- **TOC file** listing all SSTable components
+- **Metadata** with a Merkle Tree for integrity validation
+
+---
+
+### 🏗️ 4. LSM Tree Structure and Compactions
+
+SSTables are organized in levels (Level 0, Level 1, ...), forming a **Log-Structured Merge Tree (LSM)**:
+- When the number of SSTables in a level exceeds the limit, compaction is triggered
+- Supports two compaction algorithms:
+  - **Size-Tiered Compaction** (default)
+  - **Leveled Compaction** (optional, user-configurable)
+
+Compactions merge and rewrite SSTables, removing obsolete versions and tombstones.
+
+---
+
+### 🔒 5. Merkle Tree Validation
+
+For data integrity, every SSTable includes a **Merkle Tree** built from its data block:
+- Enables efficient consistency checks
+- Used to validate data integrity upon user request
+
+---
+
+### 🧹 6. Logical Deletes and In-Place Edits
+
+Deletes are **logical** — tombstones are written instead of immediate removal.
+- Deleted entries are filtered out during compaction
+- If a key is reinserted, its tombstone is eventually overwritten
+
+This design allows safe deletion without compromising performance or consistency.
+
+---
+
+### 📍 7. Data Persistence and Storage
+
+All disk writes (SSTables, WAL segments, metadata) are managed via the **Block Manager**, which ensures:
+- Disk is accessed through fixed-size page blocks (4KB, 8KB, 16KB)
+- Efficient and aligned reads/writes
+- Compatibility with the caching layer for reduced IO
+
