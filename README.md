@@ -346,3 +346,86 @@ All disk writes (SSTables, WAL segments, metadata) are managed via the **Block M
 - Efficient and aligned reads/writes
 - Compatibility with the caching layer for reduced IO
 
+---
+
+## 🔍 Read Path
+
+The **read path** is responsible for efficiently retrieving data requested via the `GET(key)` operation. It is designed to prioritize **in-memory speed**, avoid unnecessary disk access, and support **scalable lookups** across multiple SSTables organized by LSM levels.
+
+The lookup procedure involves a layered approach with early exits to ensure optimal performance.
+
+---
+
+### 🔄 Flow of the Read Path
+
+1. **Memtable Lookup**  
+   The system first checks the **active Memtable** and any existing **read-only Memtable instances**.  
+   If the key is found, the value is returned immediately.
+
+2. **Cache Lookup (Optional)**  
+   If enabled, the engine then queries the **LRU-based Cache**.  
+   - If a hit occurs, the value is returned from memory without accessing disk.
+   - The cache is kept consistent with all read/write operations.
+
+3. **SSTable Traversal by Level (LSM Tree)**  
+   If the key is not found in memory, the engine traverses SSTables across LSM levels:
+   - Starts from Level 0 (newest data) and progresses toward deeper levels (older data).
+   - The search **stops at the first valid match**.
+   - The order of SSTable traversal is determined by the **compaction strategy** (size-tiered or leveled).
+
+---
+
+### 🧪 Bloom Filter Check
+
+Before performing any disk I/O, the system loads and queries the **Bloom Filter** associated with each SSTable:
+- If the filter confirms the key is **not present**, the SSTable is skipped.
+- If the key **might be present**, a deeper lookup is initiated.
+
+---
+
+### 📚 Summary and Index Probing
+
+If the Bloom Filter test passes, the system performs a two-phase lookup:
+
+1. **Summary File**  
+   - Contains a sampled subset of index entries (e.g., every 5th key).
+   - Defines the **range bounds** (min and max key) for the SSTable.
+   - Narrows down the section of the index to search in.
+
+2. **Index File**  
+   - Provides the exact offset of the key in the Data Block.
+   - Read from disk block-by-block via the **Block Manager**.
+
+---
+
+### 📦 Data Retrieval via Block Manager
+
+The **Block Manager** handles disk I/O:
+- Loads only the required page/block from the Data segment.
+- If enabled, uses the **Block Cache** (with LRU eviction) to avoid redundant reads.
+
+The data is then deserialized and returned.
+
+---
+
+### 🔐 Optional: Merkle Tree Validation
+
+Upon user request, the system can validate the data's integrity using the **Merkle Tree** stored in the SSTable's Metadata file:
+- Detects tampering or corruption
+- Can pinpoint inconsistencies within the data block
+
+---
+
+### 🧠 Summary of the Read Path Layers
+
+| Layer               | Purpose                                | Location        |
+|--------------------|----------------------------------------|-----------------|
+| Memtable            | Fastest, in-memory lookup              | RAM             |
+| Cache               | Reduces repeated disk access           | RAM             |
+| Bloom Filter        | Probabilistic, fast elimination        | Disk (small)    |
+| Summary File        | Narrows index search range             | Disk (lightweight) |
+| Index File          | Maps keys to disk offsets              | Disk            |
+| Data Block          | Contains actual value                  | Disk            |
+| Merkle Tree (opt)   | Integrity verification                 | Disk (metadata) |
+
+This layered structure ensures minimal disk access while maintaining correctness and speed, even as the dataset grows across multiple levels.
