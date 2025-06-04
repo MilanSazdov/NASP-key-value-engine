@@ -6,6 +6,10 @@
 using namespace std;
 
 typedef pair<int, string> composite_key;
+typedef long long ll;
+typedef unsigned long long ull;
+typedef unsigned int uint;
+
 const int block_size = 100;	    //in bytes
 const int cache_size = 5;		//in blocks
 const std::byte padding_character = (std::byte)'0';
@@ -13,7 +17,7 @@ const int int_padding_character = (int)'0';
 
 struct Block {
 	composite_key key;
-	std::byte* data;
+	byte* data;
 
 	Block();
 	Block(composite_key k);
@@ -22,7 +26,10 @@ struct Block {
 	void set_data(char* data);
 
 	bool operator == (const Block& b);
-	std::byte operator[] (const int i);
+
+	byte operator[] (const ull i);
+	byte operator[] (const int i);
+
 	Block(const Block& other);				//copy constructor (deep copy)
 	Block& operator=(const Block& other);	//asignment operator (deep copy)
 };
@@ -36,7 +43,7 @@ struct Node{
 
 struct hash_composite_key {
 	template <typename T1, typename T2>
-	std::size_t operator ()(const std::pair<T1, T2>& p) const {
+	size_t operator ()(const std::pair<T1, T2>& p) const {
 		auto h1 = std::hash<T1>{}(p.first);   // Hash of the int (first element of the pair)
 		auto h2 = std::hash<T2>{}(p.second);  // Hash of the string (second element of the pair)
 

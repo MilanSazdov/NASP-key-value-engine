@@ -165,16 +165,6 @@ ull byte_to_uint(byte* c) {
 	return ret;
 }
 
-int stoint(string& s) {
-	int ten = 1;
-	int ret = 0;
-	for (int i = 2; i >= 0; i--) {
-		ret += ten * (s[i] - '0');
-		ten *= 10;
-	}
-	return ret;
-}
-
 string inttos3(int& x) {
 	string ret = "000";
 	for (int i = 0; i < 3; i++) {
@@ -209,7 +199,7 @@ composite_key next_key(composite_key key, int segment_size) {
 		for (char c : file_name) {
 			if (c >= '0' && c <= '9') broj.push_back(c);
 		}
-		int broj_int = stoint(broj);
+		int broj_int = stoi(broj);
 		//cout << "novi brojh == " << broj_int << endl;
 		broj_int++;
 		string new_name = "../wal/wal_logs/wal_" + inttos3(broj_int) + ".log";
@@ -263,8 +253,8 @@ Block Wal::find_next_empty_block(Block b) {
 	} while (1);
 }
 
-int find_empty_pos(Block& b) {
-	int poc = 0, key_size = 0, value_size = 0, sum;
+ull find_empty_pos(Block& b) {
+	ull poc = 0, key_size = 0, value_size = 0, sum;
 	while (poc + 30 < block_size) {
 		//cout << " poc == " << poc << endl;
 		if (b[poc] == padding_character && b[poc + 1] == padding_character && b[poc + 2] == padding_character) return poc;
@@ -422,6 +412,7 @@ Record read_record(Block b, int& pos, int& valid) {
 		valid = 2;
 		return r;
 	}
+
 	if (b[pos] == padding_character && b[pos + 1] == padding_character && b[pos + 2] == padding_character) {
 		valid = 2;
 		return r;
@@ -477,7 +468,7 @@ string Wal::find_min_segment() {
 
 		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
 			string index_str = filename.substr(4, 3);
-			int index = stoint(index_str);
+			int index = stoi(index_str);
 
 			if (index < min_index) {
 				min_index = index;
@@ -502,7 +493,7 @@ void Wal::delete_old_logs(string target_file) {
 	 * (e.g., "wal_001.log"), and deletes them. Logs success or error for each deletion.
 	 */
 	string index_str = target_file.substr(4, 3);
-	int target_index = stoint(index_str);
+	int target_index = stoi(index_str);
 
 	vector<string> files_to_delete;
 
@@ -511,7 +502,7 @@ void Wal::delete_old_logs(string target_file) {
 
 		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
 			string current_index_str = filename.substr(4, 3);
-			int current_index = stoint(current_index_str);
+			int current_index = stoi(current_index_str);
 
 			if (current_index < target_index) {
 				files_to_delete.push_back("../wal/wal_logs/" + filename);

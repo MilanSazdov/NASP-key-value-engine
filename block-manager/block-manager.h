@@ -11,7 +11,8 @@ class Block_manager {
 public:
 	//Block_manager();
 	void write_data(string file_name, vector<char> data);
-	vector<char> read_data(string file_name);
+	
+	vector<char> read_data(string file_name);			/// MISLIM DA OVO NE SME DA POSTOJI !!!
 
 	Block read_block(composite_key key, bool& error);
 	Block read_block(int id, string file_name, bool& error);	 //same as above

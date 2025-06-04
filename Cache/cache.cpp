@@ -8,17 +8,17 @@ using namespace std;
 
 Block::Block() {
 	key = make_pair(-1, "");
-	data = new std::byte[block_size];
+	data = new byte[block_size];
 	memset(data, (int)padding_character, block_size);
 }
 
 Block::Block(composite_key k) : key(k) {
-	this->data = new std::byte[block_size];
+	this->data = new byte[block_size];
 	memset(data, (int)padding_character, block_size);
 }
 
 Block::Block(const Block& other) : key(other.key) {
-	this->data = new std::byte[block_size];
+	this->data = new byte[block_size];
 	memcpy(this->data, other.data, block_size); // Deep copy the data array
 }
 
@@ -43,13 +43,19 @@ bool Block::operator == (const Block& b) {
 	return (b.key == key);
 }
 
-std::byte Block::operator[] (const int i) {
+byte Block::operator[] (const ull i) {
 	if (i < 0 || i >= block_size) {
 		throw "Index out of bounds";
 	}
 	return data[i];
 }
 
+byte Block::operator[] (const int i) {
+	if (i < 0 || i >= block_size) {
+		throw "Index out of bounds";
+	}
+	return data[i];
+}
 ///____________________________________________________________________________________
 
 void print_node(Node* n) {
@@ -88,8 +94,7 @@ void Cache::print_cache() {
 }
 
 void Cache::add_node(Node* n) {
-	//block already in cache, this is modifying
-	if (blocks.find(n->block.key) != blocks.end()) {
+	if (blocks.find(n->block.key) != blocks.end()) { //block already in cache, this is modifying
 		blocks[n->block.key] = n->block;
 
 		if (head->block.key == n->block.key) {
@@ -124,6 +129,7 @@ void Cache::add_node(Node* n) {
 		
 		return;
 	}
+	
 	//adding to map
 	blocks[n->block.key] = n->block;
 
