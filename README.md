@@ -429,3 +429,29 @@ Upon user request, the system can validate the data's integrity using the **Merk
 | Merkle Tree (opt)   | Integrity verification                 | Disk (metadata) |
 
 This layered structure ensures minimal disk access while maintaining correctness and speed, even as the dataset grows across multiple levels.
+
+---
+
+## ⚙️ Getting Started
+
+### 📦 Prerequisites
+
+Before you begin using the Key-Value Engine, make sure your environment satisfies the following:
+
+- **C++ Compiler** with full support for **C++17**
+- **CMake** version 3.15 or higher
+- **Make** (on Linux/macOS) or **MinGW/MSYS** (on Windows)
+- A Unix-like terminal (or PowerShell with appropriate toolchain)
+
+---
+
+### 🛠️ Installation
+
+To set up and run the Key-Value Engine locally, follow these steps:
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/MilanSazdov/NASP-key-value-engine.git
+   cd NASP-key-value-engine
+
+  
