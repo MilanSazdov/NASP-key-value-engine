@@ -74,6 +74,7 @@ void input_test_data(Wal& w1) {
     w1.put("music", "art");
     w1.put("dream", "thought");
 }
+
 void input_test_data2(Wal& w1) {
     info("Added 10 records");
     w1.put("the sun rises in the east", "natural phenomenon");
@@ -118,9 +119,34 @@ void print_files_in_folder(const string& folder_path) {
     }
 }
 
+void delete_all_files(string folderPath) {
+    try {
+        // Check if the folder exists
+        if (fs::exists(folderPath) && fs::is_directory(folderPath)) {
+            for (const auto& entry : fs::directory_iterator(folderPath)) {
+                if (fs::is_regular_file(entry)) { // Check if it's a file
+                    fs::remove(entry); // Delete the file
+                    //std::cout << "Deleted: " << entry.path() << std::endl;
+                }
+            }
+            std::cout << "All files in the folder have been deleted." << std::endl << std::endl;
+        }
+        else {
+            std::cout << "Folder does not exist or is not a directory." << std::endl;
+        }
+    }
+    catch (const fs::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+}
+
 int main() {
     
     ensure_wal_folder_exists();
+
 
     // Step 1: Display files in 'wal_logs' before execution
     cout << "\nStep 1: Files in '" << WAL_FOLDER << "' before execution:\n";
@@ -140,6 +166,7 @@ int main() {
     info("Deleting some records using delete_more functions...");
     delete_more(w1);
     delete_more2(w1);
+    w1.put("apple", "FRUIT");
 
     // Step 3: Display files in 'wal_logs' after Wal methods execution
     cout << "\nStep 3: Files in '" << WAL_FOLDER << "' after Wal methods execution:\n";
@@ -153,12 +180,12 @@ int main() {
         cout << r.key << " " << r.value << endl;
     }*/
     cout << endl;
-
+    
     // Step 5: Test find_min_segment and delete_old_logs functionality
     cout << "Step 5: Testing find_min_segment and delete_old_logs...\n";
     cout << "Minimum segment: " << w1.find_min_segment() << endl;
 
-    cout << "Deleting logs older than 'wal_002.log'...\n";
+    cout << "\nDeleting logs older than 'wal_002.log'...\n";
     w1.delete_old_logs("wal_002.log");
     cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
     

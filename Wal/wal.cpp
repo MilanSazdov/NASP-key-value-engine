@@ -184,17 +184,20 @@ void fill_in_padding(vector<byte>& bad_data) {
 	}
 }
 
-composite_key next_key(composite_key key, int segment_size) {
-	int id = key.first;
-	string name = key.second;
-	composite_key ret;
+string next_key(string key, int segment_size) {
+	pair<int, string> temp = make_pair_from_string(key);
+	
+	int id = temp.first;
+	string file_name = temp.second;
+
+	string ret;
+
 	if ((id + 1) < segment_size) {
 		id++;
 		//cout << "  id == " << id << endl;
-		ret = make_pair(id, name);
+		ret = make_string_from_pair(id, file_name);
 	}
 	else {
-		string file_name = key.second;
 		string broj = "";
 		for (char c : file_name) {
 			if (c >= '0' && c <= '9') broj.push_back(c);
@@ -206,13 +209,14 @@ composite_key next_key(composite_key key, int segment_size) {
 
 		//cout << new_name << endl;
 
-		ret = make_pair(0, new_name);
+		ret = make_string_from_pair(0, new_name);
 	}
+
 	return ret;
 }
 
 void debugf(Block b) {
-	cout << "key: " << b.key.first << " " << b.key.second << endl;
+	cout << "key: " << b.key << endl;
 	cout << "data:";
 	for (int i = 0; i < block_size; i++) cout << byte_to_int(b[i]);
 	cout << "kraj\n";
@@ -223,6 +227,11 @@ Block Wal::find_next_empty_block(Block b) {
 	int pok = 0;
 	Block b2 = b;
 
+	pair<int, string> temp = make_pair_from_string(b.key);
+	
+	string file_name = temp.second;
+	int block_id = temp.first;
+
 	do {
 		pok++;
 		//cout << "Checking block: " << b2.key.second << ", key: " << b2.key.first << endl;
@@ -230,14 +239,19 @@ Block Wal::find_next_empty_block(Block b) {
 		b2 = bm.read_block(b2.key, error);
 		if (error) {
 			// Create new file
-			ofstream new_file(b2.key.second, ios::binary | ios::out);
+			temp = make_pair_from_string(b2.key);
+			
+			ofstream new_file(temp.second, ios::binary | ios::out);
 			if (!new_file.is_open()) {
-				cout << "Failed to create file: " << b2.key.second << endl;
+				cout << "Failed to create file: " << file_name << endl;
 				exit(1);
 			}
 
 			// Initialize the block with padding characters
 			memset(b2.data, int_padding_character, block_size);
+			
+			cout << b2.key << endl;
+
 			bm.write_block(b2); // Write the initialized block
 
 			return b2;
@@ -302,7 +316,7 @@ void extract_data(vector<byte>& record, uint crc, byte flag, ull timestamp, byte
 
 void Wal::write_record(string key, string value, byte tombstone) {
 	string current_file = min_segment;
-	Block first_block(make_pair(0, current_file));
+	Block first_block(make_string_from_pair(0, current_file));
 	Block b;
 
 	b = find_next_empty_block(first_block);
@@ -556,9 +570,9 @@ vector<Record> Wal::get_all_records() {
 
 	bool er;
 	int rec_pos, valid;
+	cout << "min segment == " << min_segment << endl;
 
-	composite_key tren_key(0, min_segment);
-	Block b(tren_key);
+	Block b(make_string_from_pair(0, min_segment));
 
 	string big_key, big_value;
 	bool all_good;
@@ -616,7 +630,12 @@ vector<Record> Wal::get_all_records() {
 		b.key = next_key(b.key, segment_size);
 	}
 
-	vector<Record> ret2;
+	/// OVO JE KOD KOJI JE FIZICKI BRISAO OBRISANE RECORDE, I VRACAO SAMO PRISUTNE.
+	/// KASNIJE SMO SKONTALI DA JE TO LOSA IDEJA, DA WAL NE TREBA DA VODI O TOME RACUNA
+	/// TAKO DA WAL VRACA S V E ZAPISE REDOM KAKO SU POZVANI
+
+
+	/*vector<Record> ret2;
 	ret2.clear();
 	
 	// ---------------------------MISLIM DA OVAJ DEO NE TREBA, JER JA IZ WALA IDEM INSTRUKCIJA PO INSTRUKCIJA, NE ZANIMA ME DA LI JE BILO BRISANJE DODAVANJE STAGOD, TO SE KASNIJE HANDLUJE
