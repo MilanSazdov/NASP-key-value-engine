@@ -18,14 +18,16 @@ MemtableManager::MemtableManager(const std::string& type,
     first->setMaxSize(maxSizePerTable);
     memtables_.push_back(std::move(first));
     activeIndex_ = 0;
+
+    lsmManager.initialize();
 }
 
 MemtableManager::MemtableManager(const std::string& type, size_t N, size_t maxSizePerTable)
     : type_(type),
     N_(N),
     maxSize_(maxSizePerTable),
-    sstManager("./"),
-    lsmManager("./", 4, 3)
+    sstManager("../data"),
+    lsmManager("../data", 4, 3)
 {
     memtables_.reserve(N_);
     // Kreiramo prvu memtable (aktivnu)
@@ -34,6 +36,7 @@ MemtableManager::MemtableManager(const std::string& type, size_t N, size_t maxSi
     memtables_.push_back(std::move(first));
     activeIndex_ = 0;
 
+    lsmManager.initialize();
 }
 
 MemtableManager::~MemtableManager() {
