@@ -321,19 +321,72 @@ void Wal::write_record(string key, string value, byte tombstone) {
 		flag = Wal_record_type::FULL;
 		crc = calc_crc(flag, timestamp, tombstone, key_size, value_size, key, value);
 		extract_data(record, crc, flag, timestamp, tombstone, key_size, value_size, key, value);
-		cout << crc << " " << record_type_to_string(flag) << " " << timestamp << " " << (char)tombstone << " " << key_size << " " << value_size << " " << key << " " << value << endl;
-		//memcpy(&b.data[id], &record[0], record.size());
-		
-		for (byte b : record) cout << (char)b;
-		cout << endl;
 
-		cout << "writing done\n";
+		cout << "writing done (FULL)\n";
 		
 		bm.write_block(current_block, record);
 	}
 	else {
-		// TODO
-		cout << "Cant perform\n";
+		string key_new, value_new;
+		record.clear();
+		for (int i = 0; i < pos; i++) {
+			record.push_back(bytes[i]);
+		}
+		int visak;
+		flag = Wal_record_type::FIRST;
+
+		while (key.size() + value.size() > 0) {
+			visak = block_size - 30 - pos;
+			if (visak <= key.size()) {
+				key_new = key.substr(0, visak);
+				key = key.substr(visak);
+				value_new = "";
+			}
+			else if (key.size() == 0) {
+				key_new = "";
+				if (visak <= value.size()) {
+					value_new = value.substr(0, visak);
+					value = value.substr(visak);
+				}
+				else {
+					value_new = value;
+					value = "";
+				}
+			}
+			else {
+				key_new = key;
+				visak -= key.size();
+				key = "";
+
+				if (visak <= value.size()) {
+					value_new = value.substr(0, visak);
+					value = value.substr(visak);
+				}
+				else {
+					value_new = value;
+					value = "";
+				}
+			}
+
+			if (key.size() + value.size() == 0) flag = Wal_record_type::LAST;
+
+			key_size = key_new.size();
+			value_size = value_new.size();
+			timestamp = get_timestamp();
+
+			crc = calc_crc(flag, timestamp, tombstone, key_size, value_size, key_new, value_new);
+			extract_data(record, crc, flag, timestamp, tombstone, key_size, value_size, key_new, value_new);
+
+			cout << "writing done (" << record_type_to_string(flag) << ")\n";
+
+			bm.write_block(current_block, record);
+			
+			pos = 0;
+			next_block(current_block);
+
+			flag = Wal_record_type::MIDDLE;
+			record.clear();
+		}
 	}
 	//cout << current_block.first << " " << current_block.second << " pos in block: " << pos << endl;
 }
@@ -388,6 +441,7 @@ vector<Record> Wal::get_all_records() {
 
 	bytes = bm.read_block(key, error);
 	cout << "error = " << error << endl;
+	string new_value, new_key;
 
 	while (!error) {
 		int pos = 0;
@@ -398,8 +452,35 @@ vector<Record> Wal::get_all_records() {
 			Record r = read_record(bytes, pos, ok, flag);
 
 			if (ok == 2) break;         // Kraj bloka
+			else if (ok == 0) {			// disk error, should NOT count this record
+				if (flag == Wal_record_type::LAST) {
+					fragm.clear();
+				}
+				continue;
+			}
+			// whole record completed, goes directly in ret
+			if (flag == Wal_record_type::FULL) {
+				records.push_back(r);
+				fragm.clear();
+				continue;
+			}
+			fragm.push_back(r);
+			if(flag == Wal_record_type::LAST){
+				new_key = new_value = "";
+				for(Record r: fragm){
+					new_key = new_key + r.key;
+					new_value = new_value + r.value;
+				}
+				r.key = new_key;
+				r.value = new_value;
 
-			if (ok == 1) records.push_back(r);  // ok rekord => ubaci
+				r.value_size = r.value.size();
+				r.key_size = r.key.size();
+
+				// r.crc and r.timestamp may be different
+				records.push_back(r);
+			}
+			
 			
 			//debug_record(r);
 			//cout << record_type_to_string(flag) << endl;
@@ -438,7 +519,7 @@ void Wal::delete_old_logs(string target_file) {
 
 	vector<string> files_to_delete;
 
-	for (const auto& entry : fs::directory_iterator("../wal/wal_logs")) {
+	for (const auto& entry : fs::directory_iterator(LOG_DIRECTORY)) {
 		string filename = entry.path().filename().string();
 
 		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
@@ -446,7 +527,7 @@ void Wal::delete_old_logs(string target_file) {
 			int current_index = stoi(current_index_str);
 
 			if (current_index < target_index) {
-				files_to_delete.push_back("../wal/wal_logs/" + filename);
+				files_to_delete.push_back(LOG_DIRECTORY + filename);
 			}
 		}
 	}
