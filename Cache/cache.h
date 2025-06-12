@@ -7,16 +7,11 @@
 #include <iostream>
 
 using namespace std;
-/*
+
 typedef pair<int, string> composite_key;
-const int block_size = 100;	    //in bytes
 
-const std::byte padding_character = (std::byte)'0';
-const int int_padding_character = (int)'0';*/
-
+const byte padding_character = (byte)'0';	//should be 0
 const int cache_capacity = 4;		//in blocks
-
-
 
 template <typename key_type>
 struct Node {
@@ -42,7 +37,7 @@ struct Node {
 };
 
 // 2 USE CASES:
-// 
+//
 // Cache <string> c;
 // Cache <composite_key, hash_function> c;
 
@@ -71,18 +66,6 @@ public:
 
 	int capacity;
 	unordered_map<key_type, Node<key_type>*, hash> cache_map;
-
-	/*void print_cache() {
-		cout << " Cache (head -> tail) [" << cache_map.size()  << "]:\n";
-
-		Node<key_type>* temp = head;
-		while (temp != nullptr) {
-			cout << temp->key << endl;
-			temp = temp->next;
-		}
-
-		cout << "_________\n";
-	}*/
 
 	Cache() {
 		head = nullptr;
@@ -155,11 +138,13 @@ public:
 
 	}
 
-	// function to get value. If error == true, key doesnt exists
-	vector<byte> get(key_type key, bool& error) {
+	// function to get value. If exists == true, key exists
+	vector<byte> get(key_type key, bool& exists) {
 		// it doesnt exists
+		exists = true;
+
 		if (cache_map.find(key) == cache_map.end()) {
-			error = true;
+			exists = false;
 			return vector<byte>();
 		}
 
@@ -171,7 +156,18 @@ public:
 		// add node to head
 		add_node(ret);
 
-		error = false;
 		return ret->value;
 	}
+
+	/*void print_cache() {
+		cout << " Cache (head -> tail) [" << cache_map.size()  << "]:\n";
+
+		Node<key_type>* temp = head;
+		while (temp != nullptr) {
+			cout << temp->key << endl;
+			temp = temp->next;
+		}
+
+		cout << "_________\n";
+	}*/
 };
