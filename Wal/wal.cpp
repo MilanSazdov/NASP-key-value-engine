@@ -7,14 +7,13 @@
 #include <filesystem>
 
 #include "wal.h"
-#include "block-manager.h"
 
-namespace fs = std::filesystem;
 using namespace std;
+namespace fs = filesystem;
 
 /*
 	4 bytova crc32 hash sum
-	1 byte flag
+	1 byte flag	(used for fracttioning user input)
 	8 bytova timestamp (vreme u sekundama kad je upisan record)
 	1 byte tombstone (0 ako nije obrisan, 1 ako jeste)
 	8 byta keysize
@@ -22,23 +21,27 @@ using namespace std;
 	keysize bytova key
 	datasize bytova data
 */
+composite_key Wal::current_block;
 
-/*
-	sta treba update? Citanje i pisanje preko block managera.
-	--------- OVO BI TREBALO DA JE ODRADJENO ----------------------
+void debug_bytes(vector<byte> by) {
+	cout << "Read value:";
+	for (byte b : by) {
+		cout << (char)b;
+	}
+	cout << "kraj\n";
+}
 
-*/
+void debug_record(Record r) {
+	cout << "CRC: " << r.crc << endl;
+	cout << "TIMESTAMP: " << r.timestamp << endl;
+	cout << "TOMBSTONE: " << int(r.tombstone) << endl;
+	cout << "KEYSIZE: " << r.key_size << endl;
+	cout << "VALUESIZE: " << r.value_size << endl;
+	cout << "KEY: " << r.key << endl;
+	cout << "VALUE: " << r.value << endl;
+}
 
 uint crc32_table[256];
-
-inline int byte_to_int(std::byte b) {
-	return static_cast<int>(b);
-}
-
-inline std::byte int_to_byte(int n) {
-	return static_cast<std::byte>(n);
-}
-
 void init_crc32_table() {
 	uint crc;
 	for (int i = 0; i < 256; i++) {
@@ -55,38 +58,92 @@ void init_crc32_table() {
 	}
 }
 
-void Wal::ensure_wal_folder_exists() {
-	if (!fs::exists("../wal/wal_logs")) {
-		if (fs::create_directory("../wal/wal_logs")) {
-			std::cout << "[WAL] Created folder: wal_logs\n";
+string inttos3(int x) {
+	string ret = "000";
+	for (int i = 0; i < 3; i++) {
+		ret[2 - i] = (char)(x % 10 + '0');
+		x /= 10;
+	}
+	return ret;
+}
+
+string find_min_segment() {
+	int min_index = 999;
+
+	for (const auto& entry : fs::directory_iterator(LOG_DIRECTORY)) {
+		string filename = entry.path().filename().string();
+
+		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
+			string index_str = filename.substr(4, 3);
+			int index = stoi(index_str);
+
+			if (index < min_index) {
+				min_index = index;
+			}
+		}
+	}
+
+	if (min_index == 999) {
+		min_index = 1;
+	}
+
+	string min_index_str = inttos3(min_index);
+
+	return LOG_DIRECTORY + "/wal_" + min_index_str + ".log";
+}
+
+void ensure_wal_folder_exists() {
+	if (!fs::exists(LOG_DIRECTORY)) {
+		if (fs::create_directory(LOG_DIRECTORY)) {
+			std::cout << "[WAL] Created folder: " << LOG_DIRECTORY << "\n";
 		}
 		else {
-			std::cerr << "[WAL] ERROR: Could not create folder: wal_logs\n";
+			std::cerr << "[WAL] ERROR: Could not create folder: " << LOG_DIRECTORY << "\n";
 			throw std::runtime_error("Failed to create WAL folder.");
 		}
 	}
 }
 
-Wal::Wal() : segment_size(12), min_segment("../wal/wal_logs/wal_001.log") {
-	ensure_wal_folder_exists();
-	init_crc32_table();
-	update_min_segment();
-}
+void Wal::update_current_block() {
+	int max_index = 0, index;
+	string index_str, my_file_name;
 
-Wal::Wal(int segment_size) : segment_size(segment_size), min_segment("../wal/wal_logs/wal_001.log") {
-	ensure_wal_folder_exists();
-	init_crc32_table();
-	update_min_segment();
-};
+	for (const auto& entry : fs::directory_iterator(LOG_DIRECTORY)) {
+		string file_name = entry.path().filename().string();
 
-uint crc32(byte* data, size_t length) {
-	uint crc = 0xffffffff;  // Initial value
-	for (size_t i = 0; i < length; i++) {
-		byte table_index = int_to_byte((crc ^ byte_to_int(data[i])) & 0xff);
-		crc = (crc >> 8) ^ crc32_table[byte_to_int(table_index)];
+		if (file_name.substr(0, 4) == "wal_" && file_name.substr(file_name.length() - 4) == ".log") {
+			index_str = file_name.substr(4, 3);
+			index = stoi(index_str);
+
+			if (index > max_index) {
+				max_index = index;
+				my_file_name = file_name;
+			}
+		}
 	}
-	return (crc ^ 0xffffffff);
+	cout << "max_index = " << max_index << endl;
+	if (max_index == 0) {
+		current_block = make_pair(0, LOG_DIRECTORY + "/wal_001.log");
+	}
+	else {
+		uintmax_t size = fs::file_size(LOG_DIRECTORY + "/" + my_file_name);
+		current_block = make_pair(max(0, (int)size / block_size - 1), LOG_DIRECTORY + "/" + my_file_name);
+	}
 }
+
+Wal::Wal() : segment_size(5) {
+	ensure_wal_folder_exists();
+	init_crc32_table();
+	min_segment = find_min_segment();
+	update_current_block();
+}
+
+Wal::Wal(int segment_size) : segment_size(segment_size){
+	ensure_wal_folder_exists();
+	init_crc32_table();
+	min_segment = find_min_segment();
+	update_current_block();
+};
 
 ull get_timestamp() {
 	auto now = chrono::system_clock::now();
@@ -98,51 +155,38 @@ ull get_timestamp() {
 	return (ull)seconds.count();
 }
 
-uint calc_crc(byte flag, ull timestamp, byte tombstone, ull key_size, ull value_size, string key, string value) {
+uint crc32(byte* data, size_t length) {
+	uint crc = 0xffffffff;  // Initial value
+	for (size_t i = 0; i < length; i++) {
+		byte table_index = static_cast<byte>((crc ^ static_cast<int>(data[i])) & 0xff);
+		crc = (crc >> 8) ^ crc32_table[static_cast<int>(table_index)];
+	}
+	return (crc ^ 0xffffffff);
+}
+
+uint calc_crc(Wal_record_type flag, ull timestamp, byte tombstone, ull key_size, ull value_size, string key, string value) {
 	vector<byte> data_array;
 	data_array.clear();
-	data_array.push_back(flag);
+	data_array.push_back((byte)flag);											// FLAG (first, middle, last, full)
 
 	for (int i = 7; i >= 0; i--)
-		data_array.push_back(int_to_byte((timestamp >> (i * 8)) & 255));	//TIMESTAMP
+		data_array.push_back(static_cast<byte>((timestamp >> (i * 8)) & 255));	//TIMESTAMP
 
 	data_array.push_back(tombstone);										//TOMBSTONE
 
 	for (int i = 7; i >= 0; i--)
-		data_array.push_back(int_to_byte((key_size >> (i * 8)) & 255));		//KEYSIZE
+		data_array.push_back(static_cast<byte>((key_size >> (i * 8)) & 255));		//KEYSIZE
 
 	for (int i = 7; i >= 0; i--)
-		data_array.push_back(int_to_byte((value_size >> (i * 8)) & 255));	//DATASIZE
+		data_array.push_back(static_cast<byte>((value_size >> (i * 8)) & 255));	//DATASIZE
 
 	for (char c : key)
-		data_array.push_back(int_to_byte(c));								//KEY
+		data_array.push_back(static_cast<byte>(c));								//KEY
 
 	for (char c : value)
-		data_array.push_back(int_to_byte(c));								//VALUE
+		data_array.push_back(static_cast<byte>(c));								//VALUE
 
 	return crc32(data_array.data(), data_array.size());
-}
-
-uint char_to_uint(char* c) {
-	uint ret = 0;
-	int broj;
-
-	for (int i = 3; i >= 0; i--) {
-		broj = ((int)(byte)c[i]);
-		ret += (broj << ((3 - i) * 8));
-	}
-	return ret;
-}
-
-ull char_to_ull(char* c) {
-	ull ret = 0;
-	ll broj;
-
-	for (ll i = 7; i >= 0; i--) {
-		broj = ((ll)(byte)c[i]);
-		ret += (broj << ((7 - i) * 8));
-	}
-	return ret;
 }
 
 ull byte_to_ull(byte* c) {
@@ -165,262 +209,137 @@ ull byte_to_uint(byte* c) {
 	return ret;
 }
 
-string inttos3(int& x) {
-	string ret = "000";
-	for (int i = 0; i < 3; i++) {
-		ret[2 - i] = (char)(x % 10 + '0');
-		x /= 10;
-	}
+Wal_record_type byte_to_flag(byte* c) {
+	Wal_record_type ret = ((Wal_record_type)c[0]);
 	return ret;
 }
 
-void fill_in_padding(vector<byte>& bad_data) {
-	int n = (int)bad_data.size();
-	int padding = block_size - (n % block_size);
-	//cout << "Padding: " << padding << endl;
-	while (padding) {
-		bad_data.push_back(padding_character);
-		padding--;
-	}
-}
-
-string next_key(string key, int segment_size) {
-	pair<int, string> temp = make_pair_from_string(key);
-	
-	int id = temp.first;
-	string file_name = temp.second;
-
-	string ret;
-
-	if ((id + 1) < segment_size) {
-		id++;
-		//cout << "  id == " << id << endl;
-		ret = make_string_from_pair(id, file_name);
-	}
-	else {
-		string broj = "";
-		for (char c : file_name) {
-			if (c >= '0' && c <= '9') broj.push_back(c);
-		}
-		int broj_int = stoi(broj);
-		//cout << "novi brojh == " << broj_int << endl;
-		broj_int++;
-		string new_name = "../wal/wal_logs/wal_" + inttos3(broj_int) + ".log";
-
-		//cout << new_name << endl;
-
-		ret = make_string_from_pair(0, new_name);
-	}
-
-	return ret;
-}
-
-void debugf(Block b) {
-	cout << "key: " << b.key << endl;
-	cout << "data:";
-	for (int i = 0; i < block_size; i++) cout << byte_to_int(b[i]);
-	cout << "kraj\n";
-}
-
-Block Wal::find_next_empty_block(Block b) {
-	bool error;
-	int pok = 0;
-	Block b2 = b;
-
-	pair<int, string> temp = make_pair_from_string(b.key);
-	
-	string file_name = temp.second;
-	int block_id = temp.first;
-
-	do {
-		pok++;
-		//cout << "Checking block: " << b2.key.second << ", key: " << b2.key.first << endl;
-
-		b2 = bm.read_block(b2.key, error);
-		if (error) {
-			// Create new file
-			temp = make_pair_from_string(b2.key);
-			
-			ofstream new_file(temp.second, ios::binary | ios::out);
-			if (!new_file.is_open()) {
-				cout << "Failed to create file: " << file_name << endl;
-				exit(1);
-			}
-
-			// Initialize the block with padding characters
-			memset(b2.data, int_padding_character, block_size);
-			
-			cout << b2.key << endl;
-
-			bm.write_block(b2); // Write the initialized block
-
-			return b2;
-		}
-
-		if (b2[block_size - 32] == padding_character &&
-			b2[block_size - 31] == padding_character &&
-			b2[block_size - 30] == padding_character)
-			return b2;
-
-		b2.key = next_key(b2.key, segment_size);
-
-	} while (1);
-}
-
-ull find_empty_pos(Block& b) {
+ull find_empty_pos(vector<byte> b) {
+	if (b.size() == 0) return 0;
 	ull poc = 0, key_size = 0, value_size = 0, sum;
+	bool empty;
+
 	while (poc + 30 < block_size) {
-		//cout << " poc == " << poc << endl;
-		if (b[poc] == padding_character && b[poc + 1] == padding_character && b[poc + 2] == padding_character) return poc;
+		empty = 1;
+		for (int j = 0; j < 20; j++) {
+			if (b[poc + j] != padding_character) {
+				empty = 0;
+				break;
+			}
+		}
+		if (empty) return poc;
 
-		key_size = byte_to_ull(b.data + 14 + poc);
+		key_size = byte_to_ull(b.data() + 14 + poc);
 
-		value_size = byte_to_ull(b.data + 22 + poc);
+		value_size = byte_to_ull(b.data() + 22 + poc);
 
-		//cout << key_size << " " << value_size << endl;
 		sum = 30 + key_size + value_size;
 		poc += sum;
 	}
 
-	return poc;
+	return -1;
 }
 
-void extract_data(vector<byte>& record, uint crc, byte flag, ull timestamp, byte tombstone, ull key_size, ull value_size, string key, string value) {
-	record.clear();
-	for (int i = 3; i >= 0; i--)
-		record.push_back(int_to_byte((crc >> (i * 8)) & 255));				///CRC
+void Wal::next_block(composite_key& block) {
+	if (block.first + 1 < segment_size) {
+		block.first++;
+	}
+	else {
+		//transfering wal_042.log -> int num = 42
+		int key_size = block.second.size();
+		int num = block.second[key_size -5] - '0' + (block.second[key_size -6] - '0') * 10 + (block.second[key_size-7] - '0') * 100;
+		
+		
+		num++;
+		string new_offset = inttos3(num);
 
-	record.push_back(flag);													///FLAG
+		block.first = 0;
+		
+		block.second[key_size - 7] = new_offset[0];
+		block.second[key_size - 6] = new_offset[1];
+		block.second[key_size - 5] = new_offset[2];
+	}
+}
+
+void extract_data(vector<byte>& record, uint crc, Wal_record_type flag, ull timestamp, byte tombstone, ull key_size, ull value_size, string key, string value) {
+	for (int i = 3; i >= 0; i--)
+		record.push_back((byte)((crc >> (i * 8)) & 255));				///CRC
+
+	cout << "Pre svega: " << (char)(flag) << endl;
+	record.push_back((byte)flag);										///FLAG
 
 	for (int i = 7; i >= 0; i--)
-		record.push_back(int_to_byte((timestamp >> (i * 8)) & 255));		//TIMESTAMP
+		record.push_back((byte)((timestamp >> (i * 8)) & 255));		//TIMESTAMP
 
 	record.push_back(tombstone);											//TOMBSTONE
 
 	for (int i = 7; i >= 0; i--)
-	record.push_back(int_to_byte((key_size >> (i * 8)) & 255));				//KEYSIZE
+		record.push_back((byte)((key_size >> (i * 8)) & 255));				//KEYSIZE
 
 	for (int i = 7; i >= 0; i--)
-		record.push_back(int_to_byte((value_size >> (i * 8)) & 255));		//VALUESIZE
+		record.push_back((byte)((value_size >> (i * 8)) & 255));		//VALUESIZE
 
 	//cout << " extractng key: " << key << endl;
 	for (char c : key)
-		record.push_back(int_to_byte(static_cast<unsigned char>(c)));		//KEY
+		record.push_back((byte)(static_cast<unsigned char>(c)));		//KEY
 
 	//cout << " extractng value: " << value << endl;			
 	for (char c : value)
-		record.push_back(int_to_byte(static_cast<unsigned char>(c)));		//VALUE
+		record.push_back((byte)(static_cast<unsigned char>(c)));		//VALUE
 	//fill_in_padding(record);
 	//cout << " size == " << record.size() << endl;
 }
 
 void Wal::write_record(string key, string value, byte tombstone) {
-	string current_file = min_segment;
-	Block first_block(make_string_from_pair(0, current_file));
-	Block b;
+	bool error;
+	vector<byte> bytes;
+	cout << current_block.first << " " << current_block.second << endl;
+	
+	bytes = bm.read_block(current_block, error);
 
-	b = find_next_empty_block(first_block);
-	//debugf(b);
-	//cout << endl;
-	byte flag = (byte)0;
+	int pos = find_empty_pos(bytes);
+
+	if (pos == -1) {
+		next_block(current_block);
+		pos = 0;
+	}
+	vector<byte> record;
+	
 	ull timestamp = get_timestamp();
 	ull key_size = key.size();
 	ull value_size = value.size();
+	uint crc;
+	Wal_record_type flag;
 
-	uint crc = calc_crc(flag, timestamp, tombstone, key_size, value_size, key, value);
+	// no fractioning
+	if (key.size() + value.size() + 30 + pos <= block_size) {		
+		record.clear();
+		for (int i = 0; i < pos; i++) {
+			record.push_back(bytes[i]);
+		}
 
-	vector<byte> record;
-
-	int id = find_empty_pos(b);
-
-	//no space for header at least
-	if (block_size - id <= 30) {
-		//cout << "Nema mesta za header\n";
-		b.key = next_key(b.key, segment_size);
-		memset(b.data, int_padding_character, block_size);
-		id = 0;
-	}
-
-	int left_space;
-	string key2, value2;
-
-	if (key.size() + value.size() + 30 + id <= block_size) {
-		//cout << key_size << " " << value_size << endl;
+		flag = Wal_record_type::FULL;
+		crc = calc_crc(flag, timestamp, tombstone, key_size, value_size, key, value);
 		extract_data(record, crc, flag, timestamp, tombstone, key_size, value_size, key, value);
-		memcpy(&b.data[id], &record[0], record.size());
+		cout << crc << " " << record_type_to_string(flag) << " " << timestamp << " " << (char)tombstone << " " << key_size << " " << value_size << " " << key << " " << value << endl;
+		//memcpy(&b.data[id], &record[0], record.size());
 		
-		bm.write_block(b);
+		for (byte b : record) cout << (char)b;
+		cout << endl;
+
+		cout << "writing done\n";
+		
+		bm.write_block(current_block, record);
 	}
 	else {
-		flag = (byte)'F';
-		//fragmentation
-		while (key.size() + value.size() > 0) {
-			//cout << "\n" << key << endl;
-			//cout << value << endl;
-			left_space = block_size - id;
-			left_space -= 30;
-
-			//cout << "LEFT SPACE: " << left_space << endl;
-			if (key.size() > left_space) {
-				key2 = key.substr(0, left_space);
-				key = key.substr(left_space);
-				value2 = "";
-				left_space = 0;
-			}
-			else {
-				key2 = key;
-				key = "";
-				//cout << " -= " << key2.size() << endl;
-				left_space -= key2.size();
-				if (value.size() > left_space) {
-					value2 = value.substr(0, left_space);
-					value = value.substr(left_space);
-					left_space = 0;
-				}
-				else {
-					value2 = value;
-					value = "";
-					flag = (byte)'L';
-					left_space -= value2.size();
-					//cout << " -= " << value2.size() << endl;
-				}
-			}
-			//cout << "noviteti:\n";
-			//cout << key2 << endl;
-			//cout << value2 << endl;
-
-			timestamp = get_timestamp();
-			key_size = key2.size();
-			value_size = value2.size();
-
-			crc = calc_crc(flag, timestamp, tombstone, key_size, value_size, key2, value2);
-			extract_data(record, crc, flag, timestamp, tombstone, key_size, value_size, key2, value2);
-
-			memcpy(&b.data[id], &record[0], record.size());
-
-			bm.write_block(b);
-
-			b.key = next_key(b.key, segment_size);
-			memset(b.data, int_padding_character, block_size);
-			flag = (byte)'M';
-			id = 0;
-		}
+		// TODO
+		cout << "Cant perform\n";
 	}
-}
-
-void debug_record(Record r) {
-	cout << "CRC: " << r.crc << endl;
-	cout << "FLAG: " << byte_to_int(r.flag) << endl;
-	cout << "TIMESTAMP: " << r.timestamp << endl;
-	cout << "TOMBSTONE: " << byte_to_int(r.tombstone) << endl;
-	cout << "KEYSIZE: " << r.key_size << endl;
-	cout << "VALUESIZE: " << r.value_size << endl;
-	cout << "KEY: " << r.key << endl;
-	cout << "VALUE: " << r.value << endl;
+	//cout << current_block.first << " " << current_block.second << " pos in block: " << pos << endl;
 }
 
 //valid: 0 bad record, 1 valid record, 2 no record(end)
-Record read_record(Block b, int& pos, int& valid) {
+Record read_record(vector<byte> b, int& pos, int& valid, Wal_record_type& flag) {
 	Record r;
 	if (pos + 30 >= block_size) {
 		valid = 2;
@@ -432,68 +351,76 @@ Record read_record(Block b, int& pos, int& valid) {
 		return r;
 	}
 
-	r.crc = byte_to_uint(b.data + pos);
-	r.flag = b[4 + pos];
-	r.timestamp = byte_to_ull(b.data + 5 + pos);
+	r.crc = byte_to_uint(b.data() + pos);
+
+	flag = byte_to_flag(b.data()+pos+4);	
+
+	r.timestamp = byte_to_ull(b.data() + 5 + pos);
 	r.tombstone = b[13 + pos];
-	r.key_size = byte_to_ull(b.data + 14 + pos);
-	r.value_size = byte_to_ull(b.data + 22 + pos);
+	r.key_size = byte_to_ull(b.data() + 14 + pos);
+	r.value_size = byte_to_ull(b.data() + 22 + pos);
 
 	r.key.resize(r.key_size);
 	r.value.resize(r.value_size);
 
-	memcpy(&r.key[0], b.data + 30 + pos, r.key_size);  // Copy the data
-	memcpy(&r.value[0], b.data + 30 + r.key_size + pos, r.value_size);  // Copy the data
+	memcpy(&r.key[0], b.data() + 30 + pos, r.key_size);  // Copy the data
+	memcpy(&r.value[0], b.data() + 30 + r.key_size + pos, r.value_size);  // Copy the data
 
 	valid = 1;
-	if (r.crc != calc_crc(r.flag, r.timestamp, r.tombstone, r.key_size, r.value_size, r.key, r.value))
+	if (r.crc != calc_crc(flag, r.timestamp, r.tombstone, r.key_size, r.value_size, r.key, r.value))
 		valid = 0;
 
 	pos += 30 + r.value_size + r.key_size;
 
-	return r; 
+	return r;
 }
 
-void Wal::put(string key, string data) {
-	//cout << "Putting (" << key << ", " << data << ") into wal\n";
-	write_record(key, data);
+vector<Record> Wal::get_all_records() {
+	vector<Record> records;
+	vector<Record> fragm;
+	bool error = false;
+
+	min_segment = find_min_segment();
+	composite_key key(0, min_segment);
+
+	vector<byte> bytes;
+	Wal_record_type flag;
+
+	bytes = bm.read_block(key, error);
+	cout << "error = " << error << endl;
+
+	while (!error) {
+		int pos = 0;
+		cout << "Current block : " << key.first << " " << key.second << endl;
+
+		while (true) {
+			int ok = 2;
+			Record r = read_record(bytes, pos, ok, flag);
+
+			if (ok == 2) break;         // Kraj bloka
+
+			if (ok == 1) records.push_back(r);  // ok rekord => ubaci
+			
+			//debug_record(r);
+			//cout << record_type_to_string(flag) << endl;
+			//cout << endl;
+
+			// Ako je CRC nevalidan (ok == 0), ignoriši samo taj record
+		}
+
+		next_block(key);
+		bytes = bm.read_block(key, error);
+	}
+
+	return records;
 }
 
-bool validate_record_crc(Record r) {
-	uint crc1 = calc_crc(r.flag, r.timestamp, r.tombstone, r.key_size, r.value_size, r.key, r.value);
-	return (crc1 == r.crc);
+void Wal::put(string key, string value){
+	write_record(key, value, (byte)0);
 }
 
 void Wal::del(string key) {
-	//cout << "Deleting " << key << " from wal\n";
-	write_record(key, "", int_to_byte(1));
-}
-
-void Wal::update_min_segment() {
-	min_segment = find_min_segment();
-}
-
-string Wal::find_min_segment() {
-	vector<string> segment_files;
-	int min_index = 999;
-
-	for (const auto& entry : fs::directory_iterator("../wal/wal_logs")) {
-		string filename = entry.path().filename().string();
-
-		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
-			string index_str = filename.substr(4, 3);
-			int index = stoi(index_str);
-
-			if (index < min_index) {
-				min_index = index;
-			}
-		}
-	}
-	if (min_index == 999) {
-		min_index = 1;
-	}
-	string min_index_str = inttos3(min_index);
-	return "../wal/wal_logs/wal_" + min_index_str + ".log";
+	write_record(key, "", (byte)1);
 }
 
 void Wal::delete_old_logs(string target_file) {
@@ -532,149 +459,4 @@ void Wal::delete_old_logs(string target_file) {
 			cout << "Successfully deleted: " << file << endl;
 		}
 	}
-	update_min_segment();
 }
-
-// TREBA PROVERITI OVU FUNKCIJU -- BAJAGA
-std::vector<Record> Wal::get_all_records() {
-	std::vector<Record> records;
-	bool error = false;
-	composite_key key(0, min_segment);
-	Block block = bm.read_block(key, error);
-
-	while (!error) {
-		int pos = 0;
-		while (true) {
-			int valid;
-			Record r = read_record(block, pos, valid);
-			if (valid == 2) break;         // Kraj bloka
-			if (valid == 1) records.push_back(r);  // Validan rekord => ubaci
-
-			// Ako je CRC nevalidan (valid == 0), ignoriši samo taj record
-		}
-		key = next_key(key, segment_size);
-		block = bm.read_block(key, error);
-	}
-
-	return records;
-}
-
-
-
-/*
-vector<Record> Wal::get_all_records() {
-	vector<Record> ret;
-	Record r;
-	map<string, int> map_deleted;
-	map<string, bool> already_in;
-
-	bool er;
-	int rec_pos, valid;
-	cout << "min segment == " << min_segment << endl;
-
-	Block b(make_string_from_pair(0, min_segment));
-
-	string big_key, big_value;
-	bool all_good;
-
-	while (1) {
-		//getting block
-		b = bm.read_block(b.key, er);
-		//cout << "Reding from block:\n";
-		//debugf(b);
-		if (er) break;
-		rec_pos = 0;
-		//extracting records from block
-		while (1) {
-			r = read_record(b, rec_pos, valid);
-			if (valid == 2)
-				break;
-			all_good = 1;
-			if (r.flag == (byte)'F') {
-				big_key = "";
-				big_value = "";
-				all_good &= valid;
-				if (r.key_size) big_key += r.key;
-				if (r.value_size) big_value += r.value;
-
-				while (1) {
-					r = read_record(b, rec_pos, valid);
-					if (valid == 2) {
-						b.key = next_key(b.key, segment_size);
-						b = bm.read_block(b.key, er);
-						rec_pos = 0;
-						continue;
-					}
-					all_good &= valid;
-					if (r.key_size) big_key += r.key;
-					if (r.value_size) big_value += r.value;
-
-					if (r.flag == (byte)'L') break;
-				}
-				if (!all_good) continue;
-				r.key = big_key;
-				r.value = big_value;
-
-				r.key_size = big_key.size();
-				r.value_size = big_value.size();
-
-				ret.push_back(r);
-				map_deleted[r.key]++;
-			}
-			else {
-				map_deleted[r.key]++;
-				ret.push_back(r);
-			}
-		}
-
-		b.key = next_key(b.key, segment_size);
-	}
-
-	/// OVO JE KOD KOJI JE FIZICKI BRISAO OBRISANE RECORDE, I VRACAO SAMO PRISUTNE.
-	/// KASNIJE SMO SKONTALI DA JE TO LOSA IDEJA, DA WAL NE TREBA DA VODI O TOME RACUNA
-	/// TAKO DA WAL VRACA S V E ZAPISE REDOM KAKO SU POZVANI
-
-
-	/*vector<Record> ret2;
-	ret2.clear();
-	
-	// ---------------------------MISLIM DA OVAJ DEO NE TREBA, JER JA IZ WALA IDEM INSTRUKCIJA PO INSTRUKCIJA, NE ZANIMA ME DA LI JE BILO BRISANJE DODAVANJE STAGOD, TO SE KASNIJE HANDLUJE
-	//cout << "KRAJ\n";
-	for (int i = 0; i < ret.size(); i++) {
-		if (map_deleted[ret[i].key] % 2 == 0) {
-			//cout << "Erasing\n";
-		}
-		else {
-			if (already_in.find(ret[i].key) != already_in.end()) continue;
-			ret2.push_back(ret[i]);
-			//debug_record(ret[i]);
-			already_in[ret[i].key] = 1;
-			//cout << endl;
-		}
-	}
-	return ret2;
-}*/
-
-/*string Wal::get(string key) {
-	string ret="";
-	Record r;
-	bool succes;
-
-	ifstream file("wal_logs/wal_001.log", ios::in | ios::binary);
-	if (file.is_open()) {
-		while (file) {
-			succes = read_record(file, r);
-			if (!succes) break;
-			if (!validate_record_crc(r)) continue;
-			if (r.key == key) {
-				//debug_record(r);
-				if (r.tombstone == 1) ret = "";
-				else ret = r.value;
-			}
-		}
-	}
-	else cout << "Error while opening file\n";
-
-	file.close();
-	return ret;
-}*/

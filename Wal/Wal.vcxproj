@@ -135,6 +135,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="wal.h" />
+    <ClInclude Include="wal_types.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\block-manager\block-manager.vcxproj">

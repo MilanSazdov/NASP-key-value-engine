@@ -8,19 +8,10 @@
 
 namespace fs = std::filesystem;
 using namespace std;
-
-const string WAL_FOLDER = "wal_logs";
+const string WAL_FOLDER = "../data/wal_logs";
 
 void info(const string s) {
     cout << "[INFO]" + s + "\n";
-}
-
-void ensure_wal_folder_exists() {
-
-    if (!fs::exists(WAL_FOLDER)) {
-        fs::create_directory(WAL_FOLDER);
-        cout << "[INFO] Created missing folder: " << WAL_FOLDER << "\n";
-    }
 }
 
 /*
@@ -98,6 +89,7 @@ void delete_more(Wal& w1) {
 	w1.del("energy");
     w1.del("mountain");
 }
+
 void delete_more2(Wal& w1) {
     info("Deleted 3 records");
     w1.del("actions speak louder than words");
@@ -144,19 +136,25 @@ void delete_all_files(string folderPath) {
 }
 
 int main() {
+    cout << "creating wal\n";
+    Wal w1;
+    //w1.put("djuka", "puska");
     
-    ensure_wal_folder_exists();
+
+
+    //ensure_wal_folder_exists();
 
 
     // Step 1: Display files in 'wal_logs' before execution
-    cout << "\nStep 1: Files in '" << WAL_FOLDER << "' before execution:\n";
+    
+    cout << "\nStep 1: ";
     print_files_in_folder(WAL_FOLDER);
     cout << endl;
 
+    return 0;
     // Step 2: Create a Wal object and test its methods
     cout << "Step 2: Testing Wal class methods...\n";
-    Wal w1;
-
+   
 
     info("Inputting test data...");
 
@@ -166,6 +164,8 @@ int main() {
     info("Deleting some records using delete_more functions...");
     delete_more(w1);
     delete_more2(w1);
+    return 0;
+
     w1.put("apple", "FRUIT");
 
     // Step 3: Display files in 'wal_logs' after Wal methods execution
@@ -174,26 +174,26 @@ int main() {
     cout << endl;
 
     // Step 4: Retrieve and display all records from Wal
-    /*vector<Record> ret = w1.get_all_records();
+    vector<Record> ret = w1.get_all_records();
     cout << "Step 4: Total records in Wal: " << ret.size() << endl;
     for (const Record& r : ret) {
         cout << r.key << " " << r.value << endl;
-    }*/
+    }
     cout << endl;
     
     // Step 5: Test find_min_segment and delete_old_logs functionality
     cout << "Step 5: Testing find_min_segment and delete_old_logs...\n";
-    cout << "Minimum segment: " << w1.find_min_segment() << endl;
+    //cout << "Minimum segment: " << w1.find_min_segment() << endl;
 
     cout << "\nDeleting logs older than 'wal_002.log'...\n";
     w1.delete_old_logs("wal_002.log");
-    cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
+    //cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
     
     print_files_in_folder(WAL_FOLDER);
     cout << endl;
     cout << "Deleting logs older than 'wal_004.log'...\n";
     w1.delete_old_logs("wal_004.log");
-    cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
+    //cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
 
     // Step 6: Final display of files in 'wal_logs'
     cout << "\nFiles in '" << WAL_FOLDER << "' after all operations:\n";
@@ -201,4 +201,5 @@ int main() {
 
 
     return 0;
+    
 }
