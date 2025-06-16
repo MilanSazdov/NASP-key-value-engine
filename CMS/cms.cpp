@@ -52,6 +52,8 @@ uint32_t CountMinSketch::hashElement(const string& elem, uint32_t seed, unsigned
     return hash % m;
 }
 
+// TODO: ovo je dobro, ali dodati upis u fajl
+// TODO: koristiti byte umesto uint8_t
 vector<uint8_t> CountMinSketch::serialize() const
 {
     vector<uint8_t> data;
@@ -75,6 +77,8 @@ vector<uint8_t> CountMinSketch::serialize() const
     return data;
 }
 
+// TODO: ovo je dobro, ali dodati ucitavanje iz fajla
+// TODO: koristiti byte umesto uint8_t
 CountMinSketch CountMinSketch::deserialize(const vector<uint8_t>& data)
 {
     size_t offset = 0;

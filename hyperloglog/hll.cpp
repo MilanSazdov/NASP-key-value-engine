@@ -14,6 +14,7 @@
 */
 
 using namespace std;
+// TODO: treba promeniti da se umesto uint8_t koristi byte (u celom hll projektu). Barem gde se to odnosi na data, konkretno
 
 HyperLogLog::HyperLogLog(uint8_t p) {
     if (p < 4 || p > 16) {
@@ -24,6 +25,7 @@ HyperLogLog::HyperLogLog(uint8_t p) {
     M = static_cast<uint64_t>(1u) << p; 
     Reg.resize(M, 0);
 }
+
 
 uint32_t HyperLogLog::getHash(const string& word) const {
     uint32_t hash[1];
@@ -75,6 +77,7 @@ double HyperLogLog::estimate() const {
     return estimation;
 }
 
+// TODO: ovo je dobro, ali treba dodati upis u ispis u fajl, pa iz fajla ucitavati i pisati strukturu
 vector<uint8_t> HyperLogLog::serialize() const {
     // Alociramo potreban prostor
     vector<uint8_t> data;

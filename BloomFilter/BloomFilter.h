@@ -32,9 +32,13 @@ public:
     // Check if an element is present
     bool possiblyContains(const string& elem) const;
 
+    // TODO: koristiti byte umesto uint8_t
+    
     // Serialize Bloom Filter to a vector of bytes
     vector<uint8_t> serialize() const;
 
+    // TODO: koristiti byte umesto uint8_t
+    
     // Deserialize Bloom Filter from a vector of bytes
     static BloomFilter deserialize(const vector<uint8_t>& data);
 
