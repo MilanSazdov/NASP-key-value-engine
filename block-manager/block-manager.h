@@ -16,5 +16,7 @@ class Block_manager {
 	Cache<composite_key, pair_hash> c;
 public:
 	void write_block(composite_key key, vector<byte> data);
+	void write_block(composite_key key, string data);
+
 	vector<byte> read_block(composite_key key, bool& error);
 };
