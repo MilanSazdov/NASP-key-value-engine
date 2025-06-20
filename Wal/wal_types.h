@@ -6,7 +6,7 @@ typedef long long ll;
 typedef unsigned long long ull;
 typedef unsigned int uint;
 
-const string LOG_DIRECTORY = "../data/wal_logs";
+const string LOG_DIRECTORY = "../data/wal_logs/";
 
 // This is used for fragmentation
 enum class Wal_record_type : uint8_t {

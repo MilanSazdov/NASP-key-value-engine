@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 
+// TODO: using namespace nije dobro stavljati u .h fajlove, obrisati 
 using namespace std;
 
 class CountMinSketch {

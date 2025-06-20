@@ -26,5 +26,8 @@
     <ClInclude Include="wal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="wal_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

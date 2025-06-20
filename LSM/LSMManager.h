@@ -9,6 +9,7 @@
 class LSMManager {
 
 private:
+	// TODO: ne cuvaju se tu, nego u ../data (valjda, popraviti)
 
 	std::string base_directory_; // gde se cuvaju podaci "./data/"
 	int max_level_;

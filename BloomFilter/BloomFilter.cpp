@@ -84,6 +84,8 @@ void BloomFilter::add(const string& elem) {
 	}
 }
 
+// TODO: ovo je dobro, ali dodati upis u fajl
+// TODO: koristiti byte umesto uint8_t
 std::vector<uint8_t> BloomFilter::serialize() const {
 	// Izracunamo koliko bajtova treba za bitSet
 	size_t bitBytes = (m + 7) / 8;
@@ -127,6 +129,8 @@ std::vector<uint8_t> BloomFilter::serialize() const {
 	return data;
 }
 
+// TODO: ovo je dobro, ali dodati ucitavanje iz fajla
+// TODO: koristiti byte umesto uint8_t
 BloomFilter BloomFilter::deserialize(const std::vector<uint8_t>& data) {
 	BloomFilter bf(1, 0.01); // Kreiramo privremeni, odmah cemo ga prepisati
 	// Ovaj konstruktor nije bitan, jer cemo sve parametre prepisati iz data

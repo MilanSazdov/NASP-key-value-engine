@@ -5,6 +5,7 @@
 #include <sstream>
 #include <algorithm>
 
+// TODO: obrisati, ne valja koristiti using namespace std; u .h fajlovima
 using namespace std;
 
 class SimHash {
@@ -17,4 +18,5 @@ public:
     SimHash();
     int hammingDistance(const string& text1, const string& text2) const;
     uint64_t getFingerprint(const string& text) const;
+    // TODO: dodati serialize i deserialize (KOJI KORISTE byte, ne u_int8)
 };

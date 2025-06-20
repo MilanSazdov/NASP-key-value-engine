@@ -1,4 +1,5 @@
 #include "simhash.h"
+// TODO: ovo mooozda popraviti, ne svidja mi se ovako, treba dodati additional dependency
 #include "../MurmurHash3/MurmurHash3.h"
 #include <stdexcept>
 
@@ -103,3 +104,5 @@ int SimHash::hammingDistance(const string& text1, const string& text2) const {
     
     return distance;
 }
+
+// TODO: dodati serialize i deserialize (KOJI KORISTE byte, ne u_int8)
