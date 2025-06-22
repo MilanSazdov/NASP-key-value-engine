@@ -99,8 +99,7 @@ private:
     // Snima 'index_' u indexFile_ (binarno)
     std::vector<IndexEntry> writeIndexToFile();
 
-    // Ucitava 'index_' iz indexFile_ (binarno) ako je prazan
-    void readIndexFromFile();
+    // void readIndexFromFile();
 
     // Snima 'bloom_' u filterFile_ (binarno)
     void writeBloomToFile() const;

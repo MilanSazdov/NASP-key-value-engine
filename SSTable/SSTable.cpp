@@ -114,7 +114,6 @@ vector<Record> SSTable::get(const std::string& key)
 
         Record r;
         r.crc = crc;
-        r.flag = static_cast<byte>(flag);
         r.timestamp = ts;
         r.tombstone = static_cast<byte>(tomb);
         r.key_size = kSize;
@@ -302,11 +301,13 @@ SSTable::writeDataMetaFiles(std::vector<Record>& sortedRecords)
             remaining = block_size;
         }
 
+        Wal_record_type flag;
+
         if (remaining < len) {
+            flag = Wal_record_type::FIRST;
             Record rec(r);
-            rec.flag = (byte)'F';
             append_field(&rec.crc, sizeof(rec.crc));
-            append_field(&rec.flag, sizeof(rec.flag));
+            append_field(&flag, sizeof(flag));
             append_field(&rec.timestamp, sizeof(rec.timestamp));
             append_field(&rec.tombstone, sizeof(rec.tombstone));
 
@@ -331,11 +332,6 @@ SSTable::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
             concat.insert(concat.end(), rec.key.begin(), rec.key.begin()+key_written);
             concat.insert(concat.end(), rec.value.begin(), rec.value.begin()+value_written);
-
-            cout << "Record split, filled block with:" << '\n';
-            cout << rec.crc << " " << (char)rec.flag << " " << rec.timestamp << " " << (int)rec.tombstone << " " << key_written << " " << value_written << '\n';
-            cout << rec.key.substr(0, key_written) << '\n';
-            cout << rec.value.substr(0, value_written) << '\n' << '\n';
  
 
             // Flushujemo blok
@@ -350,8 +346,7 @@ SSTable::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
             remaining = block_size;
 
-            while (rec.flag != (byte)'L') {
-                rec.flag = (byte)'M';
+            while (flag != Wal_record_type::LAST) {
                 remaining -= header_len;
 
                 ull key_written = min<ull>(remaining, rec.key_size);
@@ -360,14 +355,14 @@ SSTable::writeDataMetaFiles(std::vector<Record>& sortedRecords)
                 remaining -= value_written;
 
                 if(remaining == 0 && (rec.key_size - key_written != 0 || rec.value_size - value_written != 0)) {
-                    rec.flag = (byte)'M';
-                } else rec.flag = (byte)'L';
+                    flag = Wal_record_type::MIDDLE;
+                } else flag = Wal_record_type::LAST;
 
                 // L -> ili remaining != 0, tj ima jos mesta, ili nema vise mesta ali smo zapisali ceo zapis
                 // M -> Nema vise mesta i ili nismo ispisali ceo kljuc ili nismo ispisali ceo value
 
                 append_field(&rec.crc, sizeof(rec.crc));
-                append_field(&rec.flag, sizeof(rec.flag));
+                append_field(&flag, sizeof(flag));
                 append_field(&rec.timestamp, sizeof(rec.timestamp));
                 append_field(&rec.tombstone, sizeof(rec.tombstone));
 
@@ -385,13 +380,8 @@ SSTable::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
                 concat.insert(concat.end(), rec.key.begin(), rec.key.begin()+key_written);
                 concat.insert(concat.end(), rec.value.begin(), rec.value.begin()+value_written);
-
-                cout << "Record split, filled block with:" << '\n';
-                cout << rec.crc << " " << (char)rec.flag << " " << rec.timestamp << " " << (int)rec.tombstone << " " << key_written << " " << value_written << '\n';
-                cout << rec.key.substr(0, key_written) << '\n';
-                cout << rec.value.substr(0, value_written) << '\n'  << '\n';
                 
-                if (rec.flag == (byte)'M'){
+                if (flag == Wal_record_type::MIDDLE){
                     // Flushujemo blok
                     bm->write_block({block_id++, dataFile_}, concat);
                     concat.clear();
@@ -409,9 +399,9 @@ SSTable::writeDataMetaFiles(std::vector<Record>& sortedRecords)
             }
 
         } else {
-            r.flag = (byte)0;
+            flag = Wal_record_type::FULL;
             append_field(&r.crc, sizeof(r.crc));
-            append_field(&r.flag, sizeof(r.flag));
+            append_field(&flag, sizeof(flag));
             append_field(&r.timestamp, sizeof(r.timestamp));
             append_field(&r.tombstone, sizeof(r.tombstone));
             append_field(&r.key_size, sizeof(r.key_size));
@@ -421,11 +411,7 @@ SSTable::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
             concat.insert(concat.end(), r.key.begin(), r.key.begin()+r.key_size);
             concat.insert(concat.end(), r.value.begin(), r.value.begin()+r.value_size);    
-            
-            cout << "Record fits in block:" << '\n';
-            cout << r.crc << " " << (char)r.flag << " " << r.timestamp << " " << (int)r.tombstone << " " << r.key_size << " " << r.value_size << '\n';
-            cout << r.key << '\n';
-            cout << r.value << '\n'  << '\n';
+
         }
     }
 
@@ -544,37 +530,37 @@ void SSTable::readMetaFromFile() {
 }
 
 
-void SSTable::readIndexFromFile()
-{
-    if (!index_.empty()) {
-        return;
-    }
-    std::ifstream idx(indexFile_, std::ios::binary);
-    if (!idx.is_open()) {
-        // nema index fajla
-        return;
-    }
-    uint64_t count = 0;
-    if (!idx.read(reinterpret_cast<char*>(&count), sizeof(count))) {
-        return;
-    }
-    index_.reserve(count);
-    for (uint64_t i = 0; i < count; i++) {
-        uint64_t kSize = 0;
-        if (!idx.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
-        std::string kbuf(kSize, '\0');
-        if (!idx.read(&kbuf[0], kSize)) break;
+// void SSTable::readIndexFromFile()
+// {
+//     if (!index_.empty()) {
+//         return;
+//     }
+//     std::ifstream idx(indexFile_, std::ios::binary);
+//     if (!idx.is_open()) {
+//         // nema index fajla
+//         return;
+//     }
+//     uint64_t count = 0;
+//     if (!idx.read(reinterpret_cast<char*>(&count), sizeof(count))) {
+//         return;
+//     }
+//     index_.reserve(count);
+//     for (uint64_t i = 0; i < count; i++) {
+//         uint64_t kSize = 0;
+//         if (!idx.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
+//         std::string kbuf(kSize, '\0');
+//         if (!idx.read(&kbuf[0], kSize)) break;
 
-        uint64_t off = 0;
-        if (!idx.read(reinterpret_cast<char*>(&off), sizeof(off))) break;
+//         uint64_t off = 0;
+//         if (!idx.read(reinterpret_cast<char*>(&off), sizeof(off))) break;
 
-        IndexEntry ie;
-        ie.key = kbuf;
-        ie.offset = off;
-        index_.push_back(ie);
-    }
-    idx.close();
-}
+//         IndexEntry ie;
+//         ie.key = kbuf;
+//         ie.offset = off;
+//         index_.push_back(ie);
+//     }
+//     idx.close();
+// }
 
 void SSTable::writeBloomToFile() const
 {
@@ -600,6 +586,34 @@ void SSTable::writeBloomToFile() const
         offset += block_size;
     }
 }
+
+void SSTable::writeMetaToFile() const
+{
+    uint64_t treeSize = tree.size();
+
+    string payload;
+
+    payload.append(reinterpret_cast<const char*>(&treeSize), sizeof(treeSize));
+
+    for (const auto& hashStr : tree) {
+        if (hashStr.size() != sizeof(uint64_t)) {
+            std::cerr << "[SSTable] writeMetaToFile: Ocekuju se vrednosti duzine 8 byte, a duzina hash-a je " + to_string(hashStr.size()) + " bajtova." << std::endl;
+            return;
+        }
+        payload.append(hashStr.data(), sizeof(uint64_t));
+    }
+
+    int block_id = 0;
+    size_t total_bytes = payload.size();
+    size_t offset = 0;
+
+    while (offset + block_size <= total_bytes) {
+        string chunk = payload.substr(offset, block_size);
+        bm->write_block({block_id++, summaryFile_}, chunk);
+        offset += block_size;
+    }
+}
+
 
 void SSTable::readBloomFromFile()
 {
