@@ -1,31 +1,31 @@
 // cms.h
 #pragma once
+
 #include <vector>
 #include <string>
 #include <functional>
-
-// TODO: using namespace nije dobro stavljati u .h fajlove, obrisati 
-using namespace std;
+#include <cstddef>
+#include <cstdint>
 
 class CountMinSketch {
 public:
     CountMinSketch(double epsilon, double delta);
     CountMinSketch(unsigned int m, unsigned int k, unsigned int timeConst);
 
-    void add(const string& elem);
-    int query(const string& elem) const;
-    vector<uint8_t> serialize() const;
-    static CountMinSketch deserialize(const vector<uint8_t>& data);
+    void add(const std::string& elem);
+    int query(const std::string& elem) const;
+    std::vector<std::byte> serialize() const;
+    static CountMinSketch deserialize(const std::vector<std::byte>& data);
 
 private:
     unsigned int m;
     unsigned int k;
-    vector<vector<int>> sketch;
+    std::vector<std::vector<int>> sketch;
     unsigned int timeConst;
-    vector<uint32_t> hashSeeds; 
+    std::vector<uint32_t> hashSeeds;
 
     static unsigned int findM(double epsilon);
     static unsigned int findK(double delta);
-    static vector<uint32_t> createHashSeeds(unsigned int k, unsigned int seed);
-    static uint32_t hashElement(const string& elem, uint32_t seed, unsigned int m);
+    static std::vector<uint32_t> createHashSeeds(unsigned int k, unsigned int seed);
+    static uint32_t hashElement(const std::string& elem, uint32_t seed, unsigned int m);
 };

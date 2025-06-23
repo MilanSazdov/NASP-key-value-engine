@@ -52,57 +52,48 @@ uint32_t CountMinSketch::hashElement(const string& elem, uint32_t seed, unsigned
     return hash % m;
 }
 
-// TODO: ovo je dobro, ali dodati upis u fajl
-// TODO: koristiti byte umesto uint8_t
-vector<uint8_t> CountMinSketch::serialize() const
-{
-    vector<uint8_t> data;
+
+vector<byte> CountMinSketch::serialize() const {
+    vector<byte> data;
 
     // Serialize m and k
-    data.insert(data.end(), reinterpret_cast<const uint8_t*>(&m), reinterpret_cast<const uint8_t*>(&m) + sizeof(m));
-    data.insert(data.end(), reinterpret_cast<const uint8_t*>(&k), reinterpret_cast<const uint8_t*>(&k) + sizeof(k));
-
-    // Serialize timeConst
-    data.insert(data.end(), reinterpret_cast<const uint8_t*>(&timeConst), reinterpret_cast<const uint8_t*>(&timeConst) + sizeof(timeConst));
+    data.insert(data.end(), reinterpret_cast<const byte*>(&m), reinterpret_cast<const byte*>(&m) + sizeof(m));
+    data.insert(data.end(), reinterpret_cast<const byte*>(&k), reinterpret_cast<const byte*>(&k) + sizeof(k));
+    
+	// Serialize time constant
+    data.insert(data.end(), reinterpret_cast<const byte*>(&timeConst), reinterpret_cast<const byte*>(&timeConst) + sizeof(timeConst));
 
     // Serialize set
-    for (const auto& row : sketch)
-    {
-        for (int val : row)
-        {
-            data.insert(data.end(), reinterpret_cast<const uint8_t*>(&val), reinterpret_cast<const uint8_t*>(&val) + sizeof(val));
+    for (const auto& row : sketch) {
+        for (int val : row) {
+            data.insert(data.end(), reinterpret_cast<const byte*>(&val), reinterpret_cast<const byte*>(&val) + sizeof(val));
         }
     }
 
     return data;
 }
 
-// TODO: ovo je dobro, ali dodati ucitavanje iz fajla
-// TODO: koristiti byte umesto uint8_t
-CountMinSketch CountMinSketch::deserialize(const vector<uint8_t>& data)
-{
+CountMinSketch CountMinSketch::deserialize(const vector<byte>& data) {
     size_t offset = 0;
 
     unsigned int m, k;
     unsigned int timeConst;
 
-    memcpy(&m, &data[offset], sizeof(m));
+    memcpy(&m, data.data() + offset, sizeof(m));
     offset += sizeof(m);
 
-    memcpy(&k, &data[offset], sizeof(k));
+    memcpy(&k, data.data() + offset, sizeof(k));
     offset += sizeof(k);
 
-    memcpy(&timeConst, &data[offset], sizeof(timeConst));
+    memcpy(&timeConst, data.data() + offset, sizeof(timeConst));
     offset += sizeof(timeConst);
 
     CountMinSketch cms(m, k, timeConst);
 
     // Deserialize set
-    for (unsigned int i = 0; i < k; ++i)
-    {
-        for (unsigned int j = 0; j < m; ++j)
-        {
-            memcpy(&cms.sketch[i][j], &data[offset], sizeof(cms.sketch[i][j]));
+    for (unsigned int i = 0; i < k; ++i) {
+        for (unsigned int j = 0; j < m; ++j) {
+            memcpy(&cms.sketch[i][j], data.data() + offset, sizeof(cms.sketch[i][j]));
             offset += sizeof(cms.sketch[i][j]);
         }
     }
@@ -110,12 +101,10 @@ CountMinSketch CountMinSketch::deserialize(const vector<uint8_t>& data)
     return cms;
 }
 
-unsigned int CountMinSketch::findM(double epsilon)
-{
+unsigned int CountMinSketch::findM(double epsilon) {
     return static_cast<unsigned int>(ceil(exp(1) / epsilon));
 }
 
-unsigned int CountMinSketch::findK(double delta)
-{
+unsigned int CountMinSketch::findK(double delta) {
     return static_cast<unsigned int>(ceil(log(exp(1) / delta)));
 }

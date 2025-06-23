@@ -5,6 +5,8 @@
 #include <iomanip>
 #include <bitset>
 
+using namespace std;
+
 std::string toBinaryString(uint32_t value) {
     return std::bitset<32>(value).to_string(); 
 }
@@ -165,7 +167,7 @@ int main() {
     std::cout << "Procijenjeni broj jedinstvenih elemenata: " << estimate << std::endl;
 
     std::cout << "Serijalizacija i deserijalizacija HyperLogLog...\n";
-    std::vector<uint8_t> serializedData = hll.serialize();
+    std::vector<byte> serializedData = hll.serialize();
     HyperLogLog deserializedHLL = HyperLogLog::deserialize(serializedData);
 
     std::cout << "Procjena kardinalnosti nakon deserijalizacije...\n";

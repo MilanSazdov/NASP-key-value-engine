@@ -1,5 +1,6 @@
 #include "hll.h"
-#include "../MurmurHash3/MurmurHash3.h" 
+#include "../MurmurHash3/MurmurHash3.h"
+
 #include <vector>
 #include <cmath>
 #include <algorithm>
@@ -14,22 +15,20 @@
 */
 
 using namespace std;
-// TODO: treba promeniti da se umesto uint8_t koristi byte (u celom hll projektu). Barem gde se to odnosi na data, konkretno
 
 HyperLogLog::HyperLogLog(uint8_t p) {
     if (p < 4 || p > 16) {
-        throw std::invalid_argument("Preciznost (p) mora biti izmedju 4 i 16");
+        throw invalid_argument("Preciznost (p) mora biti izmedju 4 i 16");
     }
-    
+
     P = p;
-    M = static_cast<uint64_t>(1u) << p; 
+    M = static_cast<uint64_t>(1u) << p;
     Reg.resize(M, 0);
 }
 
-
 uint32_t HyperLogLog::getHash(const string& word) const {
     uint32_t hash[1];
-    MurmurHash3_x86_32(word.c_str(), static_cast<int>(word.size()), 0, hash); // potrebni MurmurHash3.cpp MurmurHash3.h fajlovi za pravilan rad
+    MurmurHash3_x86_32(word.c_str(), static_cast<int>(word.size()), 0, hash);
     return hash[0];
 }
 
@@ -66,44 +65,44 @@ double HyperLogLog::estimate() const {
     else alpha = 0.7213 / (1 + 1.079 / M);
 
     double estimation = alpha * M * M / sum;
-    
+
     if (emptyRegs > 0 && estimation <= 5 * M) {
         estimation = M * log(static_cast<double>(M) / emptyRegs);
     }
     else if (estimation > pow(2, 32) / 30) {
         estimation = -pow(2, 32) * log1p(-estimation / pow(2, 32));
     }
-    
+
     return estimation;
 }
 
-// TODO: ovo je dobro, ali treba dodati upis u ispis u fajl, pa iz fajla ucitavati i pisati strukturu
-vector<uint8_t> HyperLogLog::serialize() const {
-    // Alociramo potreban prostor
-    vector<uint8_t> data;
+vector<byte> HyperLogLog::serialize() const {
+    vector<byte> data;
     data.reserve(1 + sizeof(uint32_t) + Reg.size());
 
-    // P - 1 bajt
-    data.push_back(P);
+    // P
+    data.push_back(static_cast<byte>(P));
 
-    // M - 4 bajta
-    data.push_back(static_cast<uint8_t>((M >> 0) & 0xFF));
-    data.push_back(static_cast<uint8_t>((M >> 8) & 0xFF));
-    data.push_back(static_cast<uint8_t>((M >> 16) & 0xFF));
-    data.push_back(static_cast<uint8_t>((M >> 24) & 0xFF));
+    // M
+    data.push_back(static_cast<byte>((M >> 0) & 0xFF));
+    data.push_back(static_cast<byte>((M >> 8) & 0xFF));
+    data.push_back(static_cast<byte>((M >> 16) & 0xFF));
+    data.push_back(static_cast<byte>((M >> 24) & 0xFF));
 
-    // Reg - M bajtova
-    data.insert(data.end(), Reg.begin(), Reg.end());
+    // Reg
+    for (uint8_t val : Reg) {
+        data.push_back(static_cast<byte>(val));
+    }
 
     return data;
 }
 
-HyperLogLog HyperLogLog::deserialize(const vector<uint8_t>& data) {
-    if (data.size() < 5) { // minimum je 1 bajt za P + 4 bajta za M
-        throw std::runtime_error("Podaci su previse mali za deserijalizaciju");
+HyperLogLog HyperLogLog::deserialize(const vector<byte>& data) {
+    if (data.size() < 5) {
+        throw runtime_error("Podaci su previse mali za deserijalizaciju");
     }
 
-    uint8_t p = data[0];
+    uint8_t p = static_cast<uint8_t>(data[0]);
 
     uint32_t m = 0;
     m |= static_cast<uint32_t>(data[1]) << 0;
@@ -111,18 +110,18 @@ HyperLogLog HyperLogLog::deserialize(const vector<uint8_t>& data) {
     m |= static_cast<uint32_t>(data[3]) << 16;
     m |= static_cast<uint32_t>(data[4]) << 24;
 
-    size_t expectedSize = 5 + m; 
+    size_t expectedSize = 5 + m;
     if (data.size() != expectedSize) {
-        throw std::runtime_error("Nevalidna velicina serijalizovanih podataka: ocekivano " +
+        throw runtime_error("Nevalidna velicina serijalizovanih podataka: ocekivano " +
             to_string(expectedSize) + ", dobijeno " +
             to_string(data.size()));
     }
 
-    // Kreiramo novu instancu
     HyperLogLog hll(p);
 
-    // Kopiramo registre (preostalih M bajtova)
-    copy(data.begin() + 5, data.end(), hll.Reg.begin());
+    for (uint32_t i = 0; i < m; ++i) {
+        hll.Reg[i] = static_cast<uint8_t>(data[5 + i]);
+    }
 
     return hll;
 }
