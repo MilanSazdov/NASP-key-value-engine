@@ -8,8 +8,8 @@
 #include <iostream>
 //#include <additional/sha.h> // OpenSSL za SHA256 heširanje
 
-#include "wal.h"
-#include "BloomFilter.h"
+#include "../Wal/wal.h"
+#include "../BloomFilter/BloomFilter.h"
 
 /**
  * Struktura za indeks: (key, offset),
@@ -17,13 +17,14 @@
  */
 struct IndexEntry {
     std::string key;
-    uint64_t offset;
+    ull offset;
 };
 
 struct Summary{
     std::vector<IndexEntry> summary;
     std::string min;
-    std::string max; 
+    std::string max;
+    uint64_t count; 
 };
 
 class SSTable {
@@ -39,7 +40,7 @@ public:
         const std::string& indexFile,
         const std::string& filterFile,
         const std::string& summaryFile,
-        const std::string& metaFile);
+        const std::string& metaFile); // remove later
 
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
@@ -51,7 +52,7 @@ public:
      *   5) Kreira sparse index (key -> offset) i upisuje u indexFile_
      *   6) Snima BloomFilter u filterFile_
      */
-    void build(const std::vector<Record>& records);
+    void build(std::vector<Record>& records);
 
     /**
      * get(key) - dohvatanje vrednosti iz data.sst
@@ -77,39 +78,41 @@ private:
     std::string summaryFile_;
     std::string metaFile_;
 
-    // u memoriji cuvamo index i bloom, ako zelimo, inace ucitavamo "on demand"
     std::vector<IndexEntry> index_;
     Summary summary_;
+
     BloomFilter bloom_;
+
+    Block_manager* bm;
 
     std::vector<std::string> tree;
     std::string rootHash;
 
-    std::string buildMerkleTree(const std::vector<std::string>& leaves);
+    void buildMerkleTree(const std::vector<std::string>& leaves);
 
     // ----- pomoćne metode -----
 
     // Upisuje binarno (Record by record) u dataFile_
     // Vraca vector<IndexEntry> da bismo iz njega generisali sparse index
-    std::vector<IndexEntry> writeDataMetaFiles(const std::vector<Record>& sortedRecords) const;
+    std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords);
 
     // Snima 'index_' u indexFile_ (binarno)
     std::vector<IndexEntry> writeIndexToFile();
 
-    // Ucitava 'index_' iz indexFile_ (binarno) ako je prazan
-    void readIndexFromFile();
+    // void readIndexFromFile();
 
     // Snima 'bloom_' u filterFile_ (binarno)
     void writeBloomToFile() const;
 
     // Ucitava 'bloom_' iz filterFile_ ako vec nije
     void readBloomFromFile();
-    void readSummaryFromFile();
+    void readSummaryHeader();
 
     void writeSummaryToFile();
     void writeMetaToFile() const;
     void readMetaFromFile();
 
-    // Binarna pretraga po 'index_' da nadjemo offset "bloka" gde treba da pocnemo citanje
     uint64_t findDataOffset(const std::string& key, bool& found) const;
+
+    bool readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const;
 };

@@ -11,11 +11,11 @@ SSTable::SSTable(const std::string& dataFile,
     indexFile_(indexFile),
     filterFile_(filterFile),
     summaryFile_(summaryFile),
-    metaFile_(metaFile)
+    metaFile_(metaFile), bm(new Block_manager())
 {
 }
 
-void SSTable::build(const std::vector<Record>& records)
+void SSTable::build(std::vector<Record>& records)
 {
     if (records.empty()) {
         std::cerr << "[SSTable] build: Nema zapisa.\n";
@@ -68,67 +68,101 @@ void SSTable::build(const std::vector<Record>& records)
 // Funkcija NE PROVERAVA bloomfilter, pretpostavlja da je vec provereno
 vector<Record> SSTable::get(const std::string& key)
 {
-    readSummaryFromFile();
+    readSummaryHeader();
     vector<Record> matches;
 
     // 3) binarna pretraga -> offset
     bool found;
-    uint64_t startOffset = findDataOffset(key, found);
+    uint64_t fileOffset = findDataOffset(key, found);
     if (!found)
     {
         return matches;
     }
 
-    // 4) Otvorimo dataFile, idemo od startOffset redom
-    std::ifstream in(dataFile_, std::ios::binary);
-    if (!in.is_open()) {
-        std::cerr << "[SSTable] get: Problem sa ucitavanjem fajla" << std::endl;
-        return matches;
-    }
-    in.seekg(startOffset, std::ios::beg);
-
-
+    // 4) Otvorimo dataFile, idemo od fileOffset redom
     while (true) {
+        if(block_size - (fileOffset % block_size) < 30) {
+            fileOffset += block_size - (fileOffset % block_size);
+        } // Ako u bloku posle recorda nema mesta za header, znaci da smo padovali i sledeci record pocinje u sledecem bloku
+
         // citamo polja Record-a
         uint32_t crc = 0;
-        if (!in.read(reinterpret_cast<char*>(&crc), sizeof(crc))) break;
+        readBytes(&crc, sizeof(crc), fileOffset, dataFile_);
 
         char flag;
-        if (!in.read(reinterpret_cast<char*>(&flag), sizeof(flag))) break;
+        readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
 
         uint64_t ts = 0;
-        if (!in.read(reinterpret_cast<char*>(&ts), sizeof(ts))) break;
+        readBytes(&ts, sizeof(ts), fileOffset, dataFile_);
 
         char tomb;
-        if (!in.read(reinterpret_cast<char*>(&tomb), sizeof(tomb))) break;
+        readBytes(&tomb, sizeof(tomb), fileOffset, dataFile_);
 
         uint64_t kSize = 0;
-        if (!in.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
+        readBytes(&kSize, sizeof(kSize), fileOffset, dataFile_);
 
         uint64_t vSize = 0;
-        if (!in.read(reinterpret_cast<char*>(&vSize), sizeof(vSize))) break;
+        readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
 
-        std::string rkey(kSize, '\0');
-        if (!in.read(&rkey[0], kSize)) break;
+        std::string rkey;
+        rkey.resize(kSize);
+        readBytes(&rkey[0], kSize, fileOffset, dataFile_);
 
-        std::string rvalue(vSize, '\0');
-        if (!in.read(&rvalue[0], vSize)) break;
+        std::string rvalue;
+        rvalue.resize(vSize);
+        readBytes(&rvalue[0], vSize, fileOffset, dataFile_);
 
+        Record r;
+        r.crc = crc;
+        r.timestamp = ts;
+        r.tombstone = static_cast<byte>(tomb);
+        r.key_size = kSize;
+        r.value_size = vSize;
+        r.key = rkey;
+        r.value = rvalue;
 
-        if (rkey == key) {
-            Record r;
-            r.crc = crc;
-            r.flag = static_cast<byte>(flag);
-            r.timestamp = ts;
-            r.tombstone = static_cast<byte>(tomb);
-            r.key_size = kSize;
-            r.value_size = vSize;
-            r.key = rkey;
-            r.value = rvalue;
-
+        
+        if (flag == 'F') {
+            while(true) {
+                fileOffset += sizeof(crc);
+                
+                char flag;
+                readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
+                
+                fileOffset += sizeof(ts);
+                
+                fileOffset += sizeof(tomb);
+                
+                uint64_t kSize = 0;
+                readBytes(&kSize, sizeof(kSize), fileOffset, dataFile_);
+                
+                uint64_t vSize = 0;
+                readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
+                
+                std::string rkey;
+                rkey.resize(kSize);
+                readBytes(&rkey[0], kSize, fileOffset, dataFile_);
+                
+                std::string rvalue;
+                rvalue.resize(vSize);
+                readBytes(&rvalue[0], vSize, fileOffset, dataFile_);
+                
+                r.value.append(rvalue);
+                r.key.append(rkey);
+                r.key_size += kSize;
+                r.value_size += vSize;
+                
+                if(flag == 'L'){
+                    break;
+                }
+            }
+        }
+        
+        if(r.key == key) {
             matches.emplace_back(r);
         }
-        if (rkey > key) {
+        
+        if (r.key > key) {
             // nema smisla ici dalje, data fajl je sortiran
             return matches;
         }
@@ -185,11 +219,11 @@ SSTable::range_scan(const std::string& startKey, const std::string& endKey)
 }
 */
 // TODO: Da se koristi Merkle Tree
-string SSTable::buildMerkleTree(const vector<string>& leaves)
+void SSTable::buildMerkleTree(const vector<string>& leaves)
 {
     tree.clear();
 
-    if (leaves.empty()) return "";
+    if (leaves.empty()) return;
     std::hash<std::string> hasher;
     std::vector<std::string> currentLevel = leaves;
     while (currentLevel.size() > 1) {
@@ -206,68 +240,199 @@ string SSTable::buildMerkleTree(const vector<string>& leaves)
         currentLevel = nextLevel;
     }
 
-    return currentLevel.front(); //root
+    rootHash = currentLevel.front();
 }
 
 std::vector<IndexEntry>
-SSTable::writeDataMetaFiles(const std::vector<Record>& sortedRecords) const
+SSTable::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 {
     std::vector<IndexEntry> ret;
     ret.reserve(sortedRecords.size());
 
-    std::ofstream out(dataFile_, std::ios::binary | std::ios::out);
-    if (!out.is_open()) {
-        throw std::runtime_error("Ne mogu otvoriti " + dataFile_);
-    }
 
-    std::vector<std::string> hashes;
+    // Merkle tree
+    vector<string> leaves;
     std::hash<std::string> hasher;
-    uint64_t offset = 0ULL;
+    ull offset = 0ULL;
+
+    int block_id = 0;
+
+    string concat;
+
+    auto append_field = [&](const void* data, size_t len) {
+    auto ptr = reinterpret_cast<const char*>(data);
+    concat.append(ptr, len);
+    };
+
+    size_t header_len = sizeof(uint) + 2*sizeof(byte) + 3*sizeof(ull);
+
     for (auto& r : sortedRecords) {
-        // snimamo IndexEntry
+
+        { // Deo za merkle tree
+            uint64_t h = hasher(r.key + r.value);
+            string leaf;
+            leaf.resize(sizeof(h));
+            memcpy(&leaf[0], &h, sizeof(h));
+            leaves.push_back(move(leaf)); // move da bi smao pomerili adresu
+        }
+
         IndexEntry ie;
         ie.key = r.key;
         ie.offset = offset;
-        ret.push_back(ie);
+        ret.emplace_back(ie);
 
-        // upis polja Record-a:
-        std::string concat;
 
-        concat.append(reinterpret_cast<const char*>(&r.crc), sizeof(r.crc));
-        concat.append(reinterpret_cast<const char*>(&r.flag), sizeof(r.flag));
-        concat.append(reinterpret_cast<const char*>(&r.timestamp), sizeof(r.timestamp));
-        concat.append(reinterpret_cast<const char*>(&r.tombstone), sizeof(r.tombstone));
-        concat.append(reinterpret_cast<const char*>(&r.key_size), sizeof(r.key_size));
-        concat.append(reinterpret_cast<const char*>(&r.value_size), sizeof(r.value_size));
-        concat.append(r.key);
-        concat.append(r.value);
 
-        std::string hashValue = std::to_string(hasher(concat));
+        size_t len =  header_len + r.key_size + r.value_size;
+        ull remaining = block_size - (offset % block_size);
 
-        //TODO: Ovo sve treba da radi sa blokovima.
-        //Moglo bi lako da se napravi konkatenacija svih Record-a, pa deli na blokove, ali zauzelo bi puno memorije.
-        hashes.push_back(hashValue);
+        offset += r.key_size + r.value_size; // Dodajemo ceo key size i value size prvo, posle cemo videti koliko headera treba
+        
+        // Ako u bloku nema dovoljno mesta ni za record metadata
+        if (remaining < header_len) {
+            // concat.insert(concat.end(), remaining, (byte)0); write_block valjda vec paduje
+            offset += remaining;
+            
+            // flush
+            cout << "No space for header, flushing" << '\n' << '\n';
 
-        out.write(concat.data(), concat.size());
+            bm->write_block({block_id++, dataFile_}, concat);
+            concat.clear();
+            remaining = block_size;
+        }
 
-        offset += concat.size();
+        Wal_record_type flag;
+
+        if (remaining < len) {
+            flag = Wal_record_type::FIRST;
+            Record rec(r);
+            append_field(&rec.crc, sizeof(rec.crc));
+            append_field(&flag, sizeof(flag));
+            append_field(&rec.timestamp, sizeof(rec.timestamp));
+            append_field(&rec.tombstone, sizeof(rec.tombstone));
+
+            remaining -= header_len;
+
+            ull key_written = min<ull>(remaining, rec.key_size);
+            remaining -= key_written;
+            ull value_written = min<ull>(remaining, rec.value_size);
+            remaining -= value_written;
+
+            concat.append(
+            reinterpret_cast<const char*>(&key_written),
+            sizeof(key_written)
+            );
+
+            concat.append(
+            reinterpret_cast<const char*>(&value_written),
+            sizeof(value_written)
+            );
+            
+            offset += header_len;
+
+            concat.insert(concat.end(), rec.key.begin(), rec.key.begin()+key_written);
+            concat.insert(concat.end(), rec.value.begin(), rec.value.begin()+value_written);
+ 
+
+            // Flushujemo blok
+            bm->write_block({block_id++, dataFile_}, concat);
+            concat.clear();
+
+            rec.key = rec.key.substr(key_written);
+            rec.value = rec.value.substr(value_written);
+
+            rec.key_size -= key_written;
+            rec.value_size -= value_written;
+
+            remaining = block_size;
+
+            while (flag != Wal_record_type::LAST) {
+                remaining -= header_len;
+
+                ull key_written = min<ull>(remaining, rec.key_size);
+                remaining -= key_written;
+                ull value_written = min<ull>(remaining, rec.value_size);
+                remaining -= value_written;
+
+                if(remaining == 0 && (rec.key_size - key_written != 0 || rec.value_size - value_written != 0)) {
+                    flag = Wal_record_type::MIDDLE;
+                } else flag = Wal_record_type::LAST;
+
+                // L -> ili remaining != 0, tj ima jos mesta, ili nema vise mesta ali smo zapisali ceo zapis
+                // M -> Nema vise mesta i ili nismo ispisali ceo kljuc ili nismo ispisali ceo value
+
+                append_field(&rec.crc, sizeof(rec.crc));
+                append_field(&flag, sizeof(flag));
+                append_field(&rec.timestamp, sizeof(rec.timestamp));
+                append_field(&rec.tombstone, sizeof(rec.tombstone));
+
+                offset += header_len;
+
+                concat.append(
+                    reinterpret_cast<const char*>(&key_written),
+                    sizeof(key_written)
+                );
+
+                concat.append(
+                    reinterpret_cast<const char*>(&value_written),
+                    sizeof(value_written)
+                );
+
+                concat.insert(concat.end(), rec.key.begin(), rec.key.begin()+key_written);
+                concat.insert(concat.end(), rec.value.begin(), rec.value.begin()+value_written);
+                
+                if (flag == Wal_record_type::MIDDLE){
+                    // Flushujemo blok
+                    bm->write_block({block_id++, dataFile_}, concat);
+                    concat.clear();
+
+
+                    rec.key = string(rec.key.begin() + key_written, rec.key.end());
+                    rec.value = string(rec.value.begin() + value_written, rec.value.end());
+
+                    rec.key_size -= key_written;
+                    rec.value_size -= value_written;
+
+                    remaining = block_size;
+                }
+
+            }
+
+        } else {
+            flag = Wal_record_type::FULL;
+            append_field(&r.crc, sizeof(r.crc));
+            append_field(&flag, sizeof(flag));
+            append_field(&r.timestamp, sizeof(r.timestamp));
+            append_field(&r.tombstone, sizeof(r.tombstone));
+            append_field(&r.key_size, sizeof(r.key_size));
+            append_field(&r.value_size, sizeof(r.value_size));
+
+            offset += header_len;
+
+            concat.insert(concat.end(), r.key.begin(), r.key.begin()+r.key_size);
+            concat.insert(concat.end(), r.value.begin(), r.value.begin()+r.value_size);    
+
+        }
     }
 
-    out.close();
+    if (!concat.empty()) 
+        bm->write_block({block_id, dataFile_}, concat);
+
+
+    buildMerkleTree(leaves);
+
     return ret;
 }
+
 
 std::vector<IndexEntry> SSTable::writeIndexToFile()
 {
     std::vector<IndexEntry> ret;
 
-    std::ofstream idx(indexFile_, std::ios::binary | std::ios::out);
-    if (!idx.is_open()) {
-        throw std::runtime_error("Ne mogu otvoriti " + indexFile_);
-    }
+    string payload;
 
     uint64_t count = index_.size();
-    idx.write(reinterpret_cast<char*>(&count), sizeof(count));
+    payload.append(reinterpret_cast<char*>(&count), sizeof(count));
 
     uint64_t offset = 8ULL;
 
@@ -278,81 +443,73 @@ std::vector<IndexEntry> SSTable::writeIndexToFile()
         ret.push_back(summEntry);
 
         uint64_t kSize = ie.key.size();
-        idx.write(reinterpret_cast<char*>(&kSize), sizeof(kSize));
-        idx.write(ie.key.data(), kSize);
-        idx.write(reinterpret_cast<char*>(&ie.offset), sizeof(ie.offset));
+        payload.append(reinterpret_cast<char*>(&kSize), sizeof(kSize));
+        payload.append(ie.key.data(), kSize);
+        payload.append(reinterpret_cast<char*>(&ie.offset), sizeof(ie.offset));
 
         offset += 8 + kSize + 8;
     }
-    idx.close();
+
+    int block_id = 0;
+    size_t total_bytes = payload.size();
+    offset = 0;
+
+    while (offset + block_size <= total_bytes) {
+        string chunk = payload.substr(offset, block_size);
+        bm->write_block({block_id++, indexFile_}, chunk);
+        offset += block_size;
+    }
+
     return ret;
 }
 
 void SSTable::writeSummaryToFile()
 {
+    string payload;
 
-    std::ofstream idx(summaryFile_, std::ios::binary | std::ios::out);
-    if (!idx.is_open()) {
-        throw std::runtime_error("Ne mogu otvoriti " + summaryFile_);
-    }
-
-    uint64_t minKeyLength = summary_.min.size();
-    idx.write(reinterpret_cast<char*>(&minKeyLength), sizeof(minKeyLength));
-    idx.write(summary_.min.data(), minKeyLength);
-
-    uint64_t maxKeyLength = summary_.max.size();
-    idx.write(reinterpret_cast<char*>(&maxKeyLength), sizeof(maxKeyLength));
-    idx.write(summary_.max.data(), maxKeyLength);
-
+    uint64_t minLen = summary_.min.size();
+    payload.append(reinterpret_cast<const char*>(&minLen), sizeof(minLen));
+    uint64_t maxLen = summary_.max.size();
+    payload.append(reinterpret_cast<const char*>(&maxLen), sizeof(maxLen));
     uint64_t count = summary_.summary.size();
-    idx.write(reinterpret_cast<char*>(&count), sizeof(count));
+    payload.append(reinterpret_cast<const char*>(&count), sizeof(count));
+    
+    payload.append(summary_.min);
+    payload.append(summary_.max);
 
-    uint64_t offset = 8 + minKeyLength + 8 + maxKeyLength + 8;
 
     for (auto& summEntry : summary_.summary) {
         uint64_t kSize = summEntry.key.size();
-        idx.write(reinterpret_cast<char*>(&kSize), sizeof(kSize));
-        idx.write(summEntry.key.data(), kSize);
-        idx.write(reinterpret_cast<char*>(&summEntry.offset), sizeof(summEntry.offset));
+        payload.append(reinterpret_cast<char*>(&kSize), sizeof(kSize));
+        payload.append(summEntry.key.data(), kSize);
+        payload.append(reinterpret_cast<char*>(&summEntry.offset), sizeof(summEntry.offset));
 
-        offset += 8 + kSize + 8;
     }
-    idx.close();
+
+    int block_id = 0;
+    uint64_t total_bytes = payload.size();
+    uint64_t offset = 0;
+
+    while (offset + block_size <= total_bytes) {
+        string chunk = payload.substr(offset, block_size);
+        bm->write_block({block_id++, summaryFile_}, chunk);
+        offset += block_size;
+    }
+
+    if (offset < total_bytes) {
+        std::string chunk = payload.substr(offset);
+        bm->write_block({ block_id++, summaryFile_ }, chunk);
+    }
+
 }
 
-void SSTable::writeMetaToFile() const
-{
-    std::ofstream metaFile(metaFile_, std::ios::binary | std::ios::out);
-    if (!metaFile.is_open()) {
-        std::cerr << "[SSTable] writeMetaToFile: Ne mogu da ucitam fajl " + metaFile_ << std::endl;
-        return;
-    }
-
-    uint64_t treeSize = tree.size();
-    metaFile.write(reinterpret_cast<const char*>(&treeSize), sizeof(treeSize));
-
-    for (const auto& hashStr : tree) {
-        if (hashStr.size() != sizeof(uint64_t)) {
-            std::cerr << "[SSTable] writeMetaToFile: Ocekuju se vrednosti duzine 8 byte, a duzina hash-a je " + to_string(hashStr.size()) + " bajtova." << std::endl;
-            return;
-        }
-        metaFile.write(hashStr.data(), sizeof(uint64_t));
-    }
-
-    metaFile.close();
-}
-
-void SSTable::readMetaFromFile()
-{
-    std::ifstream metaFile(metaFile_, std::ios::binary | std::ios::in);
-    if (!metaFile.is_open()) {
-        std::cerr << "[SSTable] readMetaFromFile: Ne mogu da ucitam fajl " + metaFile_ << std::endl;
-        return;
-    }
+void SSTable::readMetaFromFile() {
+    uint64_t offset = 0;
+    bool error;
 
     uint64_t treeSize = 0;
-    if (!metaFile.read(reinterpret_cast<char*>(&treeSize), sizeof(treeSize))) {
-        std::cerr << "[SSTable] writeMetaToFile: Ne mogu da ucitam duzinu stabla" << std::endl;
+    if (!readBytes(&treeSize, sizeof(treeSize), offset, metaFile_)) {
+        std::cerr << "[SSTable] readMetaFromFile: failed to read tree size\n";
         return;
     }
 
@@ -360,187 +517,271 @@ void SSTable::readMetaFromFile()
     tree.reserve(treeSize);
 
     for (uint64_t i = 0; i < treeSize; ++i) {
-        char hashBuffer[sizeof(uint64_t)];
-        if (!metaFile.read(hashBuffer, sizeof(uint64_t))) {
-            std::cerr << "[SSTable] writeMetaToFile: Ne mogu da ucitam hash" << std::endl;
+        std::string hashStr;
+        hashStr.resize(sizeof(uint64_t));
+
+        if (!readBytes(&hashStr[0], sizeof(uint64_t), offset, metaFile_)) {
+            std::cerr << "[SSTable] readMetaFromFile: failed to read hash #" << i << "\n";
             return;
         }
-        tree.emplace_back(hashBuffer, sizeof(uint64_t));
-    }
 
-    metaFile.close();
+        tree.push_back(std::move(hashStr));
+    }
 }
 
-void SSTable::readIndexFromFile()
-{
-    // Ako index_ vec ima podatke, pretpostavimo da je ucitan (ili ga clear() pa ucitaj).
-    if (!index_.empty()) {
-        return;
-    }
-    std::ifstream idx(indexFile_, std::ios::binary);
-    if (!idx.is_open()) {
-        // nema index fajla
-        return;
-    }
-    uint64_t count = 0;
-    if (!idx.read(reinterpret_cast<char*>(&count), sizeof(count))) {
-        return;
-    }
-    index_.reserve(count);
-    for (uint64_t i = 0; i < count; i++) {
-        uint64_t kSize = 0;
-        if (!idx.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
-        std::string kbuf(kSize, '\0');
-        if (!idx.read(&kbuf[0], kSize)) break;
 
-        uint64_t off = 0;
-        if (!idx.read(reinterpret_cast<char*>(&off), sizeof(off))) break;
+// void SSTable::readIndexFromFile()
+// {
+//     if (!index_.empty()) {
+//         return;
+//     }
+//     std::ifstream idx(indexFile_, std::ios::binary);
+//     if (!idx.is_open()) {
+//         // nema index fajla
+//         return;
+//     }
+//     uint64_t count = 0;
+//     if (!idx.read(reinterpret_cast<char*>(&count), sizeof(count))) {
+//         return;
+//     }
+//     index_.reserve(count);
+//     for (uint64_t i = 0; i < count; i++) {
+//         uint64_t kSize = 0;
+//         if (!idx.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
+//         std::string kbuf(kSize, '\0');
+//         if (!idx.read(&kbuf[0], kSize)) break;
 
-        IndexEntry ie;
-        ie.key = kbuf;
-        ie.offset = off;
-        index_.push_back(ie);
-    }
-    idx.close();
-}
+//         uint64_t off = 0;
+//         if (!idx.read(reinterpret_cast<char*>(&off), sizeof(off))) break;
+
+//         IndexEntry ie;
+//         ie.key = kbuf;
+//         ie.offset = off;
+//         index_.push_back(ie);
+//     }
+//     idx.close();
+// }
 
 void SSTable::writeBloomToFile() const
 {
     std::vector<uint8_t> raw = bloom_.serialize();
 
-    std::ofstream bfout(filterFile_, std::ios::binary | std::ios::out);
-    if (!bfout.is_open()) {
-        throw std::runtime_error("Ne mogu otvoriti " + filterFile_);
+    uint64_t len = raw.size();
+
+    string payload;
+
+    payload.append(reinterpret_cast<const char*>(&len), sizeof(len));
+
+    for (const auto& i : raw) {
+        payload.append(reinterpret_cast<const char*>(i), sizeof(i));
     }
 
-    uint64_t len = raw.size();
-    bfout.write(reinterpret_cast<char*>(&len), sizeof(len));
-    bfout.write(reinterpret_cast<const char*>(raw.data()), raw.size());
-    bfout.close();
+    int block_id = 0;
+    size_t total_bytes = payload.size();
+    size_t offset = 0;
+
+    while (offset + block_size <= total_bytes) {
+        string chunk = payload.substr(offset, block_size);
+        bm->write_block({block_id++, summaryFile_}, chunk);
+        offset += block_size;
+    }
 }
+
+void SSTable::writeMetaToFile() const
+{
+    uint64_t treeSize = tree.size();
+
+    string payload;
+
+    payload.append(reinterpret_cast<const char*>(&treeSize), sizeof(treeSize));
+
+    for (const auto& hashStr : tree) {
+        if (hashStr.size() != sizeof(uint64_t)) {
+            std::cerr << "[SSTable] writeMetaToFile: Ocekuju se vrednosti duzine 8 byte, a duzina hash-a je " + to_string(hashStr.size()) + " bajtova." << std::endl;
+            return;
+        }
+        payload.append(hashStr.data(), sizeof(uint64_t));
+    }
+
+    int block_id = 0;
+    size_t total_bytes = payload.size();
+    size_t offset = 0;
+
+    while (offset + block_size <= total_bytes) {
+        string chunk = payload.substr(offset, block_size);
+        bm->write_block({block_id++, summaryFile_}, chunk);
+        offset += block_size;
+    }
+}
+
 
 void SSTable::readBloomFromFile()
 {
-    std::ifstream bfin(filterFile_, std::ios::binary);
-    if (!bfin.is_open()) {
+    uint64_t fileOffset = 0;
+
+    // 1) Read the 8‑byte length
+    uint64_t len = 0;
+    if (!readBytes(&len, sizeof(len), fileOffset, metaFile_) || len == 0) {
         return;
     }
 
-    uint64_t len = 0;
-    if (!bfin.read(reinterpret_cast<char*>(&len), sizeof(len))) {
-        return;
-    }
+    // 2) Allocate and read the whole raw bloom‐filter blob
     std::vector<uint8_t> raw(len);
-    if (!bfin.read(reinterpret_cast<char*>(raw.data()), len)) {
+    if (!readBytes(raw.data(), len, fileOffset, metaFile_)) {
         return;
     }
+
+    // 3) Deserialize
     bloom_ = BloomFilter::deserialize(raw);
-    bfin.close();
 }
 
-void SSTable::readSummaryFromFile()
+void SSTable::readSummaryHeader()
 {
-    std::ifstream idx(summaryFile_, std::ios::binary);
-    if (!idx.is_open()) {
-        std::cerr << "[SSTable] readSummaryFromFile: Problem sa otvaranjem fajla " + summaryFile_ << std::endl;
-        return;
-    }
+    summary_.min.clear();
+    summary_.max.clear();
+    bool err;
+    
+    int block_id = 0;
+    int offset = 0;
+    
+    vector<byte> block = bm->read_block({block_id, summaryFile_}, err);
 
     uint64_t minKeyLength = 0;
-    if (!idx.read(reinterpret_cast<char*>(&minKeyLength), sizeof(minKeyLength))) {
-        return;
-    }
-    summary_.min.resize(minKeyLength);
-    if (!idx.read(summary_.min.data(), minKeyLength)) {
-        return;
-    }
+    memcpy(&minKeyLength, block.data(), sizeof(minKeyLength));
 
-    uint64_t maxKeyLength = 0;
-    if (!idx.read(reinterpret_cast<char*>(&maxKeyLength), sizeof(maxKeyLength))) {
-        return;
-    }
-    summary_.max.resize(maxKeyLength);
-    if (!idx.read(summary_.max.data(), maxKeyLength)) {
-        return;
-    }
+    offset += sizeof(minKeyLength);
 
-    uint64_t count = 0;
-    if (!idx.read(reinterpret_cast<char*>(&count), sizeof(count))) {
-        return;
-    }
+    uint64_t maxKeyLength = 0; 
+    memcpy(&maxKeyLength, block.data()+offset, sizeof(maxKeyLength));
+    offset += sizeof(maxKeyLength);
 
-    summary_.summary.reserve(count);
-    for (uint64_t i = 0; i < count; ++i) {
-        uint64_t kSize = 0;
-        if (!idx.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
+    memcpy(&summary_.count, block.data()+offset, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
 
-        std::string key(kSize, '\0');
-        if (!idx.read(key.data(), kSize)) break;
+    summary_.min.reserve(minKeyLength);
 
-        uint64_t offset = 0;
-        if (!idx.read(reinterpret_cast<char*>(&offset), sizeof(offset))) break;
+    size_t fileOffset = offset;
+    size_t remaining  = minKeyLength;
 
-        summary_.summary.push_back({ key, offset });
+    while (remaining > 0) {
+        int neededBlock = fileOffset / block_size;
+        size_t block_offset = fileOffset % block_size;
+
+        if (neededBlock != block_id) {
+            block_id = neededBlock;
+            block = bm->read_block({block_id, summaryFile_}, err);
+        }
+
+        size_t take = std::min(remaining, block_size - block_offset);
+
+        summary_.min.append(reinterpret_cast<const char*>(block.data() + block_offset), take);
+
+        fileOffset += take;
+        remaining  -= take;
     }
 
-    idx.close();
+    summary_.max.reserve(maxKeyLength);
+
+    offset = fileOffset;
+    remaining = maxKeyLength;
+    while (remaining > 0) {
+            int neededBlock = fileOffset / block_size;
+            size_t block_offset = fileOffset % block_size;
+
+            if (neededBlock != block_id) {
+                block_id = neededBlock;
+                block = bm->read_block({block_id, summaryFile_}, err);
+            }
+
+            size_t take = std::min(remaining, block_size - block_offset);
+
+            summary_.max.append(reinterpret_cast<const char*>(block.data() + block_offset), take);
+
+            fileOffset += take;
+            remaining  -= take;
+        }
 }
 
 uint64_t SSTable::findDataOffset(const std::string& key, bool& found) const
 {
-    //TODO: Block manager
-    if (key < summary_.min) {
+    if (key < summary_.min || key > summary_.max) {
         found = false;
-        return 0ULL;
-    }
-    if (key > summary_.max) {
-        found = false;
-        return 0ULL;
+        return 0;
     }
 
-    int left = 0, right = static_cast<int>(summary_.summary.size()) - 1;
-    int ans = -1;
+    size_t fileOffset = summary_.min.size() + summary_.max.size() + 3*sizeof(uint64_t);
+    
+    uint64_t kSize;
+    bool error;
 
-    while (left <= right) {
-        int mid = (left + right) / 2;
+    uint64_t lastOffset = 0ULL;
+    
+    string rKey;
+    for(int i = 0; i < summary_.count; i++){
+        readBytes(&kSize, sizeof(kSize), fileOffset, summaryFile_);
 
-        if (summary_.summary[mid].key <= key) {
-            ans = mid;
-            left = mid + 1;
+        rKey.resize(kSize);
+        readBytes(&rKey[0], kSize, fileOffset, summaryFile_);
+
+        if(rKey > key) {
+            break;
         }
-        else {
-            right = mid - 1;
-        }
+
+        readBytes(&lastOffset, sizeof(lastOffset), fileOffset, summaryFile_);
     }
 
-    uint64_t offset = summary_.summary[ans].offset;
-
-    std::ifstream in(indexFile_, std::ios::binary);
-    if (!in.is_open()) {
-        std::cerr << "[SSTable] findOffset: Problem sa ucitavanjem fajla " + indexFile_ << std::endl;
-        found = false;
-        return 0ULL;
-    }
-    in.seekg(offset, std::ios::beg);
+    // works up until this point
+    fileOffset = lastOffset;
+    uint64_t off;
 
     while (true) {
-        uint64_t kSize = 0;
-        if (!in.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
-        std::string rkey(kSize, '\0');
-        if (!in.read(&rkey[0], kSize)) break;
+        readBytes(&kSize, sizeof(kSize), fileOffset, indexFile_);
+        
+        rKey.resize(kSize);
+        readBytes(&rKey[0], kSize, fileOffset, indexFile_);
 
-        uint64_t off = 0;
-        if (!in.read(reinterpret_cast<char*>(&off), sizeof(off))) break;
+        readBytes(&off, sizeof(off), fileOffset, indexFile_);
 
-        if (rkey == key) {
+        if (rKey == key) {
             found = true;
             return off;
         }
-        if (rkey > key) {
+        if (rKey > key) {
             found = false;
             return 0ULL;
         }
     }
     found = false;
     return 0ULL;
+}
+
+bool SSTable::readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const
+{
+    bool error = false;
+
+    int block_id = offset / block_size;
+    uint64_t block_pos = offset % block_size;  
+
+    vector<byte> block = bm->read_block({block_id++, fileName}, error);
+    if(error) return !error;
+
+    char* out = reinterpret_cast<char*>(dst);
+
+    while (n > 0) {
+        if (block_pos == block_size) {
+            // fetch sledeci
+            block = bm->read_block({block_id++, fileName}, error);
+            if(error) return !error;
+
+            block_pos = 0;
+        }
+        size_t take = min(n, block_size - block_pos);
+        std::memcpy(out, block.data() + block_pos, take);
+        out += take; // pomeramo pointer
+        offset += take;
+        block_pos += take;
+        n -= take;
+    }
+
+    return !error;
 }

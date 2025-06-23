@@ -2,6 +2,7 @@
 #include "cache.h"
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
 void fill_in_padding(vector<byte>& bad_data) {
 	cout << "Filling padding\n";
@@ -38,6 +39,16 @@ void Block_manager::write_block(composite_key key, vector<byte> data) {
 	out_file.close();
 
 	c.put(key, data);
+}
+
+void Block_manager::write_block(composite_key key, string data){
+	vector<byte> bytes;
+
+	std::transform(data.begin(), data.end(), bytes.begin(),
+			[] (char c) { return std::byte(c); });
+
+	write_block(key, bytes);
+
 }
 
 vector<byte> Block_manager::read_block(composite_key key, bool& error) {
