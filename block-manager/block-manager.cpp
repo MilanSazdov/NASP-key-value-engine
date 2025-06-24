@@ -4,7 +4,12 @@
 #include <iostream>
 #include <algorithm>
 
-void fill_in_padding(vector<byte>& bad_data) {
+Block_manager::Block_manager() {
+	this->block_size = Config::block_size;
+	c = new Cache<composite_key, pair_hash>;
+}
+
+void Block_manager::fill_in_padding(vector<byte>& bad_data) {
 	cout << "Filling padding\n";
 	int n = bad_data.size();
 	if (n == block_size) return;
@@ -38,7 +43,7 @@ void Block_manager::write_block(composite_key key, vector<byte> data) {
 	out_file.write(reinterpret_cast<const char*>(data.data()), block_size);
 	out_file.close();
 
-	c.put(key, data);
+	c->put(key, data);
 }
 
 void Block_manager::write_block(composite_key key, string data){
@@ -58,7 +63,7 @@ vector<byte> Block_manager::read_block(composite_key key, bool& error) {
 	bool exists = false;
 	vector<byte> ret;
 
-	ret = c.get(key, exists);
+	ret = c->get(key, exists);
 
 	if (exists) {
 		return ret;
@@ -90,7 +95,7 @@ vector<byte> Block_manager::read_block(composite_key key, bool& error) {
 				// Assign the contents of the buffer to the vector
 				ret.assign(first, last);
 
-				c.put(key, ret);
+				c->put(key, ret);
 				delete[] buffer;
 			}
 		}

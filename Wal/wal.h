@@ -2,6 +2,7 @@
 #include <string>
 #include "block-manager.h"
 #include "wal_types.h"
+#include "Config.h"
 
 /*
 	koristi se little endian! (znaci 260 = 0x0104, ali po bajtovima je 04 01)!!!
@@ -55,7 +56,6 @@ private:
 	void update_current_block();
 public:
 	Wal();
-	Wal(int segment_size);
 
 	void put(string key, string data);
 	void del(string key);

@@ -1,14 +1,14 @@
 #pragma once
 
-#include <iostream>
+
 #include "wal.h"
 #include "MemtableManager.h"
-
+#include "Config.h"
 
 class System {
 	
 public:
-
+	Config* config;
 	Wal* wal;
 	MemtableManager* memtable;
 

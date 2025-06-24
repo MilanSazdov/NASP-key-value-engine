@@ -1,0 +1,5 @@
+{
+  "cache_capacity": 10,
+  "block_size": 100,
+  "segment_size": 5
+}

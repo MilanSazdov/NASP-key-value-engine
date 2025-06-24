@@ -30,5 +30,5 @@ public:
         : directory(directory) {}
 
     std::string get(const std::string& key) const;
-    void write(const std::vector<Record>& sortedRecords, int level) const;
+    void write(std::vector<Record>& sortedRecords, int level) const;
 };

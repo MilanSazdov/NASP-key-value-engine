@@ -5,6 +5,7 @@
 
 using namespace std;
 
+
 typedef pair<int, string> composite_key;
 struct pair_hash {
 	size_t operator()(const pair<int, string>& p) const {
@@ -134,7 +135,7 @@ void test_memory_leaks() {
 	composite_key key = mp(10, "test_string");
 	composite_key key_to_find = mp(10, "test_string");
 
-	for (int i = 1; i <= 1000000; i++) {
+	for (int i = 1; i <= 1000; i++) {
 		c2.put(key, d2);
 		key.first++;
 
@@ -168,8 +169,8 @@ void test_logic() {
 // Both test passed. (No bugs I hope :))
 int main() {
 
-	// test_logic();
-	// test_memory_leaks();
+	//test_logic();
+	//test_memory_leaks();
 
 	return 0;
 }

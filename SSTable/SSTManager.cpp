@@ -22,7 +22,7 @@ std::string SSTManager::get(const std::string& key) const
                 // Citamo fajl
                 std::size_t fileSize = std::filesystem::file_size(filename);
 
-                std::vector<uint8_t> fileData(fileSize);
+                std::vector<byte> fileData(fileSize);
 
                 std::ifstream file(filename, std::ios::binary);
                 if (!file) {
@@ -80,9 +80,8 @@ std::string SSTManager::get(const std::string& key) const
     return rMax.value;
 }
 
-void SSTManager::write(const std::vector<Record>& sortedRecords, int level) const
+void SSTManager::write(std::vector<Record>& sortedRecords, int level) const
 {
-
     std::string levelDir = directory + "/level_" + std::to_string(level);
     
     // Kreiramo direktorijum ako ne postoji

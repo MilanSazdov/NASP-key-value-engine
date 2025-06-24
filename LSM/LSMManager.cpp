@@ -23,7 +23,7 @@ std::string LSMManager::getLevelPath(int level) const {
 }
 
 
-void LSMManager::flushToLevel0(const std::vector<Record>& records) {
+void LSMManager::flushToLevel0(std::vector<Record>& records) {
     sstManager_.write(records, 0); // upisujemo u level 0
 }
 

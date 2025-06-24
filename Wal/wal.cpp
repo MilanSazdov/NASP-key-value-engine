@@ -127,23 +127,16 @@ void Wal::update_current_block() {
 	}
 	else {
 		uintmax_t size = fs::file_size(LOG_DIRECTORY + "/" + my_file_name);
-		current_block = make_pair(max(0, (int)size / block_size - 1), LOG_DIRECTORY + "/" + my_file_name);
+		current_block = make_pair(max(0, (int)size / Config::block_size - 1), LOG_DIRECTORY + "/" + my_file_name);
 	}
 }
 
-Wal::Wal() : segment_size(5) {
+Wal::Wal() : segment_size(Config::segment_size) {
 	ensure_wal_folder_exists();
 	init_crc32_table();
 	min_segment = find_min_segment();
 	update_current_block();
 }
-
-Wal::Wal(int segment_size) : segment_size(segment_size){
-	ensure_wal_folder_exists();
-	init_crc32_table();
-	min_segment = find_min_segment();
-	update_current_block();
-};
 
 ull get_timestamp() {
 	auto now = chrono::system_clock::now();
@@ -219,7 +212,7 @@ ull find_empty_pos(vector<byte> b) {
 	ull poc = 0, key_size = 0, value_size = 0, sum;
 	bool empty;
 
-	while (poc + 30 < block_size) {
+	while (poc + 30 < Config::block_size) {
 		empty = 1;
 		for (int j = 0; j < 20; j++) {
 			if (b[poc + j] != padding_character) {
@@ -312,7 +305,7 @@ void Wal::write_record(string key, string value, byte tombstone) {
 	Wal_record_type flag;
 
 	// no fractioning
-	if (key.size() + value.size() + 30 + pos <= block_size) {		
+	if (key.size() + value.size() + 30 + pos <= Config::block_size) {		
 		record.clear();
 		for (int i = 0; i < pos; i++) {
 			record.push_back(bytes[i]);
@@ -336,7 +329,7 @@ void Wal::write_record(string key, string value, byte tombstone) {
 		flag = Wal_record_type::FIRST;
 
 		while (key.size() + value.size() > 0) {
-			visak = block_size - 30 - pos;
+			visak = Config::block_size - 30 - pos;
 			if (visak <= key.size()) {
 				key_new = key.substr(0, visak);
 				key = key.substr(visak);
@@ -394,7 +387,7 @@ void Wal::write_record(string key, string value, byte tombstone) {
 //valid: 0 bad record, 1 valid record, 2 no record(end)
 Record read_record(vector<byte> b, int& pos, int& valid, Wal_record_type& flag) {
 	Record r;
-	if (pos + 30 >= block_size) {
+	if (pos + 30 >= Config::block_size) {
 		valid = 2;
 		return r;
 	}

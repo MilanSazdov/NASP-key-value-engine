@@ -112,12 +112,12 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\Wal;$(ProjectDir)..\block-manager;$(ProjectDir)..\Cache;$(ProjectDir)..\BloomFilter;C:\Program Files\OpenSSL-Win64\include;$(ProjectDir)..\MerkleTree</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\Wal;$(ProjectDir)..\block-manager;$(ProjectDir)..\Cache;$(ProjectDir)..\BloomFilter;C:\Program Files\OpenSSL-Win64\include;$(ProjectDir)..\MerkleTree;$(SolutionDir)..\Config</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib;$(SolutionDir)..\System\x64\Debug\Config.obj</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

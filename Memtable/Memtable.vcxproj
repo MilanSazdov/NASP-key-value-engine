@@ -112,12 +112,12 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(SolutionDir)..\SSTable;$(SolutionDir)..\Wal;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SkipList;$(SolutionDir)..\MerkleTree;$(SolutionDir)..\BloomFilter;$(SolutionDir)..\LSM</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(SolutionDir)..\SSTable;$(SolutionDir)..\Wal;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SkipList;$(SolutionDir)..\MerkleTree;$(SolutionDir)..\BloomFilter;$(SolutionDir)..\LSM;$(SolutionDir)..\Config</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\Wal\x64\Debug\wal.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\LSM\x64\Debug\LSMManager.obj</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\Wal\x64\Debug\wal.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\LSM\x64\Debug\LSMManager.obj;$(SolutionDir)..\System\x64\Debug\Config.obj</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

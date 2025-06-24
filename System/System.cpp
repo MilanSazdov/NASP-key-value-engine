@@ -1,5 +1,6 @@
 #include "System.h"
 #include <filesystem>
+#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -26,9 +27,13 @@ System::System() {
     // --- Folder checks ---
     ensureDirectory("../data");
 
+    // --- Getting config file ---
+    std::cout << "[Debug] Reading Config file...\n";
+    Config::load_init_configuration();
+
     // --- WAL setup ---
     std::cout << "[Debug] Initializing WAL...\n";
-    wal = new Wal(2);
+    wal = new Wal();
 
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";

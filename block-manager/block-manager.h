@@ -2,9 +2,8 @@
 #include "cache.h"
 #include <vector>
 #include <string>
+#include "Config.h"
 using namespace std;
-
-const int block_size = 80;	    //in bytes
 
 struct pair_hash {
 	size_t operator()(const pair<int, string>& p) const {
@@ -13,8 +12,12 @@ struct pair_hash {
 };
 
 class Block_manager {
-	Cache<composite_key, pair_hash> c;
+	int block_size;
+	Cache<composite_key, pair_hash>* c;
+	void fill_in_padding(vector<byte>& bad_data);
+
 public:
+	Block_manager();
 	void write_block(composite_key key, vector<byte> data);
 	void write_block(composite_key key, string data);
 

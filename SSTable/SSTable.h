@@ -72,6 +72,7 @@ public:
      */
 private:
     // putanje do fajlova
+    int block_size;
     std::string dataFile_;
     std::string indexFile_;
     std::string filterFile_;

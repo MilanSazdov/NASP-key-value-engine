@@ -9,7 +9,6 @@ int main() {
 	v.push_back((byte)66);
 	v.push_back((byte)67);
 
-
 	bool error;
 	composite_key key = make_pair(0, "file.bin");
 

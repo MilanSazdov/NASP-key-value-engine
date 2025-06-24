@@ -12,6 +12,7 @@
 int main() {
     
     MainApp app;
+    return 0;
     app.run();
 
     return 0;

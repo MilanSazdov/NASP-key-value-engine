@@ -11,7 +11,9 @@ SSTable::SSTable(const std::string& dataFile,
     indexFile_(indexFile),
     filterFile_(filterFile),
     summaryFile_(summaryFile),
-    metaFile_(metaFile), bm(new Block_manager())
+    metaFile_(metaFile), 
+    bm(new Block_manager()),
+    block_size(Config::block_size)
 {
 }
 
@@ -424,7 +426,6 @@ SSTable::writeDataMetaFiles(std::vector<Record>& sortedRecords)
     return ret;
 }
 
-
 std::vector<IndexEntry> SSTable::writeIndexToFile()
 {
     std::vector<IndexEntry> ret;
@@ -529,42 +530,9 @@ void SSTable::readMetaFromFile() {
     }
 }
 
-
-// void SSTable::readIndexFromFile()
-// {
-//     if (!index_.empty()) {
-//         return;
-//     }
-//     std::ifstream idx(indexFile_, std::ios::binary);
-//     if (!idx.is_open()) {
-//         // nema index fajla
-//         return;
-//     }
-//     uint64_t count = 0;
-//     if (!idx.read(reinterpret_cast<char*>(&count), sizeof(count))) {
-//         return;
-//     }
-//     index_.reserve(count);
-//     for (uint64_t i = 0; i < count; i++) {
-//         uint64_t kSize = 0;
-//         if (!idx.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
-//         std::string kbuf(kSize, '\0');
-//         if (!idx.read(&kbuf[0], kSize)) break;
-
-//         uint64_t off = 0;
-//         if (!idx.read(reinterpret_cast<char*>(&off), sizeof(off))) break;
-
-//         IndexEntry ie;
-//         ie.key = kbuf;
-//         ie.offset = off;
-//         index_.push_back(ie);
-//     }
-//     idx.close();
-// }
-
 void SSTable::writeBloomToFile() const
 {
-    std::vector<uint8_t> raw = bloom_.serialize();
+    std::vector<byte> raw = bloom_.serialize();
 
     uint64_t len = raw.size();
 
@@ -626,7 +594,7 @@ void SSTable::readBloomFromFile()
     }
 
     // 2) Allocate and read the whole raw bloom‐filter blob
-    std::vector<uint8_t> raw(len);
+    std::vector<byte> raw(len);
     if (!readBytes(raw.data(), len, fileOffset, metaFile_)) {
         return;
     }

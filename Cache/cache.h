@@ -5,13 +5,13 @@
 #include <unordered_map>
 #include <cstddef>
 #include <iostream>
+#include "Config.h"
 
 using namespace std;
 
 typedef pair<int, string> composite_key;
 
 const byte padding_character = (byte)'0';	//should be 0
-const int cache_capacity = 4;		//in blocks
 
 template <typename key_type>
 struct Node {
@@ -70,7 +70,7 @@ public:
 	Cache() {
 		head = nullptr;
 		tail = nullptr;
-		capacity = cache_capacity;
+		capacity = Config::cache_capacity;
 	}
 
 	// function to remove node from cache

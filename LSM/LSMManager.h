@@ -26,7 +26,7 @@ public:
 	std::string getLevelPath(int level) const;
 
 	// upisuje novi sstable u level 0
-	void flushToLevel0(const std::vector<Record>& records);
+	void flushToLevel0(std::vector<Record>& records);
 
 	// gleda da li je vreme za kompakciju
 	void checkAndTriggerCompaction();
