@@ -10,7 +10,7 @@ Block_manager::Block_manager() {
 }
 
 void Block_manager::fill_in_padding(vector<byte>& bad_data) {
-	cout << "Filling padding\n";
+	//cout << "Filling padding\n";
 	int n = bad_data.size();
 	if (n == block_size) return;
 
@@ -36,9 +36,6 @@ void Block_manager::write_block(composite_key key, vector<byte> data) {
 	fill_in_padding(data);
 
 	out_file.seekp(new_pos);
-	cout << "writing: ";
-	for (byte x : data) cout << (char)x;
-	cout << endl;
 
 	out_file.write(reinterpret_cast<const char*>(data.data()), block_size);
 	out_file.close();
@@ -82,7 +79,7 @@ vector<byte> Block_manager::read_block(composite_key key, bool& error) {
 			error = true;
 		}
 		else {
-			cout << "Uspesno citam\n";
+			//cout << "Uspesno citam\n";
 			char* buffer = new char[block_size];
 			// unsuccesful read
 			if (!file.read(buffer, block_size)) {

@@ -258,7 +258,7 @@ void extract_data(vector<byte>& record, uint crc, Wal_record_type flag, ull time
 	for (int i = 3; i >= 0; i--)
 		record.push_back((byte)((crc >> (i * 8)) & 255));				///CRC
 
-	cout << "Pre svega: " << (char)(flag) << endl;
+	//cout << "Pre svega: " << (char)(flag) << endl;
 	record.push_back((byte)flag);										///FLAG
 
 	for (int i = 7; i >= 0; i--)
@@ -286,7 +286,7 @@ void extract_data(vector<byte>& record, uint crc, Wal_record_type flag, ull time
 void Wal::write_record(string key, string value, byte tombstone) {
 	bool error;
 	vector<byte> bytes;
-	cout << current_block.first << " " << current_block.second << endl;
+	//cout << current_block.first << " " << current_block.second << endl;
 	
 	bytes = bm.read_block(current_block, error);
 
@@ -315,7 +315,7 @@ void Wal::write_record(string key, string value, byte tombstone) {
 		crc = calc_crc(flag, timestamp, tombstone, key_size, value_size, key, value);
 		extract_data(record, crc, flag, timestamp, tombstone, key_size, value_size, key, value);
 
-		cout << "writing done (FULL)\n";
+		//cout << "writing done (FULL)\n";
 		
 		bm.write_block(current_block, record);
 	}
@@ -370,7 +370,7 @@ void Wal::write_record(string key, string value, byte tombstone) {
 			crc = calc_crc(flag, timestamp, tombstone, key_size, value_size, key_new, value_new);
 			extract_data(record, crc, flag, timestamp, tombstone, key_size, value_size, key_new, value_new);
 
-			cout << "writing done (" << record_type_to_string(flag) << ")\n";
+			//cout << "writing done (" << record_type_to_string(flag) << ")\n";
 
 			bm.write_block(current_block, record);
 			
@@ -433,12 +433,12 @@ vector<Record> Wal::get_all_records() {
 	Wal_record_type flag;
 
 	bytes = bm.read_block(key, error);
-	cout << "error = " << error << endl;
+	//cout << "error = " << error << endl;
 	string new_value, new_key;
 
 	while (!error) {
 		int pos = 0;
-		cout << "Current block : " << key.first << " " << key.second << endl;
+		//cout << "Current block : " << key.first << " " << key.second << endl;
 
 		while (true) {
 			int ok = 2;

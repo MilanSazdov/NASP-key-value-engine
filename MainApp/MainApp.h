@@ -21,5 +21,5 @@ public:
 	void showMenu();
 	void handlePut();
 	void handleDelete();
-	// void handleGet();
+	void handleGet();
 };

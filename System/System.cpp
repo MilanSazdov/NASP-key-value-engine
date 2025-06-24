@@ -64,9 +64,21 @@ System::System() {
 }
 
 void System::put(std::string key, std::string value, bool tombstone) {
-	wal->put(key, value);
+    //TODO: treba updateovati cache (bar mislim) A U PICKU MATERINU... KO ZNA GDE TAJ CACHE TREBA DA STOJI
+    if (tombstone) {
+        wal->del(key);
+        memtable->remove(key);
+    }
+    else {
+        cout << "Put to wal\n";
+        wal->put(key, value);
+        cout << "Put to memtable\n";
+        memtable->put(key, value);
+    }
+}
 
-	memtable->put(key, value);
+void System::get(std::string key) {
+
 }
 
 void System::debugWal() const {
@@ -75,13 +87,15 @@ void System::debugWal() const {
 
     for (const auto& r : records) {
         std::cout << "-----------------------------------\n";
-        std::cout << "Key       : " << r.key << "\n";
-        std::cout << "Value     : " << r.value << "\n";
+        std::cout << "\033[31m" << "Key       : " << r.key << "\033[0m\n";
+        std::cout << "\033[32m" << "Value     : " << r.value << "\033[0m\n";
         std::cout << "Tombstone : " << (int)r.tombstone << "\n";
         std::cout << "Timestamp : " << r.timestamp << "\n";
         std::cout << "CRC       : " << r.crc << "\n";
     }
     std::cout << "-----------------------------------\n";
+    // red: << "\033[31m" << "This text is red!" << "\033[0m" <<
+    // greem" "\033[32m" << "This text is green!" << "\033[0m"
 }
 
 void System::debugMemtable() const {

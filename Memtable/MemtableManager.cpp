@@ -53,6 +53,7 @@ void MemtableManager::put(const std::string& key, const std::string& value) {
     // Ako predje maxSize -> prelazimo na nov memtable
     if (active->size() >= maxSize_) {
         if (memtables_.size() < N_) {
+            cout << "Switching to new memtable\n";
             switchToNewMemtable();
         }
         else {
@@ -109,6 +110,7 @@ std::optional<std::string> MemtableManager::get(const std::string& key) const {
 }
 
 void MemtableManager::flushAll() {
+    cout << "[DEBUG] Memtable -> flushAll\n";
     if (memtables_.empty()) {
         return; // Nema aktivnih memtables za flush
     }
@@ -206,10 +208,13 @@ void MemtableManager::printAllData() const {
         std::cout << "Memtable " << i << (i == activeIndex_ ? " (READ WRITE)" : " (READ ONLY)") << ":\n";
         std::vector<MemtableEntry> entries = memtables_[i]->getAllMemtableEntries();
         for (const auto& entry : entries) {
-            std::cout << "  Key: " << entry.key
-                << ", Value: " << entry.value
-                << ", Tombstone: " << entry.tombstone
+            std::cout << "\033[31m" << "  Key: " << entry.key
+                << "\033[0m" <<", " << "\033[32m" << "Value: " << entry.value
+                << "\033[0m" << ", Tombstone: " << entry.tombstone
                 << ", Timestamp: " << entry.timestamp << "\n";
         }
     }
 }
+
+// red: << "\033[31m" << "This text is red!" << "\033[0m" <<
+// greem" "\033[32m" << "This text is green!" << "\033[0m"

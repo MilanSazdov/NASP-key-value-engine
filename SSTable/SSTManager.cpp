@@ -88,9 +88,40 @@ void SSTManager::write(std::vector<Record>& sortedRecords, int level) const
     if (!fs::exists(levelDir)) {
         fs::create_directory(levelDir);
     }
+    std::vector<std::string> requiredFiles = {
+        "filter_0.sst",
+        "index_0.sst",
+        "meta_0.sst",
+        "sstable_0.sst",
+        "summary_0.sst"
+    };
+
+    // Check each file and create if missing
+    for (const auto& fileName : requiredFiles) {
+        fs::path filePath = fs::path(levelDir) / fileName;
+
+        if (!fs::exists(filePath)) {
+            std::cout << "File missing: " << fileName << " -> Creating it." << std::endl;
+            std::ofstream outfile(filePath);
+            if (outfile) {
+                outfile << ""; // Optionally write initial content
+                outfile.close();
+            }
+            else {
+                std::cerr << "Error creating file: " << fileName << std::endl;
+            }
+        }
+        else {
+            std::cout << "File exists: " << fileName << std::endl;
+        }
+    }
 
     // Pronalazimo sledeci slobodan indeks u tom izvoru
+
+    cout << "[debug] : Finding next index " << levelDir << endl;
     int num = findNextIndex(levelDir);
+    cout << "[debug] : Next index: " << num << endl;
+
     std::string numStr = to_string(num);
     std::string ending = numStr + ".sst";
 

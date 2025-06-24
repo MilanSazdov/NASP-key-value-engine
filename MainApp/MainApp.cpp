@@ -54,6 +54,10 @@ void MainApp::handleDelete() {
     std::cout << "[DELETE] Marked as deleted: " << key << "\n";
 }
 
+void MainApp::handleGet() {
+
+}
+
 void MainApp::run() {
     int choice;
 
@@ -64,9 +68,7 @@ void MainApp::run() {
         switch (choice) {
         case 1: handlePut(); break;
         case 2: handleDelete(); break;
-        case 3:
-            std::cout << "[GET] Not implemented yet.\n";
-            break;
+        case 3: handleGet(); break;
         case 4:
             std::cout << "Exiting...\n";
             return;
@@ -77,5 +79,6 @@ void MainApp::run() {
         default:
             std::cout << "Invalid choice.\n";
         }
+        cout << endl;
     }
 }

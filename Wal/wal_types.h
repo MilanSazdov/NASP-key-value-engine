@@ -15,6 +15,7 @@ enum class Wal_record_type : uint8_t {
 	MIDDLE = (byte)67,
 	LAST = (byte)68
 };
+
 inline string record_type_to_string(Wal_record_type type) {
 	switch (type) {
 		case Wal_record_type::FULL:   return "FULL";

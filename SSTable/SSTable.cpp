@@ -582,7 +582,6 @@ void SSTable::writeMetaToFile() const
     }
 }
 
-
 void SSTable::readBloomFromFile()
 {
     uint64_t fileOffset = 0;

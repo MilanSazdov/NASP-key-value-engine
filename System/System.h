@@ -17,6 +17,7 @@ public:
 	System();
 
 	void put(std::string key, std::string value, bool tombstone);
+	void get(std::string key);
 
 	void debugWal() const;
 	void debugMemtable() const;
