@@ -1,20 +1,30 @@
-#include "LSMManager.h"
+﻿
 #include <iostream>
 #include <algorithm>
-#include <SSTable.h>
+#include <filesystem>
+
+#include "LSMManager.h"
+#include "SSTableIterator.h"
+#include "MergeIterator.h"
 
 namespace fs = std::filesystem;
 
-LSMManager::LSMManager(const std::string& base_directory, int max_level, int compaction_threshold)
+LSMManager::LSMManager(const std::string& base_directory, std::unique_ptr<CompactionStrategy> strategy, int max_levels)
     : base_directory_(base_directory),
-    max_level_(max_level),
-    compaction_threshold_(compaction_threshold),
-    sstManager_(base_directory) {
+    strategy_(std::move(strategy)),
+    max_levels_(max_levels),
+    sstManager_(base_directory),
+    stop_worker_(false),
+    compaction_needed_(false) {
+    levels_.resize(max_levels_);
 }
 
-void LSMManager::initialize() {
-    for (int i = 0; i <= max_level_; ++i) {
-        fs::create_directories(base_directory_ + "/level_" + std::to_string(i));
+LSMManager::~LSMManager() {
+    stop_worker_ = true;
+    compaction_needed_ = true; // Postavi na true da se nit sigurno probudi
+    cv_.notify_one();          // Signaliziraj niti da se probudi i zavrsi
+    if (compaction_thread_.joinable()) {
+        compaction_thread_.join();
     }
 }
 
@@ -22,82 +32,144 @@ std::string LSMManager::getLevelPath(int level) const {
     return base_directory_ + "/level_" + std::to_string(level);
 }
 
+void LSMManager::initialize() {
+    for (int i = 0; i < max_levels_; ++i) {
+        fs::create_directories(getLevelPath(i));
+    }
+    // TODO: Pozvati load_state_from_manifest(); da se ucita stanje ako postoji
+
+    // Pokreni pozadinsku nit
+    compaction_thread_ = std::thread(&LSMManager::compaction_worker, this);
+}
 
 void LSMManager::flushToLevel0(std::vector<Record>& records) {
-    sstManager_.write(records, 0); // upisujemo u level 0
+    if (records.empty()) return;
+
+    // Pretpostavka: sstManager_.write sada vraća SSTableMetadata
+    // OVO MORATE IMPLEMENTIRATI U VAŠEM SSTManager-u
+    SSTableMetadata new_sst_meta = sstManager_.write(records, 0);
+
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        levels_[0].push_back(new_sst_meta);
+        // TODO: Pozvati save_state_to_manifest() da se promena sacuva na disk
+    }
+
+    // Signaliziraj pozadinskoj niti da ima potencijalnog posla
+    compaction_needed_ = true;
+    cv_.notify_one();
 }
 
-void LSMManager::checkAndTriggerCompaction() {
-    std::string level0Path = getLevelPath(0);
-    int sstableCount = 0;
+void LSMManager::compaction_worker() {
+    while (!stop_worker_) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        // nit "spava" dok je ne probudi signal (iz flushToLevel0 ili nakon prethodne kompakcije)
+        cv_.wait(lock, [this] { return compaction_needed_.load() || stop_worker_.load(); });
 
-    for (const auto& entry : fs::directory_iterator(level0Path)) {
-        std::string filename = entry.path().filename().string();
-        if (filename.rfind("sstable_", 0) == 0 && entry.path().extension() == ".sst") {
-            ++sstableCount;
+        if (stop_worker_) break; // proveri da li treba izaci
+
+        compaction_needed_ = false; // resetuj signal
+
+        // kopiraj trenutno stanje da bi mogao da otkljucas mutex dok strategija radi
+        auto current_levels_snapshot = levels_;
+        lock.unlock();
+
+        // Pozovi strategiju da vidi da li ima posla
+        if (auto plan_opt = strategy_->pickCompaction(current_levels_snapshot)) {
+            std::cout << "[LSM WORKER] Triggering compaction...\n";
+            do_compaction(*plan_opt);
+
+            // Nakon jedne kompakcije, moguce je da je potrebna nova (kaskadiranje) => zato odmah signaliziramo ponovnu proveru
+            compaction_needed_ = true;
+            cv_.notify_one();
         }
     }
-
-    if (sstableCount >= compaction_threshold_) {
-        std::cout << "[LSMManager] Triggering compaction on level 0\n";
-        compactLevel(0);
-    }
 }
 
-void LSMManager::compactLevel(int level) {
-    if (level >= max_level_) {
-        std::cout << "[LSMManager] Maximum level reached. Cannot compact further.\n";
+void LSMManager::do_compaction(const CompactionPlan& plan) {
+    std::cout << "[LSM WORKER] Compacting "
+        << plan.inputs_level_1.size() + plan.inputs_level_2.size()
+        << " files to level " << plan.output_level << std::endl;
+
+    std::vector<std::unique_ptr<SSTableIterator>> iterators;
+    std::vector<SSTableMetadata> all_input_files = plan.inputs_level_1;
+    all_input_files.insert(all_input_files.end(), plan.inputs_level_2.begin(), plan.inputs_level_2.end());
+
+    if (all_input_files.empty()) {
+        std::cout << "[LSM WORKER] Compaction plan has no input files. Skipping.\n";
         return;
     }
 
-    std::string levelDir = getLevelPath(level);
-    std::vector<Record> allRecords;
-
-    // Skupi sve SSTable fajlove iz datog nivoa
-    for (const auto& entry : fs::directory_iterator(levelDir)) {
-        std::string filename = entry.path().filename().string();
-        if (filename.rfind("sstable_", 0) == 0 && entry.path().extension() == ".sst") {
-            std::string suffix = filename.substr(8); // "3.sst"
-            std::string number = suffix.substr(0, suffix.find('.'));
-
-            SSTable sst(
-                levelDir + "/sstable_" + number + ".sst",
-                levelDir + "/index_" + number + ".sst",
-                levelDir + "/filter_" + number + ".sst",
-                levelDir + "/summary_" + number + ".sst",
-                levelDir + "/meta_" + number + ".sst"
-            );
-
-            std::vector<Record> records = sst.get("");
-            allRecords.insert(allRecords.end(), records.begin(), records.end());
-
-            // obrisi sve fajlove
-            fs::remove(levelDir + "/sstable_" + number + ".sst");
-            fs::remove(levelDir + "/index_" + number + ".sst");
-            fs::remove(levelDir + "/filter_" + number + ".sst");
-            fs::remove(levelDir + "/summary_" + number + ".sst");
-            fs::remove(levelDir + "/meta_" + number + ".sst");
-        }
-    }
-
-    // Sortiraj po kljucu i vremenu
-    std::sort(allRecords.begin(), allRecords.end(), [](const Record& a, const Record& b) {
-        return a.key < b.key || (a.key == b.key && a.timestamp > b.timestamp);
+    // Sortiraj ulazne fajlove od najnovijih ka najstarijim (po ID-u)
+    // Ovo je kljucno da MergeIterator ispravno resi duplikate
+    std::sort(all_input_files.begin(), all_input_files.end(),
+        [](const SSTableMetadata& a, const SSTableMetadata& b) {
+            return a.file_id > b.file_id;
         });
 
-    // Ukloni duplikate i tombstone-ovane zapise
-    std::vector<Record> filtered;
-    std::string lastKey = "";
+    for (const auto& meta : all_input_files) {
+        // Pretpostavka: Config::block_size je dostupan
+        iterators.push_back(std::make_unique<SSTableIterator>(meta, 4096 /* Config::block_size */));
+    }
 
-    for (const auto& rec : allRecords) {
-        if (rec.key != lastKey) {
-            if (static_cast<int>(rec.tombstone) != 1) {
-                filtered.push_back(rec);
-            }
-            lastKey = rec.key;
+    MergeIterator merge_iterator(std::move(iterators));
+
+    // izlazna logika: pisi u nove SSTable fajlove.
+    std::vector<Record> records_for_new_sst;
+    std::vector<SSTableMetadata> new_sst_metadatas;
+    uint64_t current_sst_size = 0;
+    // Ciljana velicina fajla (za LCS). Treba da dodje iz konfiguracije.
+    uint64_t target_file_size = 2 * 1024 * 1024; // Primer: 2MB
+
+    while (merge_iterator.hasNext()) {
+        Record r = merge_iterator.next();
+        records_for_new_sst.push_back(r);
+        current_sst_size += r.key_size + r.value_size + 30; // gruba aproksimacija velicine zapisa
+
+        // Ako je izlazni fajl dostigao ciljanu velicinu (relevantno za LCS) => upisi ga i zapocni novi
+        if (current_sst_size >= target_file_size) {
+            new_sst_metadatas.push_back(sstManager_.write(records_for_new_sst, plan.output_level));
+            records_for_new_sst.clear();
+            current_sst_size = 0;
         }
     }
 
-    // Zapisi u sledeci nivo
-    sstManager_.write(filtered, level + 1);
+    // Ako je ostalo zapisa, upisi poslednji fajl
+    if (!records_for_new_sst.empty()) {
+        new_sst_metadatas.push_back(sstManager_.write(records_for_new_sst, plan.output_level));
+    }
+
+    // --- Atomsko azuriranje stanja ---
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+
+        // 1. Obrisi stare fajlove iz memorijskog stanja
+        for (const auto& meta_to_remove : all_input_files) {
+            auto& level_vec = levels_[meta_to_remove.level];
+            level_vec.erase(std::remove(level_vec.begin(), level_vec.end(), meta_to_remove), level_vec.end());
+        }
+
+        // 2. Dodaj nove fajlove u stanje
+        auto& output_level_vec = levels_[plan.output_level];
+        output_level_vec.insert(output_level_vec.end(), new_sst_metadatas.begin(), new_sst_metadatas.end());
+
+        // 3. Za LCS, vazno je da nivoi > 0 budu sortirani po kljucu radi brze pretrage
+        if (plan.output_level > 0) {
+            std::sort(output_level_vec.begin(), output_level_vec.end(),
+                [](const SSTableMetadata& a, const SSTableMetadata& b) { return a.min_key < b.min_key; });
+        }
+
+        // TODO: Pozvati save_state_to_manifest()
+    }
+
+    // 4. Tek nakon uspesnog azuriranja stanja, fizicki obrisi stare fajlove sa diska
+    for (const auto& meta : all_input_files) {
+        fs::remove(meta.data_path);
+        fs::remove(meta.index_path);
+        fs::remove(meta.summary_path);
+        fs::remove(meta.filter_path);
+        fs::remove(meta.meta_path);
+    }
+
+    std::cout << "[LSM WORKER] Compaction finished.\n";
 }

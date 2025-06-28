@@ -1,17 +1,50 @@
 ﻿#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include "SSTManager.h"
 #include "SSTable.h"
 #include "BloomFilter.h"
 
 namespace fs = std::filesystem;
 
+using ull = unsigned long long;
+
+SSTManager::SSTManager(const std::string& directory) : directory_(directory) {}
+
+// pomocna funkcija za pronalazenje sledeceg ID-a
+int SSTManager::findNextIndex(const std::string& levelDir) const {
+    int max_id = -1;
+    if (!fs::exists(levelDir) || !fs::is_directory(levelDir)) {
+        return 0; // prvi fajl ce biti sa ID-em 0
+    }
+
+    for (const auto& entry : fs::directory_iterator(levelDir)) {
+        std::string filename = entry.path().filename().string();
+        if (filename.rfind("sstable_", 0) == 0 && entry.path().extension() == ".sst") {
+            try {
+                // Primer: iz "sstable_5.sst" izvuci "5"
+                std::string id_str = filename.substr(8, filename.find('.') - 8);
+                int id = std::stoi(id_str);
+                if (id > max_id) {
+                    max_id = id;
+                }
+            }
+            catch (const std::exception& e) {
+                // Ignorisi fajlove sa nevalidnim formatom imena
+                continue;
+            }
+        }
+    }
+    return max_id + 1;
+}
+
+// POGLEDATI NAPOMENU IZ .H FAJLA !!!!!!!!!!!!!!
 std::string SSTManager::get(const std::string& key) const
 {
     std::vector<Record> matches;
 
-    for (const auto& entry : fs::directory_iterator(directory))
+    for (const auto& entry : fs::directory_iterator(directory_))
     {
         if (entry.is_regular_file()) {
             std::string filename = entry.path().filename().string();
@@ -46,11 +79,11 @@ std::string SSTManager::get(const std::string& key) const
                     std::string numStr = filename.substr(underscorePos + 1, dotPos - underscorePos - 1);
                     std::string ending = numStr + ".sst";
 
-                    SSTable sst((directory + "sstable_" + ending),
-                        (directory + "index_" + ending),
-                        (directory + "filter_" + ending),
-                        (directory + "summary_" + ending),
-                        (directory + "meta_" + ending));
+                    SSTable sst((directory_ + "sstable_" + ending),
+                        (directory_ + "index_" + ending),
+                        (directory_ + "filter_" + ending),
+                        (directory_ + "summary_" + ending),
+                        (directory_ + "meta_" + ending));
 
                     //Sve recorde sa odgovarajucim key-em stavljamo u vektor
                     std::vector<Record> found = sst.get(key);
@@ -80,59 +113,67 @@ std::string SSTManager::get(const std::string& key) const
     return rMax.value;
 }
 
-void SSTManager::write(std::vector<Record>& sortedRecords, int level) const
-{
-    std::string levelDir = directory + "/level_" + std::to_string(level);
-    
-    // Kreiramo direktorijum ako ne postoji
+SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) const {
+    if (sortedRecords.empty()) {
+        throw std::runtime_error("[SSTManager] Cannot write an SSTable with zero records.");
+    }
+
+    std::string levelDir = directory_ + "/level_" + std::to_string(level);
+
+    // Osiguraj da direktorijum za nivo postoji
     if (!fs::exists(levelDir)) {
-        fs::create_directory(levelDir);
-    }
-    std::vector<std::string> requiredFiles = {
-        "filter_0.sst",
-        "index_0.sst",
-        "meta_0.sst",
-        "sstable_0.sst",
-        "summary_0.sst"
-    };
-
-    // Check each file and create if missing
-    for (const auto& fileName : requiredFiles) {
-        fs::path filePath = fs::path(levelDir) / fileName;
-
-        if (!fs::exists(filePath)) {
-            std::cout << "File missing: " << fileName << " -> Creating it." << std::endl;
-            std::ofstream outfile(filePath);
-            if (outfile) {
-                outfile << ""; // Optionally write initial content
-                outfile.close();
-            }
-            else {
-                std::cerr << "Error creating file: " << fileName << std::endl;
-            }
-        }
-        else {
-            std::cout << "File exists: " << fileName << std::endl;
-        }
+        fs::create_directories(levelDir);
     }
 
-    // Pronalazimo sledeci slobodan indeks u tom izvoru
+    int fileId = findNextIndex(levelDir);
+    std::string numStr = std::to_string(fileId);
+    std::string ending = "_" + numStr + ".sst"; // Koristimo _ da odvojimo ime i broj
 
-    cout << "[debug] : Finding next index " << levelDir << endl;
-    int num = findNextIndex(levelDir);
-    cout << "[debug] : Next index: " << num << endl;
+    // Kreiraj putanje za sve komponente SSTable-a
+    std::string data_path = levelDir + "/sstable" + ending;
+    std::string index_path = levelDir + "/index" + ending;
+    std::string filter_path = levelDir + "/filter" + ending;
+    std::string summary_path = levelDir + "/summary" + ending;
+    std::string meta_path = levelDir + "/meta" + ending;
 
-    std::string numStr = to_string(num);
-    std::string ending = numStr + ".sst";
+    // Instanciraj SSTable objekat koji ce obaviti upisivanje
+    SSTable sst(data_path, index_path, filter_path, summary_path, meta_path);
 
-    // Kreiramo putanje
-    SSTable sst(
-        levelDir + "/sstable_" + ending,
-        levelDir + "/index_" + ending,
-        levelDir + "/filter_" + ending,
-        levelDir + "/summary_" + ending,
-        levelDir + "/meta_" + ending
-    );
-
+    // Ova metoda vrsi "tezak posao" upisivanja svih 5 fajlova.
     sst.build(sortedRecords);
+
+    // Nakon sto su fajlovi upisani, kreiramo i popunjavamo metapodatke.
+    SSTableMetadata meta;
+    meta.level = level;
+    meta.file_id = fileId;
+    meta.min_key = sortedRecords.front().key; // Vektor je vec sortiran
+    meta.max_key = sortedRecords.back().key;  // Vektor je vec sortiran
+
+    // Sracunaj ukupnu velicinu fajla sabiranjem velicina svih komponenti
+    uint64_t total_size = 0;
+    try {
+        total_size += fs::file_size(data_path);
+        total_size += fs::file_size(index_path);
+        total_size += fs::file_size(summary_path);
+        total_size += fs::file_size(filter_path);
+        total_size += fs::file_size(meta_path);
+    }
+    catch (const fs::filesystem_error& e) {
+        std::cerr << "Error getting file size for SSTable " << fileId << ": " << e.what() << std::endl;
+        // U slučaju greske, postavi velicinu na 0
+        total_size = 0;
+    }
+    meta.file_size = total_size;
+
+    // Sacuvaj pune putanje do fajlova u metapodacima
+    meta.data_path = data_path;
+    meta.index_path = index_path;
+    meta.summary_path = summary_path;
+    meta.filter_path = filter_path;
+    meta.meta_path = meta_path;
+
+    std::cout << "[SSTManager] Successfully wrote SSTable " << fileId << " to level " << level
+        << " (Total Size: " << total_size << " bytes)." << std::endl;
+
+    return meta;
 }
