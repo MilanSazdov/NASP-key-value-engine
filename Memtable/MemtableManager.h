@@ -15,11 +15,13 @@ public:
      * @param N maksimalan broj memtable instanci u memoriji
      * @param maxSizePerTable koliko elemenata moze stati u svaku memtable
      * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./".
+     * @param config_path putanja do konfiguracionog fajla
      **/
     MemtableManager(const std::string& type,
         size_t N,
         size_t maxSizePerTable,
-        const std::string& directory);
+        const std::string& directory,
+        const std::string& config_path);
 
     MemtableManager(const std::string& type,
         size_t N,
@@ -49,10 +51,10 @@ private:
     std::string type_;   // sacuvamo koji tip je korisnik izabrao
     size_t N_;           // max broj memtable
     size_t maxSize_;     // max broj elemenata u svakoj
+    std::string directory_;
 
-    SSTManager sstManager;
-
-    LSMManager lsmManager;
+    std::unique_ptr<SSTManager> sstManager_;
+    std::unique_ptr<LSMManager> lsmManager_;
 
     // N instanci memtable
     std::vector<std::unique_ptr<IMemtable>> memtables_;
@@ -66,5 +68,8 @@ private:
     // Ako se aktivna memtable popuni, prelazimo na novu
     void switchToNewMemtable();
 
+    void flushOldest(); // prazni samo najstariju memtable (prvu napravljenu)
+
+    void checkAndFlushIfNeeded(); // proverava da li je potrebno preci na novu tabelu ili uraditi flush
 };
 
