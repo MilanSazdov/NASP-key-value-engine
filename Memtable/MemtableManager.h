@@ -23,10 +23,6 @@ public:
         const std::string& directory,
         const std::string& config_path);
 
-    MemtableManager(const std::string& type,
-        size_t N,
-        size_t maxSizePerTable);
-
     ~MemtableManager();
 
     // Upis kljuca i vrednosti u aktivnu memtable
