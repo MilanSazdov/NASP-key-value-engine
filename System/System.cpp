@@ -37,7 +37,7 @@ System::System() {
 
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
-    memtable = new MemtableManager("hash", 2, 2);
+    memtable = new MemtableManager("hash", 2, 2, "../data/.", "../Config/config.json/.");
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";

@@ -42,15 +42,17 @@ std::map<std::string, std::string> read_config(const std::string& config_path) {
             config[key] = value;
         }
     }
+    std::cout << "[Config] Reading config done\n";
     return config;
 }
 
-MemtableManager::MemtableManager(const std::string& type,
+MemtableManager::MemtableManager(
+    std::string type,
     size_t N,
     size_t maxSizePerTable,
-    const std::string& directory,
-    const std::string& config_path)
-    : type_(type),
+    std::string directory,
+    std::string config_path): 
+    type_(type),
     N_(N),
     maxSize_(maxSizePerTable),
     directory_(directory),
@@ -90,7 +92,10 @@ MemtableManager::MemtableManager(const std::string& type,
     first->setMaxSize(maxSizePerTable);
     memtables_.push_back(std::move(first));
 
+    std::cout << "Initializing lsm manager\n";
+
     lsmManager_->initialize();
+
 }
 
 MemtableManager::~MemtableManager() {
@@ -238,14 +243,6 @@ void MemtableManager::flushAll() {
 
 IMemtable* MemtableManager::createNewMemtable() const {
     return MemtableFactory::createMemtable(type_);
-}
-
-void MemtableManager::switchToNewMemtable() {
-    // kreiramo novu i stavljamo je kao aktivnu
-    auto newMem = std::unique_ptr<IMemtable>(createNewMemtable());
-    newMem->setMaxSize(maxSize_);
-    memtables_.push_back(std::move(newMem));
-    activeIndex_ = memtables_.size() - 1;
 }
 
 /*

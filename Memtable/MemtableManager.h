@@ -17,11 +17,12 @@ public:
      * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./".
      * @param config_path putanja do konfiguracionog fajla
      **/
-    MemtableManager(const std::string& type,
+    MemtableManager(
+        std::string type,
         size_t N,
         size_t maxSizePerTable,
-        const std::string& directory,
-        const std::string& config_path);
+        std::string directory,
+        std::string config_path);
 
     ~MemtableManager();
 
