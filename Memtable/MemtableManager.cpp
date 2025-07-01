@@ -60,7 +60,7 @@ MemtableManager::MemtableManager(const std::string& type,
 
 MemtableManager::~MemtableManager() {
     // flushujemo sve preostale memtable pre gasenja da ne izgubimo podatke
-    while (!memtables_.empty()){
+    while (!memtables_.empty()) {
         flushOldest();
     }
 }
@@ -237,11 +237,11 @@ void MemtableManager::loadFromWal(const std::vector<Record>& records) {
         if (memtables_[activeIndex_]->size() >= maxSize_) {
             if (memtables_.size() < N_) {
                 switchToNewMemtable();
-				std::cout << "[MemtableManager] Switched to new Memtable.\n";
+                std::cout << "[MemtableManager] Switched to new Memtable.\n";
             }
             else {
                 // Ako su sve Memtable popunjene, flushujemo najstariju i kreiramo novu
-				std::cout << "[MemtableManager] Flushing all Memtables.\n";
+                std::cout << "[MemtableManager] Flushing all Memtables.\n";
                 flushAll();
                 auto newMemtable = std::unique_ptr<IMemtable>(createNewMemtable());
                 newMemtable->setMaxSize(maxSize_);
@@ -274,7 +274,7 @@ void MemtableManager::printAllData() const {
         std::vector<MemtableEntry> entries = memtables_[i]->getAllMemtableEntries();
         for (const auto& entry : entries) {
             std::cout << "\033[31m" << "  Key: " << entry.key
-                << "\033[0m" <<", " << "\033[32m" << "Value: " << entry.value
+                << "\033[0m" << ", " << "\033[32m" << "Value: " << entry.value
                 << "\033[0m" << ", Tombstone: " << entry.tombstone
                 << ", Timestamp: " << entry.timestamp << "\n";
         }
