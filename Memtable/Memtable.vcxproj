@@ -147,6 +147,7 @@
     <ClInclude Include="MemtableSkipList.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BTree.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MemtableFactory.cpp" />
     <ClCompile Include="MemtableHashMap.cpp" />

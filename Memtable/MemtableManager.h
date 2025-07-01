@@ -15,14 +15,12 @@ public:
      * @param N maksimalan broj memtable instanci u memoriji
      * @param maxSizePerTable koliko elemenata moze stati u svaku memtable
      * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./".
-     * @param config_path putanja do konfiguracionog fajla
      **/
-    MemtableManager(
-        std::string type,
+    MemtableManager(const std::string& type,
         size_t N,
         size_t maxSizePerTable,
-        std::string directory,
-        std::string config_path);
+        const std::string& directory
+    );
 
     ~MemtableManager();
 
@@ -43,8 +41,8 @@ public:
     // Kada se sistem pokrene, Memtable treba popuniti zapisima iz WAL-a
     void loadFromWal(const std::vector<Record>& records);
 
-	// Print all data from memtables
-	void printAllData() const;
+    // Print all data from memtables
+    void printAllData() const;
 
 private:
     std::string type_;   // sacuvamo koji tip je korisnik izabrao

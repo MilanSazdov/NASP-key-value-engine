@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <filesystem>
+#include <sstream>
 
 #include "LSMManager.h"
 #include "SSTableIterator.h"
@@ -11,6 +12,7 @@ namespace fs = std::filesystem;
 
 LSMManager::LSMManager(const std::string& base_directory, std::unique_ptr<CompactionStrategy> strategy, int max_levels)
     : base_directory_(base_directory),
+	manifest_path_(base_directory + "/MANIFEST"),
     strategy_(std::move(strategy)),
     max_levels_(max_levels),
     sstManager_(base_directory),
@@ -36,10 +38,80 @@ void LSMManager::initialize() {
     for (int i = 0; i < max_levels_; ++i) {
         fs::create_directories(getLevelPath(i));
     }
-    // TODO: Pozvati load_state_from_manifest(); da se ucita stanje ako postoji
+    
+	// Na pocetku, ucitavamo stanje iz MANIFEST fajla ako postoji
+	load_state_from_manifest();
 
     // Pokreni pozadinsku nit
     compaction_thread_ = std::thread(&LSMManager::compaction_worker, this);
+}
+
+void LSMManager::load_state_from_manifest() {
+    std::ifstream manifest_file(manifest_path_);
+    if (!manifest_file.is_open()) {
+        std::cout << "[LSMManager] MANIFEST file not found. Starting with a fresh state." << std::endl;
+        return;
+    }
+
+    std::string line;
+    int line_num = 0;
+    while (std::getline(manifest_file, line)) {
+        line_num++;
+        std::stringstream ss(line);
+        SSTableMetadata meta;
+
+        // Format: level file_id min_key max_key file_size data_path index_path summary_path filter_path meta_path
+        ss >> meta.level >> meta.file_id >> meta.min_key >> meta.max_key >> meta.file_size
+            >> meta.data_path >> meta.index_path >> meta.summary_path >> meta.filter_path >> meta.meta_path;
+
+        if (ss.fail()) {
+            std::cerr << "[LSMManager] WARNING: Failed to parse line " << line_num << " in MANIFEST. Skipping." << std::endl;
+            continue;
+        }
+
+        if (meta.level >= 0 && meta.level < max_levels_) {
+            levels_[meta.level].push_back(meta);
+        }
+    }
+
+    // sortiraj ucitane nivoe (LCS zahteva da nivoi > 0 budu sortirani po kljucu)
+    for (int i = 1; i < max_levels_; ++i) {
+        std::sort(levels_[i].begin(), levels_[i].end(),
+            [](const SSTableMetadata& a, const SSTableMetadata& b) { return a.min_key < b.min_key; });
+    }
+
+    std::cout << "[LSMManager] Successfully loaded state from MANIFEST." << std::endl;
+}
+
+void LSMManager::save_state_to_manifest() const {
+    std::string temp_manifest_path = manifest_path_ + ".tmp";
+    std::ofstream temp_manifest_file(temp_manifest_path);
+
+    if (!temp_manifest_file.is_open()) {
+        std::cerr << "[LSMManager] ERROR: Could not open temporary MANIFEST file for writing." << std::endl;
+        return;
+    }
+
+    // prodji kroz sve nivoe i upisi metapodatke svakog SSTable-a
+    for (const auto& level_vec : levels_) {
+        for (const auto& meta : level_vec) {
+            temp_manifest_file << meta.level << " " << meta.file_id << " "
+                << meta.min_key << " " << meta.max_key << " "
+                << meta.file_size << " " << meta.data_path << " "
+                << meta.index_path << " " << meta.summary_path << " "
+                << meta.filter_path << " " << meta.meta_path << "\n";
+        }
+    }
+
+    temp_manifest_file.close();
+
+    // atomski preimenuj .tmp fajl u finalni MANIFEST fajl
+    try {
+        fs::rename(temp_manifest_path, manifest_path_);
+    }
+    catch (const fs::filesystem_error& e) {
+        std::cerr << "[LSMManager] ERROR: Failed to rename temporary MANIFEST: " << e.what() << std::endl;
+    }
 }
 
 void LSMManager::flushToLevel0(std::vector<Record>& records) {
@@ -52,7 +124,7 @@ void LSMManager::flushToLevel0(std::vector<Record>& records) {
     {
         std::lock_guard<std::mutex> lock(mtx_);
         levels_[0].push_back(new_sst_meta);
-        // TODO: Pozvati save_state_to_manifest() da se promena sacuva na disk
+		save_state_to_manifest(); // Azuriraj MANIFEST nakon svakog flush-a
     }
 
     // Signaliziraj pozadinskoj niti da ima potencijalnog posla
