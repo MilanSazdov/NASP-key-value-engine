@@ -22,7 +22,7 @@ public:
     void remove(const std::string& key) override;
 
     // get vraca vrednost ako kljuc postoji, ili nullopt ako ne postoji
-    std::optional<std::string> get(const std::string& key) const override;
+    std::optional<std::string> get(const std::string& key, bool& deleted) const override;
 
     // size vraca broj elemenata u memtejblu
     size_t size() const override;

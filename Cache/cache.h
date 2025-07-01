@@ -141,12 +141,11 @@ public:
 	// function to get value. If exists == true, key exists
 	vector<byte> get(key_type key, bool& exists) {
 		// it doesnt exists
-		exists = true;
-
 		if (cache_map.find(key) == cache_map.end()) {
 			exists = false;
 			return vector<byte>();
 		}
+		exists = true;
 
 		Node<key_type>* ret = cache_map[key];
 

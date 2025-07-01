@@ -9,6 +9,7 @@
 #include "SizeTieredCompaction.h"
 #include "LeveledCompaction.h"
 
+// TODO: ovo treba izbaciti, ne valja, treba da koristi Config::atribut 
 // pomocna funkcija za citanje konfiguracije
 std::map<std::string, std::string> read_config(const std::string& config_path) {
     std::cout << "[Config] Reading configuration from: " << config_path << std::endl;
@@ -183,22 +184,18 @@ void MemtableManager::flushOldest() {
     }
 }
 
-// NAPOMENA: OVO TREBA PREBACITI U LSM MANAGER DEO
-std::optional<std::string> MemtableManager::get(const std::string& key) const {
+// (Milan kaze) NAPOMENA: OVO TREBA PREBACITI U LSM MANAGER DEO (vedran pita zasto??)
+std::optional<std::string> MemtableManager::get(const std::string& key, bool& deleted) const {
     // prvo pretrazujemo memtable, od najnovije ka najstarijoj
+    deleted = false;
     for (int i = static_cast<int>(memtables_.size()) - 1; i >= 0; i--) {
-        auto val = memtables_[i]->get(key);
+        auto val = memtables_[i]->get(key, deleted);
+        if (deleted) {
+            return nullopt;
+        }
         if (val.has_value()) {
             return val;
         }
-    }
-
-    // Ako nije u memtable, pretrazujemo LSM stablo
-    // TODO: LSMManager treba da ima svoju get metodu koja pretrazuje nivoe
-    // za sada, pozivamo SSTManager direktno, sto nije idealno
-    auto result = sstManager_->get(key);
-    if (!result.empty()) {
-        return result;
     }
 
     return std::nullopt;
@@ -318,7 +315,6 @@ void MemtableManager::printAllData() const {
                 << ", Timestamp: " << entry.timestamp << "\n";
         }
     }
-}
-
 // red: << "\033[31m" << "This text is red!" << "\033[0m" <<
 // greem" "\033[32m" << "This text is green!" << "\033[0m"
+}

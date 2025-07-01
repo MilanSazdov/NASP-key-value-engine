@@ -1,4 +1,5 @@
 #include "MainApp.h"
+using namespace std;
 
 MainApp::MainApp() {
     // TODO: verovatno bi ovde (u ovaj projekat) bilo najbolje dodati Config klasu, pa je pozvati pre kreiranja system klase, i proslediti joj
@@ -34,24 +35,21 @@ void MainApp::showMenu() {
     std::cout << "Enter choice: ";
 }
 
+string key, value;
 void MainApp::handlePut() {
-    std::string key, value;
-    std::cin.ignore();
-    std::cout << "Enter key: ";
-    std::getline(std::cin, key);
-    std::cout << "Enter value: ";
-    std::getline(std::cin, value);
+    cout << "Enter key: ";
+    getline(cin, key);
+    cout << "Enter value: ";
+    getline(cin, value);
     system->put(key, value, false);
-    std::cout << "[PUT] Inserted key: " << key << "\n";
+    cout << "[PUT] Inserted key: " << key << "\n";
 }
 
 void MainApp::handleDelete() {
-    std::string key;
-    std::cin.ignore();
-    std::cout << "Enter key to delete: ";
-    std::getline(std::cin, key);
+    cout << "Enter key to delete: ";
+    getline(cin, key);
     system->put(key, "", true);
-    std::cout << "[DELETE] Marked as deleted: " << key << "\n";
+    cout << "[DELETE] Marked as deleted: " << key << "\n";
 }
 
 void MainApp::handleGet() {
@@ -60,24 +58,25 @@ void MainApp::handleGet() {
 
 void MainApp::run() {
     int choice;
+    cin.ignore();
 
     while (true) {
         showMenu();
-        std::cin >> choice;
+        cin >> choice;
 
         switch (choice) {
         case 1: handlePut(); break;
         case 2: handleDelete(); break;
         case 3: handleGet(); break;
         case 4:
-            std::cout << "Exiting...\n";
+            cout << "Exiting...\n";
             return;
         case 404:
             debugWal();
             debugMemtable();
             break;
         default:
-            std::cout << "Invalid choice.\n";
+            cout << "Invalid choice.\n";
         }
         cout << endl;
     }

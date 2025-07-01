@@ -6,18 +6,18 @@
 #include "Config.h"
 
 class System {
-	
-public:
-	Config* config;
+
+private:
 	Wal* wal;
 	MemtableManager* memtable;
+	SSTManager* sstable;
+	Cache<string>* cache;
 
 public:
-
 	System();
 
 	void put(std::string key, std::string value, bool tombstone);
-	void get(std::string key);
+	string get(std::string key, bool& deleted);
 
 	void debugWal() const;
 	void debugMemtable() const;

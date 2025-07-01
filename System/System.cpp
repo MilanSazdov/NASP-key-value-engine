@@ -21,7 +21,6 @@ void ensureDirectory(const std::string& path) {
 }
 
 System::System() {
-
     std::cout << "[SYSTEM] Starting initialization... \n";
 
     // --- Folder checks ---
@@ -35,14 +34,21 @@ System::System() {
     std::cout << "[Debug] Initializing WAL...\n";
     wal = new Wal();
 
+    // --- Cache setup ---
+    cout << "[Debug] Initializing Cache...\n";
+    cache = new Cache<string>();
+    cout << "Cache initialized\n";
+
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
+    //TODO: Ove putanje do direktorijuma sam ja (vedran) samo lupio, treba popraviti
     memtable = new MemtableManager("hash", 2, 2, "../data/.", "../Config/config.json/.");
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";
     std::vector<Record> records = wal->get_all_records();
-    std::cout << "[Debug] WAL Records:\n";
+
+    /*std::cout << "[Debug] WAL Records:\n";
     for (const Record& r : records) {
         std::cout << "-----------------------------------\n";
         std::cout << "Key       : " << r.key << "\n";
@@ -51,16 +57,16 @@ System::System() {
         std::cout << "Timestamp : " << r.timestamp << "\n";
         std::cout << "CRC       : " << r.crc << "\n";
     }
-    std::cout << "-----------------------------------\n";
+    std::cout << "-----------------------------------\n";*/
 
     std::cout << "[Debug] Loading records into Memtable...\n";
     memtable->loadFromWal(records);
-	memtable->printAllData();
+	//memtable->printAllData();
 
     std::cout << "[Debug] System initialization completed.\n";
 
 
-	std::cout << "[System] Data from WAL loaded into the Memory table.\n";
+	//std::cout << "[System] Data from WAL loaded into the Memory table.\n";
 }
 
 void System::put(std::string key, std::string value, bool tombstone) {
@@ -77,8 +83,32 @@ void System::put(std::string key, std::string value, bool tombstone) {
     }
 }
 
-void System::get(std::string key) {
+// NIJE TESTIRANO!!
+string System::get(std::string key, bool& deleted) {
+    // searching memtable
+    deleted = false;
+    auto value = memtable->get(key, deleted);
+    if (deleted) {
+        return "";
+    }
+    else if (value.has_value()) {
+        return value.value();
+    }
+    
+    // searching cache
+    bool exists;
+    vector<byte> bytes = cache->get(key, exists);
+    if (exists) {
+        // converting from vector<byte> to string ret
+        string ret(bytes.size(), '\0');
+        memcpy(ret.data(), bytes.data(), bytes.size());
 
+        deleted = false;
+        return ret;
+    }
+
+    // searching sstable (disc)
+    string retValue = 
 }
 
 void System::debugWal() const {

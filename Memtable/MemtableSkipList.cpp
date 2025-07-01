@@ -24,11 +24,17 @@ void MemtableSkipList::remove(const std::string& key) {
 }
 
 // NOVO: Koristi novu metodu getNode iz SkipList-e 
-std::optional<std::string> MemtableSkipList::get(const std::string& key) const {
+std::optional<std::string> MemtableSkipList::get(const std::string& key, bool& deleted) const {
+    deleted = false;
     auto node = skiplist_.getNode(key); // Koristi novu metodu getNode iz SkipList-a
     if (node && !node->tombstone) {
         return node->value;
     }
+
+    // svakako se vraca nullopt, ali da markiram da je obrisan
+    if (node && node->tombstone) 
+        deleted = true;
+    
     return std::nullopt;
 }
 

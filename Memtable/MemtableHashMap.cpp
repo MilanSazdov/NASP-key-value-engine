@@ -7,8 +7,9 @@
 #include "MemtableHashMap.h"
 
 
+//TODO: Citanje iz config
 MemtableHashMap::MemtableHashMap()
-    : maxSize(1000) // default TODO: Citanje iz config
+    : maxSize(1000) //default
 {}
 
 // put => upis (key, value), tombstone= false, timestamp = currentTime
@@ -21,9 +22,6 @@ void MemtableHashMap::put(const string& key, const string& value) {
     Entry e{ value, false, currentTime() };
     table_[key] = e;
 }
-
-
-
 
 // remove => postavimo tombstone = true, value = ""
 void MemtableHashMap::remove(const std::string& key) {
@@ -40,15 +38,19 @@ void MemtableHashMap::remove(const std::string& key) {
 }
 
 // get => vraća value ako tombstone=false, inače nullopt
-optional<string> MemtableHashMap::get(const string& key) const {
+optional<string> MemtableHashMap::get(const string& key, bool& deleted) const {
     auto it = table_.find(key);
+    deleted = false;
+
     if (it == table_.end()) {
         return nullopt;
     }
     if (it->second.tombstone) {
+        deleted = true;
         // obrisan
         return nullopt;
     }
+
     return it->second.value;
 }
 

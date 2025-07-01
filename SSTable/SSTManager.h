@@ -23,6 +23,7 @@ public:
     SSTManager(const std::string& directory);
 
     // NAPOMENA: ovu metodu bi trebalo imati u LSMManager jer on treba da upravlja po nivoima
+    // TODO: takodje, nije dobro da vraca "" ako je key obrisan ili ga nema. Napraviti da radi kao memtable optional<string> get(key, bool& deleted);
     std::string get(const std::string& key) const;
 
     SSTableMetadata write(std::vector<Record> sortedRecords, int level) const;

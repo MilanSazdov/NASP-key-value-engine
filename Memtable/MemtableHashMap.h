@@ -21,7 +21,7 @@ public:
     // Implementacije osnovnih metoda:
     void put(const std::string& key, const std::string& value) override;
     void remove(const std::string& key) override;
-    std::optional<std::string> get(const std::string& key) const override;
+    std::optional<std::string> get(const std::string& key, bool& deleted) const override;
     size_t size() const override;
     void setMaxSize(size_t maxSize) override;
     void loadFromWal(const std::string& wal_file) override;
