@@ -9,10 +9,10 @@
 #include "SizeTieredCompaction.h"
 #include "LeveledCompaction.h"
 
-MemtableManager::MemtableManager(const std::string& type,
+MemtableManager::MemtableManager(std::string& type,
     size_t N,
     size_t maxSizePerTable,
-    const std::string& directory)
+    std::string& directory)
     : type_(type),
     N_(N),
     maxSize_(maxSizePerTable),

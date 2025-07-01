@@ -76,22 +76,24 @@ System::~System() {
 	std::cout << "[SYSTEM] System shutdown complete.\n";
 }
 
-void System::put(std::string key, std::string value, bool tombstone) {
-    //TODO: treba updateovati cache (bar mislim) A U PICKU MATERINU... KO ZNA GDE TAJ CACHE TREBA DA STOJI
-    if (tombstone) {
-        wal->del(key);
-        memtable->remove(key);
-    }
-    else {
-        cout << "Put to wal\n";
-        wal->put(key, value);
-        cout << "Put to memtable\n";
-        memtable->put(key, value);
-    }
+void System::del(const std::string& key) {
+    cout << "Deleted from wal\n";
+    wal->del(key);
+
+    cout << "Deleted from memtable\n";
+    memtable->remove(key);
+}
+
+void System::put(const std::string& key, const std::string& value) {
+    cout << "Put to wal\n";
+    wal->put(key, value);
+
+    cout << "Put to memtable\n";
+    memtable->put(key, value);
 }
 
 // NIJE TESTIRANO!!
-string System::get(std::string key, bool& deleted) {
+std::optional<std::string> System::get(const std::string& key, bool& deleted) {
     // searching memtable
     deleted = false;
     auto value = memtable->get(key, deleted);
@@ -115,7 +117,6 @@ string System::get(std::string key, bool& deleted) {
     }
 
     // searching sstable (disc)
-    string retValue = 
 }
 
 void System::debugWal() const {

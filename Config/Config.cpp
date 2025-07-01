@@ -6,9 +6,9 @@
 #include <algorithm>
 #include <iomanip>
 
-int Config::cache_capacity = 0; // This is required
-int Config::block_size = 0;     // This is required
-int Config::segment_size = 0;   // This is required
+int Config::cache_capacity = 10;        // 10 elements
+int Config::block_size = 100;           // 100 bytes
+int Config::segment_size = 5;           // 5 blocks
 
 std::string Config::data_directory = "../data";
 std::string Config::wal_directory = "../data/wal_logs";
@@ -40,6 +40,7 @@ int getValueFromLine(const std::string& line) {
 }
 
 void Config::debug() {
+    std::cout << "Debuging\n";
     const std::string cyan = "\033[36m";
     const std::string bold = "\033[1m";
     const std::string reset = "\033[0m";
@@ -60,6 +61,14 @@ void Config::debug() {
     std::cout << std::left << std::setw(30) << "  level_size_multiplier:" << level_size_multiplier << "\n";
     std::cout << std::left << std::setw(30) << "  min_threshold:" << min_threshold << "\n";
     std::cout << std::left << std::setw(30) << "  max_threshold:" << max_threshold << "\n";
+
+    std::cout << std::left << std::setw(30) << "  wal_directory:" << wal_directory << "\n";
+    std::cout << std::left << std::setw(30) << "  data_directory:" << data_directory << "\n";
+}
+
+void remove_white_space_or_coma(std::string& s) {
+    if (s[s.size() - 1] == ',') s.pop_back();
+    while (s[0] == ' ') s = s.substr(1);
 }
 
 void Config::load_init_configuration() {
@@ -71,6 +80,7 @@ void Config::load_init_configuration() {
     }
 
     std::string line;
+    std::cout << " Ide for petlha\n";
 
     while (std::getline(file, line)) {
         if (line.find("cache_capacity") != std::string::npos) {
@@ -85,6 +95,7 @@ void Config::load_init_configuration() {
 		else if (line.find("memtable_type") != std::string::npos) {
 			memtable_type = line.substr(line.find(':') + 1);
 			memtable_type.erase(remove(memtable_type.begin(), memtable_type.end(), '\"'), memtable_type.end());
+            remove_white_space_or_coma(memtable_type);
 		}
 		else if (line.find("memtable_instances") != std::string::npos) {
 			memtable_instances = getValueFromLine(line);
@@ -95,6 +106,7 @@ void Config::load_init_configuration() {
 		else if (line.find("compaction_strategy") != std::string::npos) {
 			compaction_strategy = line.substr(line.find(':') + 1);
 			compaction_strategy.erase(remove(compaction_strategy.begin(), compaction_strategy.end(), '\"'), compaction_strategy.end());
+            remove_white_space_or_coma(compaction_strategy);
 		}
 		else if (line.find("max_levels") != std::string::npos) {
 			max_levels = getValueFromLine(line);
@@ -114,6 +126,19 @@ void Config::load_init_configuration() {
 		else if (line.find("max_threshold") != std::string::npos) {
 			max_threshold = getValueFromLine(line);
 		}
+        else if (line.find("data_directory") != std::string::npos) {
+            data_directory = line.substr(line.find(':') + 1);
+            data_directory.erase(remove(data_directory.begin(), data_directory.end(), '\"'), data_directory.end());
+            remove_white_space_or_coma(data_directory);
+        }
+        else if (line.find("wal_directory") != std::string::npos) {
+            wal_directory = line.substr(line.find(':') + 1);
+            wal_directory.erase(remove(wal_directory.begin(), wal_directory.end(), '\"'), wal_directory.end());
+            remove_white_space_or_coma(wal_directory);
+        }
+
+
+        std::cout << "Proso iteraciju\n";
     }
     debug();
 }
