@@ -10,7 +10,7 @@ namespace fs = std::filesystem;
 
 using ull = unsigned long long;
 
-SSTManager::SSTManager(const std::string& directory) : directory_(directory) {}
+SSTManager::SSTManager() : directory_(Config::data_directory) {}
 
 // pomocna funkcija za pronalazenje sledeceg ID-a
 int SSTManager::findNextIndex(const std::string& levelDir) const {

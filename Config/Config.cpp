@@ -67,8 +67,11 @@ void Config::debug() {
 }
 
 void remove_white_space_or_coma(std::string& s) {
-    if (s[s.size() - 1] == ',') s.pop_back();
-    while (s[0] == ' ') s = s.substr(1);
+    if (s[s.size() - 1] == ',')
+        s.pop_back();
+
+    while (s[0] == ' ')
+        s = s.substr(1);
 }
 
 void Config::load_init_configuration() {
@@ -80,7 +83,6 @@ void Config::load_init_configuration() {
     }
 
     std::string line;
-    std::cout << " Ide for petlha\n";
 
     while (std::getline(file, line)) {
         if (line.find("cache_capacity") != std::string::npos) {
@@ -136,9 +138,6 @@ void Config::load_init_configuration() {
             wal_directory.erase(remove(wal_directory.begin(), wal_directory.end(), '\"'), wal_directory.end());
             remove_white_space_or_coma(wal_directory);
         }
-
-
-        std::cout << "Proso iteraciju\n";
     }
     debug();
 }

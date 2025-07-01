@@ -34,7 +34,7 @@ public:
 	static int min_threshold;
 	static int max_threshold;
 	
-	// Data and Wal directory
+	// Data folder for: sstable/lsm , memtable, and Wal directory
 	static std::string data_directory;
 	static std::string wal_directory;
 

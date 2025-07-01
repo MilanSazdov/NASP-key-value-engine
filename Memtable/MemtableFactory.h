@@ -8,5 +8,5 @@
 
 class MemtableFactory {
 public:
-	static IMemtable* createMemtable(const string& type);
+	static IMemtable* createMemtable();
 };

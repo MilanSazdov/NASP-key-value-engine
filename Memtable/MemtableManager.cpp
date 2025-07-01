@@ -9,18 +9,15 @@
 #include "SizeTieredCompaction.h"
 #include "LeveledCompaction.h"
 
-MemtableManager::MemtableManager(std::string& type,
-    size_t N,
-    size_t maxSizePerTable,
-    std::string& directory)
-    : type_(type),
-    N_(N),
-    maxSize_(maxSizePerTable),
-    directory_(directory),
+MemtableManager::MemtableManager()
+    : type_(Config::memtable_type),
+    N_(Config::memtable_instances),
+    maxSize_(Config::memtable_max_size),
+    directory_(Config::data_directory),
     activeIndex_(0)
 {
     // Kreiraj SSTManager
-    sstManager_ = std::make_unique<SSTManager>(directory);
+    sstManager_ = std::make_unique<SSTManager>();
 
     // Kreiraj odabranu strategiju kompakcije na osnovu vrednosti iz Config klase
     std::unique_ptr<CompactionStrategy> strategy;
@@ -46,7 +43,7 @@ MemtableManager::MemtableManager(std::string& type,
     }
 
     // Kreiraj LSMManager i prosledi mu kreiranu strategiju
-    lsmManager_ = std::make_unique<LSMManager>(directory, std::move(strategy), Config::max_levels);
+    lsmManager_ = std::make_unique<LSMManager>(std::move(strategy), Config::max_levels);
 
     // Inicijalizuj prvu (aktivnu) Memtable
     memtables_.reserve(N_);
@@ -198,7 +195,7 @@ void MemtableManager::flushAll() {
 */
 
 IMemtable* MemtableManager::createNewMemtable() const {
-    return MemtableFactory::createMemtable(type_);
+    return MemtableFactory::createMemtable();
 }
 
 

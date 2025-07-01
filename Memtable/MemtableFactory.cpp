@@ -1,15 +1,15 @@
 #include "MemtableFactory.h"
 
-IMemtable* MemtableFactory::createMemtable(const std::string& type) {
+IMemtable* MemtableFactory::createMemtable() {
 
-    if (type == "hash_map") {
+    if (Config::memtable_type == "hash_map") {
         return new MemtableHashMap();
     }
-    else if (type == "skiplist") {
+    else if (Config::memtable_type == "skiplist") {
         return new MemtableSkipList();
     }
 
-    else if (type == "btree") {
+    else if (Config::memtable_type == "btree") {
         return new BTree<4>(5);
     }
 

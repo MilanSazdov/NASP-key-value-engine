@@ -8,8 +8,6 @@
 class System {
 	
 public:
-
-	Config* config;
 	Wal* wal;
 	MemtableManager* memtable;
 	SSTManager* sstable;

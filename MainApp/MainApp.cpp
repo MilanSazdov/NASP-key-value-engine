@@ -41,14 +41,14 @@ void MainApp::handlePut() {
     getline(cin, key);
     cout << "Enter value: ";
     getline(cin, value);
-    system->put(key, value, false);
+    system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 }
 
 void MainApp::handleDelete() {
     cout << "Enter key to delete: ";
     getline(cin, key);
-    system->put(key, "", true);
+    system->del(key);
     cout << "[DELETE] Marked as deleted: " << key << "\n";
 }
 

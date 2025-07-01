@@ -42,7 +42,7 @@ System::System() {
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
     //TODO: Ove putanje do direktorijuma sam ja (vedran) samo lupio, treba popraviti
-    memtable = new MemtableManager("hash", 2, 2, "../data/.", "../Config/config.json/.");
+    memtable = new MemtableManager();
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";

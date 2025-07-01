@@ -20,7 +20,7 @@ private:
 
 public:
 
-    SSTManager(const std::string& directory);
+    SSTManager();
 
     // NAPOMENA: ovu metodu bi trebalo imati u LSMManager jer on treba da upravlja po nivoima
     // TODO: takodje, nije dobro da vraca "" ako je key obrisan ili ga nema. Napraviti da radi kao memtable optional<string> get(key, bool& deleted);

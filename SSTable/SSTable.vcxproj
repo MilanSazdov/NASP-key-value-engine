@@ -117,7 +117,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib;$(SolutionDir)..\System\x64\Debug\Config.obj</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib;$(SolutionDir)..\Config\x64\Debug\Config.obj</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
