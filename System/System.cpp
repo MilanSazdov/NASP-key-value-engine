@@ -1,6 +1,7 @@
 #include "System.h"
 #include <filesystem>
 #include <iostream>
+#include <stdexcept>
 
 namespace fs = std::filesystem;
 
@@ -24,12 +25,11 @@ System::System() {
 
     std::cout << "[SYSTEM] Starting initialization... \n";
 
-    // --- Folder checks ---
-    ensureDirectory("../data");
+    std::cout << "Reading Config file ... \n";
+	Config::load_init_configuration();
 
-    // --- Getting config file ---
-    std::cout << "[Debug] Reading Config file...\n";
-    Config::load_init_configuration();
+    // --- Folder checks ---
+    ensureDirectory(Config::data_directory);
 
     // --- WAL setup ---
     std::cout << "[Debug] Initializing WAL...\n";
@@ -61,6 +61,13 @@ System::System() {
 
 
 	std::cout << "[System] Data from WAL loaded into the Memory table.\n";
+}
+
+System::~System() {
+	std::cout << "[SYSTEM] Shutting down system and freeing resources...\n";
+	delete wal;
+	delete memtable;
+	std::cout << "[SYSTEM] System shutdown complete.\n";
 }
 
 void System::put(std::string key, std::string value, bool tombstone) {

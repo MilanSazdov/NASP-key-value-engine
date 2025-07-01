@@ -9,87 +9,52 @@
 #include "SizeTieredCompaction.h"
 #include "LeveledCompaction.h"
 
-// pomocna funkcija za citanje konfiguracije
-std::map<std::string, std::string> read_config(const std::string& config_path) {
-    std::cout << "[Config] Reading configuration from: " << config_path << std::endl;
-    std::map<std::string, std::string> config;
-    std::ifstream config_file(config_path);
-
-    if (!config_file.is_open()) {
-        std::cerr << "[Config] WARNING: Could not open config file '" << config_path << "'. Using default values." << std::endl;
-        // postavi podrazumevane vrednosti ako fajl ne postoji
-        config["compaction_strategy"] = "leveled";
-        config["max_levels"] = "7";
-        config["l0_compaction_trigger"] = "4";
-        config["target_file_size_base"] = "2097152"; // 2MB
-        config["level_size_multiplier"] = "10";
-        config["min_threshold"] = "4";  // Default za size_tiered
-        config["max_threshold"] = "32"; // Default za size_tiered
-        return config;
-    }
-
-    std::string line;
-    while (std::getline(config_file, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        size_t delimiter_pos = line.find('=');
-        if (delimiter_pos != std::string::npos) {
-            std::string key = line.substr(0, delimiter_pos);
-            std::string value = line.substr(delimiter_pos + 1);
-            key.erase(key.find_last_not_of(" \t\n\r") + 1);
-            key.erase(0, key.find_first_not_of(" \t\n\r"));
-            value.erase(value.find_last_not_of(" \t\n\r") + 1);
-            value.erase(0, value.find_first_not_of(" \t\n\r"));
-            config[key] = value;
-        }
-    }
-    return config;
-}
-
 MemtableManager::MemtableManager(const std::string& type,
     size_t N,
     size_t maxSizePerTable,
-    const std::string& directory,
-    const std::string& config_path)
+    const std::string& directory)
     : type_(type),
     N_(N),
     maxSize_(maxSizePerTable),
     directory_(directory),
     activeIndex_(0)
 {
+    // Kreiraj SSTManager
     sstManager_ = std::make_unique<SSTManager>(directory);
 
-    auto config = read_config(config_path);
-
+    // Kreiraj odabranu strategiju kompakcije na osnovu vrednosti iz Config klase
     std::unique_ptr<CompactionStrategy> strategy;
-    int max_levels = std::stoi(config.at("max_levels"));
 
-    if (config.at("compaction_strategy") == "leveled") {
-        std::cout << "[MemtableManager] Using Leveled Compaction Strategy." << std::endl;
+    if (Config::compaction_strategy == "leveled") {
+        std::cout << "[MemtableManager] Using Leveled Compaction Strategy (from Config)." << std::endl;
         strategy = std::make_unique<LeveledCompactionStrategy>(
-            std::stoi(config.at("l0_compaction_trigger")),
-            max_levels,
-            std::stoull(config.at("target_file_size_base")),
-            std::stoi(config.at("level_size_multiplier"))
+            Config::l0_compaction_trigger,
+            Config::max_levels,
+            Config::target_file_size_base,
+            Config::level_size_multiplier
         );
     }
-    else if (config.at("compaction_strategy") == "size_tiered") {
-        std::cout << "[MemtableManager] Using Size-Tiered Compaction Strategy." << std::endl;
+    else if (Config::compaction_strategy == "size_tiered") {
+        std::cout << "[MemtableManager] Using Size-Tiered Compaction Strategy (from Config)." << std::endl;
         strategy = std::make_unique<SizeTieredCompactionStrategy>(
-            std::stoi(config.at("min_threshold")),
-            std::stoi(config.at("max_threshold"))
+            Config::min_threshold,
+            Config::max_threshold
         );
     }
     else {
-        throw std::runtime_error("Unknown compaction strategy in config: " + config.at("compaction_strategy"));
+        throw std::runtime_error("Unknown compaction strategy in config: " + Config::compaction_strategy);
     }
 
-    lsmManager_ = std::make_unique<LSMManager>(directory, std::move(strategy), max_levels);
+    // Kreiraj LSMManager i prosledi mu kreiranu strategiju
+    lsmManager_ = std::make_unique<LSMManager>(directory, std::move(strategy), Config::max_levels);
 
+    // Inicijalizuj prvu (aktivnu) Memtable
     memtables_.reserve(N_);
     auto first = std::unique_ptr<IMemtable>(createNewMemtable());
-    first->setMaxSize(maxSizePerTable);
+    first->setMaxSize(maxSize_);
     memtables_.push_back(std::move(first));
 
+    // Pokreni pozadinsku nit u LSMManager-u
     lsmManager_->initialize();
 }
 
@@ -240,13 +205,6 @@ IMemtable* MemtableManager::createNewMemtable() const {
     return MemtableFactory::createMemtable(type_);
 }
 
-void MemtableManager::switchToNewMemtable() {
-    // kreiramo novu i stavljamo je kao aktivnu
-    auto newMem = std::unique_ptr<IMemtable>(createNewMemtable());
-    newMem->setMaxSize(maxSize_);
-    memtables_.push_back(std::move(newMem));
-    activeIndex_ = memtables_.size() - 1;
-}
 
 /*
 // Trazenje kljuca u aktivnoj tabeli, ako ga ne nadjemo => dodajemo

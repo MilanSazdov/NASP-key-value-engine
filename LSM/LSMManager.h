@@ -30,6 +30,8 @@ public:
     // metoda koju poziva MemtableManager nakon sto se Memtable napuni
     void flushToLevel0(std::vector<Record>& records);
 
+    std::optional<std::string> get(const std::string& key);
+
 private:
     // glavna funkcija za pozadinsku nit
     void compaction_worker();
@@ -39,11 +41,11 @@ private:
 
     std::string getLevelPath(int level) const;
 
-    // TODO: Implementirati ove metode za rad sa MANIFEST fajlom radi perzistentnosti
-    // void load_state_from_manifest(); 
-    // void save_state_to_manifest();
+	void load_state_from_manifest();
+	void save_state_to_manifest() const; // const jer ne menja stanje samo ga cuva
 
     std::string base_directory_;
+	std::string manifest_path_; // putanja do MANIFEST fajla
     int max_levels_;
     SSTManager sstManager_;
     std::unique_ptr<CompactionStrategy> strategy_;
