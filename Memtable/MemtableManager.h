@@ -16,11 +16,14 @@ public:
      * @param maxSizePerTable koliko elemenata moze stati u svaku memtable
      * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./".
      **/
-    MemtableManager(const std::string& type,
+    MemtableManager(
+        std::string type,
         size_t N,
         size_t maxSizePerTable,
         const std::string& directory
     );
+        std::string directory,
+        std::string config_path);
 
     ~MemtableManager();
 
