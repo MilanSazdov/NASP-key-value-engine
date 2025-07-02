@@ -106,8 +106,6 @@ public:
 
     void setMaxSize(size_t maxSize) override;
 
-    void loadFromWal(const std::string& wal_file) override;
-
     //std::vector<pair<string, string>> getAllKeyValuePairs() const override
 
     std::vector<MemtableEntry> getAllMemtableEntries() const override;

@@ -40,27 +40,6 @@ void MemtableSkipList::setMaxSize(size_t maxSize) {
     maxSize_ = maxSize;
 }
 
-void MemtableSkipList::loadFromWal(const std::string& wal_file) {
-    std::ifstream file(wal_file);
-    if (!file.is_open()) {
-        std::cerr << "[MemtableSkipList] Ne mogu da otvorim WAL fajl: " << wal_file << "\n";
-        return;
-    }
-
-    std::string op, key, value;
-    while (file >> op >> key) {
-        if (op == "INSERT") {
-            file >> value;
-            put(key, value);
-        }
-        else if (op == "REMOVE") {
-            remove(key);
-        }
-        // Ignorisemo sve ostale linije koje ne odgovaraju INSERT ili REMOVE
-    }
-    file.close();
-}
-
 std::vector<MemtableEntry> MemtableSkipList::getAllMemtableEntries() const {
     std::vector<MemtableEntry> entries;
     auto pairs = skiplist_.getAllKeyValuePairs();

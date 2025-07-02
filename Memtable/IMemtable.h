@@ -36,9 +36,7 @@ public:
 
 	virtual size_t size() const = 0;
 	virtual void setMaxSize(size_t maxSize) = 0;
-
-	virtual void loadFromWal(const string& walFilePath) = 0;
-
+	
 	// Ova funkcija mi vraca sve rekorde iz svih wal (segmenata) fajlova
 	// virtual void loadFromRecords(const vector<Record>& records) = 0;
 

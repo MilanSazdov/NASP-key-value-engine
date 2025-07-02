@@ -438,28 +438,6 @@ void BTree<ORDER>::setMaxSize(size_t newMaxSize)
 }
 
 template <int ORDER>
-void BTree<ORDER>::loadFromWal(const std::string& wal_file)
-{
-    std::ifstream file(wal_file);
-    if (!file.is_open()) {
-        std::cerr << "[BTree] Ne mogu da otvorim WAL fajl: " << wal_file << "\n";
-        return;
-    }
-
-    std::string op, key, value;
-    while (file >> op >> key) {
-        if (op == "INSERT") {
-            file >> value;
-            put(key, value);
-        }
-        else if (op == "REMOVE") {
-            remove(key);
-        }
-    }
-    file.close();
-}
-
-template <int ORDER>
 std::vector<MemtableEntry> BTree<ORDER>::getAllMemtableEntries() const
 {
     std::vector<MemtableEntry> result;

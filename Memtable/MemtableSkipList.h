@@ -29,10 +29,7 @@ public:
 
     // setMaxSize postavlja maksimalnu velicinu memtejbla
     void setMaxSize(size_t maxSize) override;
-
-    // loadFromWal ucitava podatke iz WAL fajla.
-    void loadFromWal(const std::string& wal_file) override;
-
+    
     // vector<pair<string, string>> getAllKeyValuePairs() const override;
 
     std::vector<MemtableEntry> getAllMemtableEntries() const override;
