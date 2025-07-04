@@ -100,8 +100,9 @@ void MemtableSkipList::updateEntry(const std::string& key, const MemtableEntry& 
 }
 
 std::vector<MemtableEntry> MemtableSkipList::getSortedEntries() const {
-
-    return std::vector<MemtableEntry>{};
+    std::vector<MemtableEntry> entires = getAllMemtableEntries();
+    std::sort(entires.begin(), entires.end());
+    return entires;
 }
 
 /*

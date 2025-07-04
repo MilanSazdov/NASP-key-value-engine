@@ -40,6 +40,12 @@ public:
     // Print all data from memtables
     void printAllData() const;
 
+    void flushMemtable();
+
+    bool checkFlushIfNeeded(); // proverava da li je potrebno preci na novu tabelu ili uraditi flush
+
+    vector<Record> getRecordsFromOldest();
+
 private:
     std::string type_;   // sacuvamo koji tip je korisnik izabrao
     size_t N_;           // max broj memtable
@@ -61,8 +67,6 @@ private:
     // Ako se aktivna memtable popuni, prelazimo na novu
     void switchToNewMemtable();
 
-    void flushOldest(); // prazni samo najstariju memtable (prvu napravljenu)
-
-    void checkAndFlushIfNeeded(); // proverava da li je potrebno preci na novu tabelu ili uraditi flush
+    void flushOldest(); // prazni samo najstariju memtable (prvu napravljenu
 };
 

@@ -51,7 +51,6 @@ public:
 	virtual std::optional<MemtableEntry> getEntry(const std::string& key) const = 0;
 	virtual void updateEntry(const std::string& key, const MemtableEntry& entry) = 0;
 
-	// Vraca sve MemtableEntry zapise sortirane po kljucu (za flush u SSTable)
+	// Vraca sve MemtableEntry zapise sortirane po kljucu
 	virtual std::vector<MemtableEntry> getSortedEntries() const = 0;
-
 };

@@ -65,27 +65,35 @@ MemtableManager::~MemtableManager() {
 void MemtableManager::put(const std::string& key, const std::string& value) {
     memtables_[activeIndex_]->put(key, value);
     std::cout << "[MemtableManager] Key '" << key << "' added.\n";
-    checkAndFlushIfNeeded();
 }
 
 void MemtableManager::remove(const std::string& key) {
     memtables_[activeIndex_]->remove(key);
     std::cout << "[MemtableManager] Key '" << key << "' marked for deletion.\n";
-    checkAndFlushIfNeeded();
+    if (checkFlushIfNeeded()) {
+        flushMemtable();
+    }
 }
 
-void MemtableManager::checkAndFlushIfNeeded() {
+bool MemtableManager::checkFlushIfNeeded() {
     if (memtables_[activeIndex_]->size() >= maxSize_) {
         if (memtables_.size() < N_) {
             std::cout << "[MemtableManager] Active memtable is full. Switching to a new one.\n";
             switchToNewMemtable();
+            return false;
         }
         else {
             std::cout << "[MemtableManager] All memtable slots are full. Flushing the oldest one to make space.\n";
-            flushOldest();
-            switchToNewMemtable();
+            //flushOldest
+            //switchToNewMemtable
+            return true;
         }
     }
+}
+
+void MemtableManager::flushMemtable() {
+    flushOldest();
+    switchToNewMemtable();
 }
 
 void MemtableManager::switchToNewMemtable() {
@@ -256,7 +264,9 @@ void MemtableManager::loadFromWal(const std::vector<Record>& records) {
         else {
             memtables_[activeIndex_]->put(record.key, record.value);
         }
-        checkAndFlushIfNeeded();
+        if (checkFlushIfNeeded()) {
+            flushMemtable();
+        }
     }
     std::cout << "[MemtableManager] " << records.size() << " records from WAL loaded into Memtable.\n";
 }
@@ -274,4 +284,29 @@ void MemtableManager::printAllData() const {
     }
 // red: << "\033[31m" << "This text is red!" << "\033[0m" <<
 // greem" "\033[32m" << "This text is green!" << "\033[0m"
+}
+
+//returns records from oldest memtable
+vector<Record> MemtableManager::getRecordsFromOldest() {
+    auto& oldestMemtable = memtables_.front();
+    std::vector<MemtableEntry> entries = oldestMemtable->getAllMemtableEntries();
+
+    if (entries.empty()) {
+        std::cout << "[MemtableManager] Oldest memtable is empty, removing it without flushing." << std::endl;
+    }
+    else {
+        std::vector<Record> records;
+        records.reserve(entries.size());
+        for (const auto& entry : entries) {
+            Record r;
+            r.key = entry.key;
+            r.key_size = entry.key.size();
+            r.value = entry.value;
+            r.value_size = entry.value.size();
+            r.tombstone = entry.tombstone ? std::byte{ 1 } : std::byte{ 0 };
+            r.timestamp = entry.timestamp;
+            records.push_back(r);
+        }
+        return records;
+    }
 }

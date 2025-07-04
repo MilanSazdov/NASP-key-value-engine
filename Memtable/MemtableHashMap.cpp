@@ -135,7 +135,6 @@ vector<MemtableEntry> MemtableHashMap::getAllMemtableEntries() const {
         result.push_back(me);
     }
 
-    sort(result.begin(), result.end());
     return result;
 }
 
@@ -156,16 +155,7 @@ void MemtableHashMap::updateEntry(const string& key, const MemtableEntry& entry)
 }
 
 std::vector<MemtableEntry> MemtableHashMap::getSortedEntries() const {
-    std::vector<MemtableEntry> sorted;
-    for (const auto& [key, entry] : table_) {
-        MemtableEntry e;
-        e.key = key;
-        e.value = entry.value;
-        e.tombstone = entry.tombstone;
-        e.timestamp = entry.timestamp;
-        sorted.push_back(e);
-    }
-
-    std::sort(sorted.begin(), sorted.end());
-    return sorted;
+    std::vector<MemtableEntry> entires = getAllMemtableEntries();
+    std::sort(entires.begin(), entires.end());
+    return entires;
 }
