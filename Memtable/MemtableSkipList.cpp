@@ -40,15 +40,7 @@ void MemtableSkipList::setMaxSize(size_t maxSize) {
 }
 
 std::vector<MemtableEntry> MemtableSkipList::getAllMemtableEntries() const {
-    std::vector<MemtableEntry> entries;
-    auto pairs = skiplist_.getAllKeyValuePairs();
-    for (const auto& [key, value] : pairs) {
-        auto node = skiplist_.getNode(key);
-        if (node) {
-            entries.push_back({ node->key, node->value, node->tombstone, node->timestamp });
-        }
-    }
-    return entries;
+    return getSortedEntries(); 
 }
 
 std::optional<MemtableEntry> MemtableSkipList::getEntry(const std::string& key) const {
@@ -72,8 +64,22 @@ void MemtableSkipList::updateEntry(const std::string& key, const MemtableEntry& 
 }
 
 std::vector<MemtableEntry> MemtableSkipList::getSortedEntries() const {
+    // 1. Pozovi novu, efikasnu metodu iz SkipList-e koja radi SVE u jednom prolazu.
+    auto all_data = skiplist_.getAllEntries();
 
-    return std::vector<MemtableEntry>{};
+    // 2. Pretvori vektor SkipList::Data u vektor MemtableEntry.
+    // Ovo je samo kopiranje podataka, bez dodatnih pretraga.
+    std::vector<MemtableEntry> entries;
+    entries.reserve(all_data.size());
+
+    // Koristimo std::transform za elegantnu konverziju
+    std::transform(all_data.begin(), all_data.end(), std::back_inserter(entries),
+        [](const SkipList::Data& data) {
+            return MemtableEntry{ data.key, data.value, data.tombstone, data.timestamp };
+        }
+    );
+
+    return entries;
 }
 
 /*

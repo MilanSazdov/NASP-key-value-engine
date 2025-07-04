@@ -7,7 +7,9 @@
 #include <vector>
 #include <cstring>
 #include <ctime>
+#include <algorithm>
 
+// NAPOMENA: Koristiti pametne pokazivace zbog potencijalnog curenja memorije ....
 template <int ORDER>
 void BTree<ORDER>::splitChild(BTreeNode* parent, BTreeNode* child, int childPos)
 {
@@ -128,17 +130,18 @@ void BTree<ORDER>::insertNotFull(BTreeNode* x, const std::string& key, const Ent
     x->numKeys += 1;
 }
 
-// OVDE MOZE BINARNA PRETRAGA => IPAK JE BINARNO STABLO U PITANJU
 template <int ORDER>
 typename BTree<ORDER>::BTreeNode* BTree<ORDER>::findNode(BTreeNode* start, const std::string& key, int& location) const
 {
-    int i = 0;
 
-    
-    while (i < start->numKeys && key > start->keys[i])
-    {
-        ++i;
-    }
+	if (!start)
+	{
+		location = -1; // Node nije pronadje
+		return nullptr;
+	}
+
+    auto it = std::lower_bound(start->keys, start->keys + start->numKeys, key);
+    int i = std::distance(start->keys, it);
 
     if (i < start->numKeys && key == start->keys[i])
     {
@@ -507,4 +510,12 @@ void BTree<ORDER>::updateEntry(const std::string& key, const MemtableEntry& entr
     node->entries[location].timestamp = entry.timestamp;
 
     std::cout << "[BTree] Key '" << key << "' updated successfully.\n";
+}
+
+
+template <int ORDER>
+std::vector<MemtableEntry> BTree<ORDER>::getSortedEntries() const
+{
+    // inorder() obilazak garantuje da ce zapisi biti sortirani po kljču.
+    return getAllMemtableEntries();
 }

@@ -38,6 +38,16 @@ private:
     uniform_real_distribution<double> dist;
 
 public:
+
+    // Nova struktura => sluzi za prenos kompletnog zapisa iz skip liste
+    struct Data
+    {
+        string key;
+        string value;
+        bool tombstone;
+        uint64_t timestamp;
+    };
+
     // Konstruktor prima maksimalan broj nivoa i verovatnocu za visinu
     // novih cvorova. maxLevels = maksimalni nivoi, p = verovatnoca povecanja nivoa (obicno 0.5)
     SkipList(int maxLevels = 16, double p = 0.5);
@@ -60,4 +70,7 @@ public:
     size_t Size() const { return size; }
 
     vector<pair<string, string>> getAllKeyValuePairs() const;
+    
+    // vraca sve zapise u jednom prolasku
+	vector<Data> getAllEntries() const;
 };
