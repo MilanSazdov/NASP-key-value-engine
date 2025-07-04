@@ -38,8 +38,8 @@ private:
     uniform_real_distribution<double> dist;
 
 public:
-    // Konstruktor prima maksimalan broj nivoa i vjerovatnocu za visinu
-    // novih cvorova. maxLevels = maksimalni nivoi, p = vjerovatnoca povecanja nivoa (obicno 0.5)
+    // Konstruktor prima maksimalan broj nivoa i verovatnocu za visinu
+    // novih cvorova. maxLevels = maksimalni nivoi, p = verovatnoca povecanja nivoa (obicno 0.5)
     SkipList(int maxLevels = 16, double p = 0.5);
 
     ~SkipList();

@@ -128,17 +128,19 @@ void BTree<ORDER>::insertNotFull(BTreeNode* x, const std::string& key, const Ent
     x->numKeys += 1;
 }
 
+// OVDE MOZE BINARNA PRETRAGA => IPAK JE BINARNO STABLO U PITANJU
 template <int ORDER>
 typename BTree<ORDER>::BTreeNode* BTree<ORDER>::findNode(BTreeNode* start, const std::string& key, int& location) const
 {
     int i = 0;
 
-    while (key > start->keys[i] && i < start->numKeys)
+    
+    while (i < start->numKeys && key > start->keys[i])
     {
         ++i;
     }
 
-    if (key == start->keys[i] && i < start->numKeys)
+    if (i < start->numKeys && key == start->keys[i])
     {
         location = i;
         return start;
@@ -468,7 +470,6 @@ void BTree<ORDER>::inorder(BTreeNode* node, std::vector<MemtableEntry>& entries)
         inorder(node->children[node->numKeys], entries);
 }
 
-// OVO TREBA TESTIRATI NIJE STO POSTO SIGURNO
 template <int ORDER>
 std::optional<MemtableEntry> BTree<ORDER>::getEntry(const std::string& key) const {
     int location;

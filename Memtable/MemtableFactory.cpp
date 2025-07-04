@@ -10,7 +10,7 @@ IMemtable* MemtableFactory::createMemtable(const std::string& type) {
     }
 
     else if (type == "btree") {
-        return new BTree<4>(5);
+        return new BTree<4>(Config::memtable_max_size);
     }
 
     // Ako tip nije prepoznat, vracamo default, npr. hash

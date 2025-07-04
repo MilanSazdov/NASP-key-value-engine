@@ -3,9 +3,8 @@
 #include <fstream>
 #include <iostream>
 
-// TODO: Napraviti da ako postoji u configu da onda koristim te vrednosti iz configa
 MemtableSkipList::MemtableSkipList()
-    : maxSize_(1000)
+    : maxSize_(Config::memtable_max_size)
 {}
 
 void MemtableSkipList::put(const std::string& key, const std::string& value) {
