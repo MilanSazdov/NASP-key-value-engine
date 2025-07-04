@@ -20,7 +20,7 @@ public:
 
 	void put(const std::string& key, const std::string& value);
 	void del(const std::string& key);
-	std::optional<std::string> get(const std::string& key, bool& deleted);
+	std::optional<std::string> get(const std::string& key);
 
 	void debugWal() const;
 	void debugMemtable() const;

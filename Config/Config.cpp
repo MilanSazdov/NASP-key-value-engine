@@ -85,6 +85,7 @@ void Config::load_init_configuration() {
     std::string line;
 
     while (std::getline(file, line)) {
+        //std::cout << line << std::endl;
         if (line.find("cache_capacity") != std::string::npos) {
             cache_capacity = getValueFromLine(line);
         }
@@ -129,6 +130,7 @@ void Config::load_init_configuration() {
 			max_threshold = getValueFromLine(line);
 		}
         else if (line.find("data_directory") != std::string::npos) {
+            //std::cout << line << std::endl;
             data_directory = line.substr(line.find(':') + 1);
             data_directory.erase(remove(data_directory.begin(), data_directory.end(), '\"'), data_directory.end());
             remove_white_space_or_coma(data_directory);

@@ -612,8 +612,13 @@ void SSTable::readSummaryHeader()
     int offset = 0;
     
     vector<byte> block = bm->read_block({block_id, summaryFile_}, err);
+    if (err) {
+        cout << "SSTable : ReadSummaryHeader : greska prilikom citanja fajla " + summaryFile_ << endl;
+        throw exception();
+    }
 
     uint64_t minKeyLength = 0;
+
     memcpy(&minKeyLength, block.data(), sizeof(minKeyLength));
 
     offset += sizeof(minKeyLength);

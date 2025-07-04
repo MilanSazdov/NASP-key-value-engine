@@ -1,6 +1,6 @@
 {
   "cache_capacity": 10,
-  "block_size": 100,
+  "block_size": 75,
   "segment_size": 5,
   "memtable_type": "hash_map",
   "memtable_instances": 3,
@@ -8,6 +8,6 @@
   "max_levels": 7,
   "l0_compaction_trigger": 4,
   "target_file_size_base": 2097152,
-  "data_directory": "../data",
+  "data_directory": "../data/level_0/",
   "wal_directory": "../data/wal_logs"
 }

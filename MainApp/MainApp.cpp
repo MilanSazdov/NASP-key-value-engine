@@ -53,7 +53,16 @@ void MainApp::handleDelete() {
 }
 
 void MainApp::handleGet() {
-
+    cout << "Enter key to get: ";
+    getline(cin, key);
+    auto value = system->get(key);
+    
+    if (value == nullopt) {
+        cout << "[GET] Key " << key << " doesnt exists\n";
+    }
+    else {
+        cout << "[GET] Key " << key << " Value " << value.value() << "\n";
+    }
 }
 
 void MainApp::run() {

@@ -93,20 +93,32 @@ void System::put(const std::string& key, const std::string& value) {
 }
 
 // NIJE TESTIRANO!!
-std::optional<std::string> System::get(const std::string& key, bool& deleted) {
+std::optional<std::string> System::get(const std::string& key) {
+    /*
+        VRACA NULLOPT AKO KLJUC NE POSTOJI
+        VRACA STRING VALUE AKO KLJUC POSTOJI
+    */
+
+    bool deleted;
     // searching memtable
-    deleted = false;
     auto value = memtable->get(key, deleted);
+
+    // key exists in memtable, but is deleted
     if (deleted) {
-        return "";
+        return nullopt;
     }
+
+    // key exists in memtable, return value
     else if (value.has_value()) {
         return value.value();
     }
+
+    // key doesnt exists in memtable. Read path goes forward
     
     // searching cache
     bool exists;
     vector<byte> bytes = cache->get(key, exists);
+    // key exists in cache, return it
     if (exists) {
         // converting from vector<byte> to string ret
         string ret(bytes.size(), '\0');
@@ -117,6 +129,8 @@ std::optional<std::string> System::get(const std::string& key, bool& deleted) {
     }
 
     // searching sstable (disc)
+    value = sstable->get(key);
+    return value;
 }
 
 void System::debugWal() const {
