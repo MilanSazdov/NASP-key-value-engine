@@ -20,10 +20,10 @@ private:
 
 public:
 
-    SSTManager(const std::string& directory);
+    SSTManager();
 
-    // NAPOMENA: ovu metodu bi trebalo imati u LSMManager jer on treba da upravlja po nivoima
-    std::string get(const std::string& key) const;
+    optional<string> get(const std::string& key) const;
+    optional<string> get_from_level(const std::string& key, bool& deleted, int level) const;
 
     SSTableMetadata write(std::vector<Record> sortedRecords, int level) const;
 };

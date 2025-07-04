@@ -10,7 +10,9 @@ namespace fs = std::filesystem;
 
 using ull = unsigned long long;
 
-SSTManager::SSTManager(const std::string& directory) : directory_(directory) {}
+SSTManager::SSTManager() : directory_(Config::data_directory) {
+    cout << Config::data_directory << endl;
+}
 
 // pomocna funkcija za pronalazenje sledeceg ID-a
 int SSTManager::findNextIndex(const std::string& levelDir) const {
@@ -39,25 +41,37 @@ int SSTManager::findNextIndex(const std::string& levelDir) const {
     return max_id + 1;
 }
 
-// POGLEDATI NAPOMENU IZ .H FAJLA !!!!!!!!!!!!!!
-std::string SSTManager::get(const std::string& key) const
+optional<string> SSTManager::get_from_level(const std::string& key, bool& deleted, int level) const
 {
-    std::vector<Record> matches;
+    deleted = false;
+    string current_directory = directory_ + "level_" + to_string(level);
+    cout << "current_directory == " << current_directory << endl;
+    
+    if (!fs::is_directory(current_directory)) {
+        cout << "Error get_from_level " << current_directory << " is not valid directory\n";
+        throw exception();
+    }
+    if (fs::exists(current_directory)) return nullopt;
 
+    std::vector<Record> matches;
+    
     for (const auto& entry : fs::directory_iterator(directory_))
     {
         if (entry.is_regular_file()) {
             std::string filename = entry.path().filename().string();
-
+            cout << filename << endl;
             // Prolazimo kroz sve filter fajlove
             if (filename.rfind("filter", 0) == 0) {
 
                 // Citamo fajl
-                std::size_t fileSize = std::filesystem::file_size(filename);
-
+                std::size_t fileSize = fs::file_size(directory_+filename);
+                
                 std::vector<byte> fileData(fileSize);
-
-                std::ifstream file(filename, std::ios::binary);
+                if (fileSize == 0) {
+                    cout << "File : " << filename << ".size() == 0\n";
+                    continue;
+                }
+                std::ifstream file(directory_ + filename, std::ios::binary);
                 if (!file) {
                     throw std::runtime_error("[SSTManager] Ne mogu da otvorim fajl: " + filename);
                 }
@@ -105,12 +119,33 @@ std::string SSTManager::get(const std::string& key) const
         }
     }
 
-    if (static_cast<int>(rMax.tombstone) == 1 || tsMax == 0)
+
+    // not found. Return nullopt
+    if (tsMax == 0) nullopt;
+
+    // found. Record is deleted. Return nullopt + DELETED = TRUE
+    else if (static_cast<int>(rMax.tombstone) == 1)
     {
-        return "";
+        deleted = true;
+        return nullopt;
     }
 
+    // found. Return value 
     return rMax.value;
+}
+
+// pretrazuje sstable po nivoima. Kad naide na nekom nivou na kljuc, to vraca. Kad prodje sve nivoe, ne postoji kljuc, vraca nullopt
+optional<string> SSTManager::get(const std::string& key) const {
+    bool deleted;
+    for (int i = 0; i <= Config::max_levels; i++) {
+        auto ret = get_from_level(key, deleted, i);
+        // record doesnt exists BECAUSE IT IS DELETED
+        if (deleted) return nullopt;
+        // record exists
+        else if(ret != nullopt) return ret.value();
+    }
+    //record doesnt exists because IT WASNT PUT
+    return nullopt;
 }
 
 SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) const {

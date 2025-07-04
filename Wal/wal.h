@@ -36,6 +36,7 @@
 
 class Wal {
 private:
+	string log_directory;
 
 	// this is where writing happens, "points" always to the last empty key (block)
 	static composite_key current_block;
@@ -50,10 +51,11 @@ private:
 	string min_segment;
 	void next_block(composite_key& key);
 
-	composite_key find_next_empty_key(composite_key key);
 	void write_record(string key, string value, byte tombstone = (byte)0);
 
 	void update_current_block();
+
+	void ensure_wal_folder_exists();
 public:
 	Wal();
 

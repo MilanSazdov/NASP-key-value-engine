@@ -67,10 +67,10 @@ string inttos3(int x) {
 	return ret;
 }
 
-string find_min_segment() {
+string find_min_segment(const string& log_directory) {
 	int min_index = 999;
 
-	for (const auto& entry : fs::directory_iterator(LOG_DIRECTORY)) {
+	for (const auto& entry : fs::directory_iterator(log_directory)) {
 		string filename = entry.path().filename().string();
 
 		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
@@ -89,16 +89,16 @@ string find_min_segment() {
 
 	string min_index_str = inttos3(min_index);
 
-	return LOG_DIRECTORY + "/wal_" + min_index_str + ".log";
+	return log_directory + "/wal_" + min_index_str + ".log";
 }
 
-void ensure_wal_folder_exists() {
-	if (!fs::exists(LOG_DIRECTORY)) {
-		if (fs::create_directory(LOG_DIRECTORY)) {
-			std::cout << "[WAL] Created folder: " << LOG_DIRECTORY << "\n";
+void Wal::ensure_wal_folder_exists() {
+	if (!fs::exists(log_directory)) {
+		if (fs::create_directory(log_directory)) {
+			std::cout << "[WAL] Created folder: " << log_directory << "\n";
 		}
 		else {
-			std::cerr << "[WAL] ERROR: Could not create folder: " << LOG_DIRECTORY << "\n";
+			std::cerr << "[WAL] ERROR: Could not create folder: " << log_directory << "\n";
 			throw std::runtime_error("Failed to create WAL folder.");
 		}
 	}
@@ -108,7 +108,7 @@ void Wal::update_current_block() {
 	int max_index = 0, index;
 	string index_str, my_file_name;
 
-	for (const auto& entry : fs::directory_iterator(LOG_DIRECTORY)) {
+	for (const auto& entry : fs::directory_iterator(log_directory)) {
 		string file_name = entry.path().filename().string();
 
 		if (file_name.substr(0, 4) == "wal_" && file_name.substr(file_name.length() - 4) == ".log") {
@@ -123,18 +123,18 @@ void Wal::update_current_block() {
 	}
 	cout << "max_index = " << max_index << endl;
 	if (max_index == 0) {
-		current_block = make_pair(0, LOG_DIRECTORY + "/wal_001.log");
+		current_block = make_pair(0, log_directory + "/wal_001.log");
 	}
 	else {
-		uintmax_t size = fs::file_size(LOG_DIRECTORY + "/" + my_file_name);
-		current_block = make_pair(max(0, (int)size / Config::block_size - 1), LOG_DIRECTORY + "/" + my_file_name);
+		uintmax_t size = fs::file_size(log_directory + "/" + my_file_name);
+		current_block = make_pair(max(0, (int)size / Config::block_size - 1), log_directory + "/" + my_file_name);
 	}
 }
 
-Wal::Wal() : segment_size(Config::segment_size) {
+Wal::Wal() : segment_size(Config::segment_size), log_directory(Config::wal_directory){
 	ensure_wal_folder_exists();
 	init_crc32_table();
-	min_segment = find_min_segment();
+	min_segment = find_min_segment(log_directory);
 	update_current_block();
 }
 
@@ -426,7 +426,7 @@ vector<Record> Wal::get_all_records() {
 	vector<Record> fragm;
 	bool error = false;
 
-	min_segment = find_min_segment();
+	min_segment = find_min_segment(log_directory);
 	composite_key key(0, min_segment);
 
 	vector<byte> bytes;
@@ -512,7 +512,7 @@ void Wal::delete_old_logs(string target_file) {
 
 	vector<string> files_to_delete;
 
-	for (const auto& entry : fs::directory_iterator(LOG_DIRECTORY)) {
+	for (const auto& entry : fs::directory_iterator(log_directory)) {
 		string filename = entry.path().filename().string();
 
 		if (filename.substr(0, 4) == "wal_" && filename.substr(filename.length() - 4) == ".log") {
@@ -520,7 +520,7 @@ void Wal::delete_old_logs(string target_file) {
 			int current_index = stoi(current_index_str);
 
 			if (current_index < target_index) {
-				files_to_delete.push_back(LOG_DIRECTORY + filename);
+				files_to_delete.push_back(log_directory + filename);
 			}
 		}
 	}

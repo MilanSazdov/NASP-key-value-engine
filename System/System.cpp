@@ -21,8 +21,8 @@ void ensureDirectory(const std::string& path) {
     }
 }
 
+//TODO: sstable is uninitialized. fix?
 System::System() {
-
     std::cout << "[SYSTEM] Starting initialization... \n";
 
     std::cout << "Reading Config file ... \n";
@@ -35,14 +35,20 @@ System::System() {
     std::cout << "[Debug] Initializing WAL...\n";
     wal = new Wal();
 
+    // --- Cache setup ---
+    cout << "[Debug] Initializing Cache...\n";
+    cache = new Cache<string>();
+    cout << "Cache initialized\n";
+
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
-    memtable = new MemtableManager("hash", 2, 2, "../data/.", "../Config/config.json/.");
+    memtable = new MemtableManager();
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";
     std::vector<Record> records = wal->get_all_records();
-    std::cout << "[Debug] WAL Records:\n";
+
+    /*std::cout << "[Debug] WAL Records:\n";
     for (const Record& r : records) {
         std::cout << "-----------------------------------\n";
         std::cout << "Key       : " << r.key << "\n";
@@ -51,16 +57,16 @@ System::System() {
         std::cout << "Timestamp : " << r.timestamp << "\n";
         std::cout << "CRC       : " << r.crc << "\n";
     }
-    std::cout << "-----------------------------------\n";
+    std::cout << "-----------------------------------\n";*/
 
     std::cout << "[Debug] Loading records into Memtable...\n";
     memtable->loadFromWal(records);
-	memtable->printAllData();
+	//memtable->printAllData();
 
     std::cout << "[Debug] System initialization completed.\n";
 
 
-	std::cout << "[System] Data from WAL loaded into the Memory table.\n";
+	//std::cout << "[System] Data from WAL loaded into the Memory table.\n";
 }
 
 System::~System() {
@@ -70,22 +76,100 @@ System::~System() {
 	std::cout << "[SYSTEM] System shutdown complete.\n";
 }
 
-void System::put(std::string key, std::string value, bool tombstone) {
-    //TODO: treba updateovati cache (bar mislim) A U PICKU MATERINU... KO ZNA GDE TAJ CACHE TREBA DA STOJI
-    if (tombstone) {
-        wal->del(key);
-        memtable->remove(key);
-    }
-    else {
-        cout << "Put to wal\n";
-        wal->put(key, value);
-        cout << "Put to memtable\n";
-        memtable->put(key, value);
+void System::del(const std::string& key) {
+    cout << "Deleted from wal\n";
+    wal->del(key);
+
+    cout << "Deleted from memtable\n";
+    memtable->remove(key);
+}
+
+// NIJE TESTIRANO
+void System::add_records_to_cache(vector<Record> records) {
+    int lenght;
+    for (Record r : records) {
+        if (r.tombstone == (byte)0) {
+            cache->del(r.key);
+        }
+        else {
+            lenght = r.value.size();
+            vector<byte> valueInBytes(lenght);
+            memcpy(valueInBytes.data(), r.key.data(), lenght);
+
+            cache->put(r.key, valueInBytes);
+        }
     }
 }
 
-void System::get(std::string key) {
+void System::put(const std::string& key, const std::string& value) {
+    cout << "Put to wal\n";
+    wal->put(key, value);
 
+    cout << "Put to memtable\n";
+    memtable->put(key, value);
+
+    
+    if (memtable->checkFlushIfNeeded()) {
+        //prvo ubacujem sve recorde iz najstarijeg memtablea u cache.
+        vector<Record> records = memtable->getRecordsFromOldest();
+        add_records_to_cache(records);
+
+        //onda mogu da flushujem, i oslobodim prostor
+        memtable->flushMemtable();
+    }
+    
+}
+
+// NIJE TESTIRANO!!
+std::optional<std::string> System::get(const std::string& key) {
+    /*
+        VRACA NULLOPT AKO KLJUC NE POSTOJI
+        VRACA STRING VALUE AKO KLJUC POSTOJI
+    */
+
+    bool deleted;
+    // searching memtable
+    auto value = memtable->get(key, deleted);
+
+    // key exists in memtable, but is deleted
+    if (deleted) {
+        return nullopt;
+    }
+
+    // key exists in memtable, return value
+    else if (value.has_value()) {
+        return value.value();
+    }
+
+    // key doesnt exists in memtable. Read path goes forward
+    
+    // searching cache
+    bool exists;
+    vector<byte> bytes = cache->get(key, exists);
+    // key exists in cache, return it
+    if (exists) {
+        // converting from vector<byte> to string ret
+        string ret(bytes.size(), '\0');
+        memcpy(ret.data(), bytes.data(), bytes.size());
+
+        deleted = false;
+        return ret;
+    }
+
+    // searching sstable (disc)
+    value = sstable->get(key);
+
+    // update cache
+    if (value != nullopt) {
+        int lenght = value.value().size();
+
+        vector<byte> valueInBytes(lenght);
+        memcpy(valueInBytes.data(), value.value().data(), lenght);
+
+        cache->put(key, valueInBytes);
+    }
+
+    return value;
 }
 
 void System::debugWal() const {

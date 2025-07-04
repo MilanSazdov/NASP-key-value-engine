@@ -32,7 +32,7 @@ public:
 
 	virtual void put(const string& key, const string& value) = 0;
 	virtual void remove(const string& key) = 0;
-	virtual optional<string> get(const string& key) const = 0;
+	virtual optional<string> get(const string& key, bool& deleted) const = 0;
 
 	virtual size_t size() const = 0;
 	virtual void setMaxSize(size_t maxSize) = 0;
@@ -49,7 +49,6 @@ public:
 	virtual std::optional<MemtableEntry> getEntry(const std::string& key) const = 0;
 	virtual void updateEntry(const std::string& key, const MemtableEntry& entry) = 0;
 
-	// Vraca sve MemtableEntry zapise sortirane po kljucu (za flush u SSTable)
+	// Vraca sve MemtableEntry zapise sortirane po kljucu
 	virtual std::vector<MemtableEntry> getSortedEntries() const = 0;
-
 };

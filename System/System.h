@@ -8,13 +8,12 @@
 class System {
 	
 public:
-
-	Config* config;
 	Wal* wal;
 	MemtableManager* memtable;
+	SSTManager* sstable;
+	Cache<string>* cache;
 
 public:
-
 	System();
 
 	~System();
@@ -31,5 +30,5 @@ private:
 	// Onemogucavamo kopiranje da bismo izbegli probleme sa vlasnistvom pokazivaca
 	System(const System&) = delete; // Prevent copying
 	System& operator=(const System&) = delete; // Prevent assignment
-
+	void add_records_to_cache(vector<Record> records);
 };
