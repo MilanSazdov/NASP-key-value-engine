@@ -106,12 +106,12 @@ void System::put(const std::string& key, const std::string& value) {
     wal->put(key, value);
 
     cout << "Put to memtable\n";
-    bool need_flush;
-    vector<Record> records;
     memtable->put(key, value);
+
+    
     if (memtable->checkFlushIfNeeded()) {
         //prvo ubacujem sve recorde iz najstarijeg memtablea u cache.
-        records = memtable->getRecordsFromOldest();
+        vector<Record> records = memtable->getRecordsFromOldest();
         add_records_to_cache(records);
 
         //onda mogu da flushujem, i oslobodim prostor

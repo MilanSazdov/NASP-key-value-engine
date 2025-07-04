@@ -63,6 +63,8 @@ void MemtableHashMap::setMaxSize(size_t maxSize) {
 
 // loadFromWal (string path) => čita fajl i ubacuje (key, value) 
 // (primer je trivijalan, u praksi WAL je binaran)
+// 
+// TODO: ne valja nista. Ne cita binarno. Ne koristi block manager
 void MemtableHashMap::loadFromWal(const string& wal_file) {
     ifstream file(wal_file);
     if (!file.is_open()) {
@@ -79,6 +81,7 @@ void MemtableHashMap::loadFromWal(const string& wal_file) {
         Entry e;
         e.value = value;
         e.tombstone = false;
+        // TODO: ne valja. Mora uzeti timestamp od recorda kad je kreiran zapravo, a ne sadasnje vreme
         e.timestamp = currentTime();
         table_[key] = e;
     }
