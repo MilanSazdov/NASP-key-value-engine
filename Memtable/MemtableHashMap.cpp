@@ -1,4 +1,4 @@
-﻿#include <fstream>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <vector>
@@ -6,9 +6,8 @@
 #include <iostream>
 #include "MemtableHashMap.h"
 
-
 MemtableHashMap::MemtableHashMap()
-    : maxSize(Config::memtable_max_size) //default
+    : maxSize(Config::memtable_max_size)
 {}
 
 // put => upis (key, value), tombstone= false, timestamp = currentTime
@@ -37,19 +36,15 @@ void MemtableHashMap::remove(const std::string& key) {
 }
 
 // get => vraća value ako tombstone=false, inače nullopt
-optional<string> MemtableHashMap::get(const string& key, bool& deleted) const {
+optional<string> MemtableHashMap::get(const string& key) const {
     auto it = table_.find(key);
-    deleted = false;
-
     if (it == table_.end()) {
         return nullopt;
     }
     if (it->second.tombstone) {
-        deleted = true;
         // obrisan
         return nullopt;
     }
-
     return it->second.value;
 }
 
@@ -60,71 +55,6 @@ size_t MemtableHashMap::size() const {
 void MemtableHashMap::setMaxSize(size_t maxSize) {
     this->maxSize = maxSize;
 }
-
-// loadFromWal (string path) => čita fajl i ubacuje (key, value) 
-// (primer je trivijalan, u praksi WAL je binaran)
-// 
-// TODO: ne valja nista. Ne cita binarno. Ne koristi block manager
-void MemtableHashMap::loadFromWal(const string& wal_file) {
-    ifstream file(wal_file);
-    if (!file.is_open()) {
-        cerr << "[MemtableHashMap] Could not open WAL file: " << wal_file << "\n";
-        return;
-    }
-
-    // Napomena: ovo je samo primer. Pravi WAL je binaran i sadrži Record polja.
-    // Ovde, iz teksta citamo "key value" u jednoj liniji
-    string key, value;
-    while (file >> key >> value) {
-        // moze se desiti i da je value == "TOMB" i da interpretiramo to kao tombstone, itd.
-        // ovde radimo simplifikovano
-        Entry e;
-        e.value = value;
-        e.tombstone = false;
-        // TODO: ne valja. Mora uzeti timestamp od recorda kad je kreiran zapravo, a ne sadasnje vreme
-        e.timestamp = currentTime();
-        table_[key] = e;
-    }
-    file.close();
-}
-
-// loadFromWal (vector<Record>) => punimo memtable 
-// ako record.tombstone == 1 => remove, else => put
-/*
-void MemtableHashMap::loadFromRecords(const vector<Record>& records) {
-    for (const auto& r : records) {
-        if (static_cast<int>(r.tombstone) == 1) {
-            // remove
-            Entry e;
-            e.value = "";
-            e.tombstone = true;
-            e.timestamp = r.timestamp;  // preuzmemo iz Record
-            table_[r.key] = e;
-        }
-        else {
-            // put
-            Entry e;
-            e.value = r.value;
-            e.tombstone = false;
-            e.timestamp = r.timestamp;
-            table_[r.key] = e;
-        }
-    }
-}
-*/
-// getAllKeyValuePairs => samo (key, value) za one koji nisu tombstone
-/*
-vector<pair<string, string>> MemtableHashMap::getAllKeyValuePairs() const {
-    vector<pair<string, string>> result;
-    result.reserve(table_.size());
-    for (const auto& [k, e] : table_) {
-        if (!e.tombstone) {
-            result.push_back({ k, e.value });
-        }
-    }
-    return result;
-}
-*/
 
 vector<MemtableEntry> MemtableHashMap::getAllMemtableEntries() const {
     vector<MemtableEntry> result;
@@ -138,6 +68,7 @@ vector<MemtableEntry> MemtableHashMap::getAllMemtableEntries() const {
         result.push_back(me);
     }
 
+    sort(result.begin(), result.end());
     return result;
 }
 
@@ -158,7 +89,16 @@ void MemtableHashMap::updateEntry(const string& key, const MemtableEntry& entry)
 }
 
 std::vector<MemtableEntry> MemtableHashMap::getSortedEntries() const {
-    std::vector<MemtableEntry> entires = getAllMemtableEntries();
-    std::sort(entires.begin(), entires.end());
-    return entires;
+    std::vector<MemtableEntry> sorted;
+    for (const auto& [key, entry] : table_) {
+        MemtableEntry e;
+        e.key = key;
+        e.value = entry.value;
+        e.tombstone = entry.tombstone;
+        e.timestamp = entry.timestamp;
+        sorted.push_back(e);
+    }
+
+    std::sort(sorted.begin(), sorted.end());
+    return sorted;
 }
