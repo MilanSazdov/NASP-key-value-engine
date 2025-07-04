@@ -21,6 +21,7 @@ void ensureDirectory(const std::string& path) {
     }
 }
 
+//TODO: sstable is uninitialized. fix?
 System::System() {
     std::cout << "[SYSTEM] Starting initialization... \n";
 
@@ -130,6 +131,17 @@ std::optional<std::string> System::get(const std::string& key) {
 
     // searching sstable (disc)
     value = sstable->get(key);
+
+    // update cache
+    if (value != nullopt) {
+        int lenght = value.value().size();
+
+        vector<byte> valueInBytes(lenght);
+        memcpy(valueInBytes.data(), value.value().data(), lenght);
+
+        cache->put(key, valueInBytes);
+    }
+
     return value;
 }
 
