@@ -6,9 +6,9 @@
 #include <iostream>
 #include "MemtableHashMap.h"
 
-
+// TODO: Treba napraviti da ako postoji u configu da onda koristim te vrednosti iz configa
 MemtableHashMap::MemtableHashMap()
-    : maxSize(1000) // default TODO: Citanje iz config
+    : maxSize(1000)
 {}
 
 // put => upis (key, value), tombstone= false, timestamp = currentTime

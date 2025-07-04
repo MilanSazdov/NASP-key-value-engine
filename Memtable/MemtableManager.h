@@ -31,11 +31,7 @@ public:
 
     // Dohvatanje vrednosti iz memtable (po potrebi i iz sstable)
     std::optional<std::string> get(const std::string& key) const;
-
-    // Kad zelimo rucno flush (npr. gasenje programa),
-    // ili ako se popune sve N memtables
-    void flushAll();
-
+    
     // Kada se sistem pokrene, Memtable treba popuniti zapisima iz WAL-a
     void loadFromWal(const std::vector<Record>& records);
 

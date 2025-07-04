@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iostream>
 
-
+// TODO: Napraviti da ako postoji u configu da onda koristim te vrednosti iz configa
 MemtableSkipList::MemtableSkipList()
     : maxSize_(1000)
 {}
