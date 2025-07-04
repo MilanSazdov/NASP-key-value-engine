@@ -7,9 +7,8 @@
 #include "MemtableHashMap.h"
 
 
-//TODO: Citanje iz config
 MemtableHashMap::MemtableHashMap()
-    : maxSize(1000) //default
+    : maxSize(Config::memtable_max_size) //default
 {}
 
 // put => upis (key, value), tombstone= false, timestamp = currentTime

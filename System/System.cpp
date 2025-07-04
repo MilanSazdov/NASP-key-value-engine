@@ -42,7 +42,6 @@ System::System() {
 
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
-    //TODO: Ove putanje do direktorijuma sam ja (vedran) samo lupio, treba popraviti
     memtable = new MemtableManager();
 
     // --- Load from WAL ---

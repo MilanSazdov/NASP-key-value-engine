@@ -2,11 +2,6 @@
 using namespace std;
 
 MainApp::MainApp() {
-    // TODO: verovatno bi ovde (u ovaj projekat) bilo najbolje dodati Config klasu, pa je pozvati pre kreiranja system klase, i proslediti joj
-    // TODO: Config c = new Config()
-    // TODO: system = new System(c)   ovako nesto...?
-    // TODO: obavezno fajl config.json staviti u root directory!
-
     std::cout << "[MainApp] Initializing Key-Value Engine...\n";
     system = new System();
 }

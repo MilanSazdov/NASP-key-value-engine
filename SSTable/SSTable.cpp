@@ -26,7 +26,7 @@ void SSTable::build(std::vector<Record>& records)
 
     index_ = writeDataMetaFiles(records);
 
-    BloomFilter bf(records.size(), 0.01); // TODO: Config
+    BloomFilter bf(records.size(), 0.01);
     for (const auto& r : records) {
         bf.add(r.key);
     }
