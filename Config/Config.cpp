@@ -76,7 +76,7 @@ void remove_white_space_or_coma(std::string& s) {
 
 void Config::load_init_configuration() {
     // Open the file
-    std::ifstream file("../Config/config.json");
+    std::ifstream file("../config.json");
     if (!file.is_open()) {
         std::cerr << "Failed to open config file." << std::endl;
         return;
