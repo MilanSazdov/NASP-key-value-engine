@@ -1,14 +1,23 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <fstream>
 #include <cstdint>
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
+#include <map>
+//#include <additional/sha.h> // OpenSSL za SHA256 heširanje
 
 #include "../Wal/wal.h"
 #include "../BloomFilter/BloomFilter.h"
+#include "SSTable.h"
+#include "../Utils/VarEncoding.h"
 
+/**
+ * Struktura za indeks: (key, offset),
+ * offset je pozicija u data fajlu odakle pocinje taj zapis
+ */
 struct IndexEntry {
     std::string key;
     ull offset;
@@ -21,7 +30,7 @@ struct Summary{
     uint64_t count; 
 };
 
-class SSTable {
+class SSTableComp : public SSTable {
 public:
     /**
      * Konstruktor prima putanje do tri fajla:
@@ -29,23 +38,16 @@ public:
      *  - indexFile (npr. "index.sst")
      *  - filterFile (npr. "filter.sst")
      */
-    SSTable(const std::string& dataFile,
+    SSTableComp(
+        const std::string& dataFile,
         const std::string& indexFile,
         const std::string& filterFile,
         const std::string& summaryFile,
         const std::string& metaFile,
-        Block_manager* bmp): 
-        dataFile_(dataFile),
-        indexFile_(indexFile),
-        filterFile_(filterFile),
-        summaryFile_(summaryFile),
-        metaFile_(metaFile), 
-        bmp(bmp),
-        block_size(Config::block_size),
-        SPARSITY(Config::index_sparsity)
-        {
-        };
-        
+        Block_manager* bmp,
+        unordered_map<string, uint32_t>& mp,
+        uint32_t& nextId);
+
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
      * Postupak:
@@ -56,7 +58,7 @@ public:
      *   5) Kreira sparse index (key -> offset) i upisuje u indexFile_
      *   6) Snima BloomFilter u filterFile_
      */
-    virtual void build(std::vector<Record>& records);
+    void build(std::vector<Record>& records);
 
     /**
      * get(key) - dohvatanje vrednosti iz data.sst
@@ -65,7 +67,7 @@ public:
      *   - ako kaze "mozda ima", binarno pretrazi index, pa cita data fajl
      *     dok ne nadje key ili ga ne predje (data fajl je sortiran)
      */
-    virtual std::vector<Record> get(const std::string& key);
+    std::vector<Record> get(const std::string& key);
 
     /**
      * (Opciono) range_scan(startKey, endKey):
@@ -73,54 +75,34 @@ public:
      
     std::vector<std::pair<std::string, std::string>>
         range_scan(const std::string& startKey, const std::string& endKey);
-    */
+     */
+
 protected:
-    // putanje do fajlova
-    int block_size;
-    std::string dataFile_;
-    std::string indexFile_;
-    std::string filterFile_;
-    std::string summaryFile_;
-    std::string metaFile_;
-
-    std::vector<IndexEntry> index_;
-    Summary summary_;
-
-    BloomFilter bloom_;
-
-    Block_manager* bmp;
-
-    std::vector<std::string> tree;
-    std::string rootHash;
-
-    size_t SPARSITY;
-
-
-    void buildMerkleTree(const std::vector<std::string>& leaves);
-
-    // ----- pomoćne metode -----
-
-    // Upisuje dataFile_
-    // Vraca vector<IndexEntry> da bismo iz njega generisali sparse index
-    virtual std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords);
+    std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) override;
 
     // Snima 'index_' u indexFile_
-    virtual std::vector<IndexEntry> writeIndexToFile();
+    std::vector<IndexEntry> writeIndexToFile() override;
+
+    // void readIndexFromFile();
 
     // Snima 'bloom_' u filterFile_
-    virtual void writeBloomToFile() const;
+    void writeBloomToFile() const override;
 
     // Ucitava 'bloom_' iz filterFile_ ako vec nije
-    virtual void readBloomFromFile();
-    virtual void readSummaryHeader();
+    void readBloomFromFile() override;
+    void readSummaryHeader() override;
 
-    virtual void writeSummaryToFile();
-    virtual void writeMetaToFile() const;
-    virtual void readMetaFromFile();
+    void writeSummaryToFile() override;
+    void writeMetaToFile() const override;
+    void readMetaFromFile() override;
 
-    virtual uint64_t findDataOffset(const std::string& key, bool& found) const;
+    uint64_t findDataOffset(const std::string& key, bool& found) const override;
 
+    template<typename UInt>
+    bool readNumValue(UInt& dst, uint64_t& fileOffset, string fileName) const;
 
-    bool readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const;
+    uint64_t summary_data_start;
 
+    unordered_map<string, uint32_t>& mp;
+    uint32_t& nextID;
 };
