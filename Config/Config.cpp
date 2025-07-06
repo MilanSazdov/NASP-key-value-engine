@@ -1,3 +1,4 @@
+
 #include "Config.h"
 #include <fstream>
 #include <string>
@@ -5,9 +6,10 @@
 #include <stdexcept>
 #include <algorithm>
 #include <iomanip>
+#include <cstdint>
 
 int Config::cache_capacity = 10;        // 10 elements
-int Config::block_size = 100;           // 100 bytes
+int Config::block_size = 50;           // 100 bytes
 int Config::segment_size = 5;           // 5 blocks
 
 std::string Config::data_directory = "../data";
@@ -26,6 +28,9 @@ int Config::level_size_multiplier = 10;
 
 int Config::min_threshold = 4;
 int Config::max_threshold = 32;
+
+bool Config::compress_sstable = true;
+int Config::index_sparsity = 64;
 
 int getValueFromLine(const std::string& line) {
     size_t colonPos = line.find(':');
@@ -76,7 +81,7 @@ void remove_white_space_or_coma(std::string& s) {
 
 void Config::load_init_configuration() {
     // Open the file
-    std::ifstream file("../Config/config.json");
+    std::ifstream file("../config.json");
     if (!file.is_open()) {
         std::cerr << "Failed to open config file." << std::endl;
         return;
@@ -85,6 +90,7 @@ void Config::load_init_configuration() {
     std::string line;
 
     while (std::getline(file, line)) {
+        //std::cout << line << std::endl;
         if (line.find("cache_capacity") != std::string::npos) {
             cache_capacity = getValueFromLine(line);
         }
@@ -94,50 +100,59 @@ void Config::load_init_configuration() {
         else if (line.find("segment_size") != std::string::npos) {
             segment_size = getValueFromLine(line);
         }
-		else if (line.find("memtable_type") != std::string::npos) {
-			memtable_type = line.substr(line.find(':') + 1);
-			memtable_type.erase(remove(memtable_type.begin(), memtable_type.end(), '\"'), memtable_type.end());
-            remove_white_space_or_coma(memtable_type);
-		}
-		else if (line.find("memtable_instances") != std::string::npos) {
-			memtable_instances = getValueFromLine(line);
-		}
-		else if (line.find("memtable_max_size") != std::string::npos) {
-			memtable_max_size = getValueFromLine(line);
-		}
-		else if (line.find("compaction_strategy") != std::string::npos) {
-			compaction_strategy = line.substr(line.find(':') + 1);
-			compaction_strategy.erase(remove(compaction_strategy.begin(), compaction_strategy.end(), '\"'), compaction_strategy.end());
-            remove_white_space_or_coma(compaction_strategy);
-		}
-		else if (line.find("max_levels") != std::string::npos) {
-			max_levels = getValueFromLine(line);
-		}
-		else if (line.find("l0_compaction_trigger") != std::string::npos) {
-			l0_compaction_trigger = getValueFromLine(line);
-		}
-		else if (line.find("target_file_size_base") != std::string::npos) {
-			target_file_size_base = static_cast<uint64_t>(getValueFromLine(line));
-		}
-		else if (line.find("level_size_multiplier") != std::string::npos) {
-			level_size_multiplier = getValueFromLine(line);
-		}
-		else if (line.find("min_threshold") != std::string::npos) {
-			min_threshold = getValueFromLine(line);
-		}
-		else if (line.find("max_threshold") != std::string::npos) {
-			max_threshold = getValueFromLine(line);
-		}
-        else if (line.find("data_directory") != std::string::npos) {
-            data_directory = line.substr(line.find(':') + 1);
-            data_directory.erase(remove(data_directory.begin(), data_directory.end(), '\"'), data_directory.end());
-            remove_white_space_or_coma(data_directory);
-        }
-        else if (line.find("wal_directory") != std::string::npos) {
-            wal_directory = line.substr(line.find(':') + 1);
-            wal_directory.erase(remove(wal_directory.begin(), wal_directory.end(), '\"'), wal_directory.end());
-            remove_white_space_or_coma(wal_directory);
-        }
+
+      else if (line.find("memtable_type") != std::string::npos) {
+        memtable_type = line.substr(line.find(':') + 1);
+        memtable_type.erase(remove(memtable_type.begin(), memtable_type.end(), '\"'), memtable_type.end());
+              remove_white_space_or_coma(memtable_type);
+      }
+      else if (line.find("memtable_instances") != std::string::npos) {
+        memtable_instances = getValueFromLine(line);
+      }
+      else if (line.find("memtable_max_size") != std::string::npos) {
+        memtable_max_size = getValueFromLine(line);
+      }
+      else if (line.find("compaction_strategy") != std::string::npos) {
+        compaction_strategy = line.substr(line.find(':') + 1);
+        compaction_strategy.erase(remove(compaction_strategy.begin(), compaction_strategy.end(), '\"'), compaction_strategy.end());
+              remove_white_space_or_coma(compaction_strategy);
+      }
+      else if (line.find("max_levels") != std::string::npos) {
+        max_levels = getValueFromLine(line);
+      }
+      else if (line.find("l0_compaction_trigger") != std::string::npos) {
+        l0_compaction_trigger = getValueFromLine(line);
+      }
+      else if (line.find("target_file_size_base") != std::string::npos) {
+        target_file_size_base = static_cast<uint64_t>(getValueFromLine(line));
+      }
+      else if (line.find("level_size_multiplier") != std::string::npos) {
+        level_size_multiplier = getValueFromLine(line);
+      }
+      else if (line.find("min_threshold") != std::string::npos) {
+        min_threshold = getValueFromLine(line);
+      }
+      else if (line.find("max_threshold") != std::string::npos) {
+        max_threshold = getValueFromLine(line);
+      }
+
+      else if (line.find("data_directory") != std::string::npos) {
+          //std::cout << line << std::endl;
+          data_directory = line.substr(line.find(':') + 1);
+          data_directory.erase(remove(data_directory.begin(), data_directory.end(), '\"'), data_directory.end());
+          remove_white_space_or_coma(data_directory);
+      }
+      else if (line.find("wal_directory") != std::string::npos) {
+          wal_directory = line.substr(line.find(':') + 1);
+          wal_directory.erase(remove(wal_directory.begin(), wal_directory.end(), '\"'), wal_directory.end());
+          remove_white_space_or_coma(wal_directory);
+      }
+      else if (line.find("compress_sstable") != std::string::npos) {
+        index_sparsity = getValueFromLine(line);
+      }
+      else if (line.find("compress_sstable") != std::string::npos) {
+        compress_sstable = (bool)getValueFromLine(line);
+      }
     }
     debug();
 }

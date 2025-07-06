@@ -1,4 +1,4 @@
-#include "SkipList.h"
+﻿#include "SkipList.h"
 #include <limits>
 #include <iostream>
 
@@ -75,6 +75,7 @@ void SkipList::insert(const std::string& key, const std::string& value, bool tom
     size++;
 }
 
+// remove je ovde fizicko brisanje => u memtable se postavlja tombstone na true odnosno na 1 => samo za testiranje SkipList-e
 void SkipList::remove(const string& key) {
     vector<Node*> update(maxLevels, nullptr);
     findPrevNodes(key, update);
@@ -102,16 +103,14 @@ void SkipList::remove(const string& key) {
 }
 
 std::optional<std::string> SkipList::get(const string& key) const {
-    Node* current = head;
-    for (int i = currentLevel; i >= 0; i--) {
-        while (current->forward[i] != nullptr && current->forward[i]->key < key) {
-            current = current->forward[i];
-        }
+    Node* node = getNode(key); // Koristimo getNode da pronadjemo cvor
+
+    // Ako cvor postoji I NIJE oznacen kao obrisan, vrati vrednost
+    if (node != nullptr && !node->tombstone) {
+        return node->value;
     }
-    current = current->forward[0];
-    if (current != nullptr && current->key == key) {
-        return current->value;
-    }
+
+    // u svim ostalim slucajevima (ne postoji ili je obrisan), vrati prazan optional
     return std::nullopt;
 }
 
@@ -137,4 +136,22 @@ vector<pair<string, string>> SkipList::getAllKeyValuePairs() const {
         current = current->forward[0];
     }
     return result;
+}
+
+vector<SkipList::Data> SkipList::getAllEntries() const {
+    vector<Data> result;
+    Node* current = head->forward[0]; // pocni od prvog elementa
+
+    // Prodji kroz listu na najnizem nivou (gde se nalaze svi elementi)
+    while (current != nullptr) {
+        // Kreiraj Data objekat i popuni ga direktno iz cvora
+        result.push_back({
+            current->key,
+            current->value,
+            current->tombstone,
+            current->timestamp
+            });
+        current = current->forward[0]; // Idi na sledeci
+    }
+    return result; // Vrati vektor sa kompletnim podacima
 }

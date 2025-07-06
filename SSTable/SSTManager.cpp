@@ -4,13 +4,85 @@
 #include <stdexcept>
 #include "SSTManager.h"
 #include "SSTable.h"
-#include "BloomFilter.h"
+#include "SSTableComp.h"
+#include "SSTableRaw.h"
+#include "../BloomFilter/BloomFilter.h"
 
 namespace fs = std::filesystem;
 
 using ull = unsigned long long;
 
-SSTManager::SSTManager() : directory_(Config::data_directory) {}
+SSTManager::SSTManager(Block_manager& bm) : directory_(Config::data_directory), bm(bm) {
+    cout << Config::data_directory << endl;
+    readMap();
+}
+
+SSTManager::~SSTManager()
+{
+    writeMap();
+}
+
+void SSTManager::readMap() {
+    string key_map_file = directory_ + "/key_map";
+
+    uint64_t fileOffset = 0;
+
+    uint64_t count;
+    if (!readBytes(&count, sizeof(count), fileOffset, key_map_file)) {
+        return;
+    };
+
+    key_map.reserve(count);
+    id_to_key.reserve(count);
+    
+    int i = 0;
+    for(i = 0; i < count; i++) {
+        uint64_t key_size;
+        if (!readBytes(&key_size, sizeof(key_size), fileOffset, key_map_file)) {
+            return;
+        };
+        string key;
+        if(!readBytes(&key, key_size, fileOffset, key_map_file)){
+            return;
+        };
+
+        key_map[key] = i;
+        id_to_key.emplace_back(key);
+    }
+    next_ID_map = i + 1;
+}
+
+void SSTManager::writeMap() const {
+
+    string key_map_file = directory_ + "/key_map";
+
+    string payload = "";
+
+    uint64_t count = key_map.size();
+
+    payload.append(reinterpret_cast<const char*>(&count), sizeof(count));
+
+    int i = 0;
+    for(auto kv : key_map) {
+        payload.append(reinterpret_cast<const char*>(kv.first.size()), sizeof(kv.first.size()));
+        payload.append(kv.first);
+    }
+
+    int block_id = 0;
+    uint64_t total_bytes = payload.size();
+    uint64_t offset = 0;
+
+    while (offset + block_size <= total_bytes) {
+        string chunk = payload.substr(offset, block_size);
+        bm.write_block({block_id++, key_map_file}, chunk);
+        offset += block_size;
+    }
+
+    if (offset < total_bytes) {
+        std::string chunk = payload.substr(offset);
+        bm.write_block({ block_id++, key_map_file }, chunk);
+    }
+}
 
 // pomocna funkcija za pronalazenje sledeceg ID-a
 int SSTManager::findNextIndex(const std::string& levelDir) const {
@@ -39,25 +111,37 @@ int SSTManager::findNextIndex(const std::string& levelDir) const {
     return max_id + 1;
 }
 
-// POGLEDATI NAPOMENU IZ .H FAJLA !!!!!!!!!!!!!!
-std::string SSTManager::get(const std::string& key) const
+optional<string> SSTManager::get_from_level(const std::string& key, bool& deleted, int level)
 {
-    std::vector<Record> matches;
+    deleted = false;
+    string current_directory = directory_ + "/level_" + to_string(level) + "/";
+    cout << "current_directory == " << current_directory << endl;
+    
+    if (!fs::is_directory(current_directory)) {
+        cout << "Error get_from_level " << current_directory << " is not valid directory\n";
+        throw exception();
+    }
+    if (!fs::exists(current_directory)) return nullopt;
 
-    for (const auto& entry : fs::directory_iterator(directory_))
+    std::vector<Record> matches;
+    
+    for (const auto& entry : fs::directory_iterator(current_directory))
     {
         if (entry.is_regular_file()) {
             std::string filename = entry.path().filename().string();
-
+            cout << filename << endl;
             // Prolazimo kroz sve filter fajlove
             if (filename.rfind("filter", 0) == 0) {
 
                 // Citamo fajl
-                std::size_t fileSize = std::filesystem::file_size(filename);
-
+                std::size_t fileSize = fs::file_size(current_directory+filename);
+                
                 std::vector<byte> fileData(fileSize);
-
-                std::ifstream file(filename, std::ios::binary);
+                if (fileSize == 0) {
+                    cout << "File : " << filename << ".size() == 0\n";
+                    continue;
+                }
+                std::ifstream file(current_directory + filename, std::ios::binary);
                 if (!file) {
                     throw std::runtime_error("[SSTManager] Ne mogu da otvorim fajl: " + filename);
                 }
@@ -79,14 +163,25 @@ std::string SSTManager::get(const std::string& key) const
                     std::string numStr = filename.substr(underscorePos + 1, dotPos - underscorePos - 1);
                     std::string ending = numStr + ".sst";
 
-                    SSTable sst((directory_ + "sstable_" + ending),
-                        (directory_ + "index_" + ending),
-                        (directory_ + "filter_" + ending),
-                        (directory_ + "summary_" + ending),
-                        (directory_ + "meta_" + ending));
+                    SSTable* sst;
+
+                    if(Config::compress_sstable) {
+                        sst = new SSTableComp((current_directory + "sstable_" + ending),
+                        (current_directory + "index_" + ending),
+                        (current_directory + "filter_" + ending),
+                        (current_directory + "summary_" + ending),
+                        (current_directory + "meta_" + ending),
+                        &bm, key_map, id_to_key, next_ID_map);
+                    } else {
+                        sst = new SSTableRaw((current_directory + "sstable_" + ending),
+                        (current_directory + "index_" + ending),
+                        (current_directory + "filter_" + ending),
+                        (current_directory + "summary_" + ending),
+                        (current_directory + "meta_" + ending), &bm);
+                    }
 
                     //Sve recorde sa odgovarajucim key-em stavljamo u vektor
-                    std::vector<Record> found = sst.get(key);
+                    std::vector<Record> found = sst->get(key);
                     matches.insert(matches.end(), found.begin(), found.end());
                 }
             }
@@ -105,15 +200,36 @@ std::string SSTManager::get(const std::string& key) const
         }
     }
 
-    if (static_cast<int>(rMax.tombstone) == 1 || tsMax == 0)
+
+    // not found. Return nullopt
+    if (tsMax == 0) nullopt;
+
+    // found. Record is deleted. Return nullopt + DELETED = TRUE
+    else if (static_cast<int>(rMax.tombstone) == 1)
     {
-        return "";
+        deleted = true;
+        return nullopt;
     }
 
+    // found. Return value 
     return rMax.value;
 }
 
-SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) const {
+// pretrazuje sstable po nivoima. Kad naide na nekom nivou na kljuc, to vraca. Kad prodje sve nivoe, ne postoji kljuc, vraca nullopt
+optional<string> SSTManager::get(const std::string& key) {
+    bool deleted;
+    for (int i = 0; i <= Config::max_levels; i++) {
+        auto ret = get_from_level(key, deleted, i);
+        // record doesnt exists BECAUSE IT IS DELETED
+        if (deleted) return nullopt;
+        // record exists
+        else if(ret != nullopt) return ret.value();
+    }
+    //record doesnt exists because IT WASNT PUT
+    return nullopt;
+}
+
+SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) {
     if (sortedRecords.empty()) {
         throw std::runtime_error("[SSTManager] Cannot write an SSTable with zero records.");
     }
@@ -137,10 +253,25 @@ SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) 
     std::string meta_path = levelDir + "/meta" + ending;
 
     // Instanciraj SSTable objekat koji ce obaviti upisivanje
-    SSTable sst(data_path, index_path, filter_path, summary_path, meta_path);
+    SSTable* sst;
+
+    if(Config::compress_sstable) {
+        sst = new SSTableComp((data_path),
+        (index_path),
+        (filter_path),
+        (summary_path),
+        (meta_path),
+        &bm, key_map, id_to_key, next_ID_map);
+    } else {
+        sst = new SSTableRaw((data_path),
+        (index_path),
+        (filter_path),
+        (summary_path),
+        (meta_path), &bm);
+    }
 
     // Ova metoda vrsi "tezak posao" upisivanja svih 5 fajlova.
-    sst.build(sortedRecords);
+    sst->build(sortedRecords);
 
     // Nakon sto su fajlovi upisani, kreiramo i popunjavamo metapodatke.
     SSTableMetadata meta;
@@ -176,4 +307,37 @@ SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) 
         << " (Total Size: " << total_size << " bytes)." << std::endl;
 
     return meta;
+}
+
+bool SSTManager::readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const
+{
+    if(n==0) return true;
+
+    bool error = false;
+
+    int block_id = offset / block_size;
+    uint64_t block_pos = offset % block_size;  
+
+    vector<byte> block = bm.read_block({block_id++, fileName}, error);
+    if(error) return !error;
+
+    char* out = reinterpret_cast<char*>(dst);
+
+    while (n > 0) {
+        if (block_pos == block_size) {
+            // fetch sledeci
+            block = bm.read_block({block_id++, fileName}, error);
+            if(error) return !error;
+
+            block_pos = 0;
+        }
+        size_t take = min(n, block_size - block_pos);
+        std::memcpy(out, block.data() + block_pos, take);
+        out += take;
+        offset += take;
+        block_pos += take;
+        n -= take;
+    }
+
+    return !error;
 }

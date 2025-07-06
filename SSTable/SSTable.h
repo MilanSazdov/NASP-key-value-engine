@@ -1,20 +1,14 @@
-﻿#pragma once
+#pragma once
 #include <string>
 #include <vector>
-#include <fstream>
 #include <cstdint>
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
-//#include <additional/sha.h> // OpenSSL za SHA256 heširanje
 
 #include "../Wal/wal.h"
 #include "../BloomFilter/BloomFilter.h"
 
-/**
- * Struktura za indeks: (key, offset),
- * offset je pozicija u data fajlu odakle pocinje taj zapis
- */
 struct IndexEntry {
     std::string key;
     ull offset;
@@ -35,13 +29,23 @@ public:
      *  - indexFile (npr. "index.sst")
      *  - filterFile (npr. "filter.sst")
      */
-    SSTable(
-        const std::string& dataFile,
+    SSTable(const std::string& dataFile,
         const std::string& indexFile,
         const std::string& filterFile,
         const std::string& summaryFile,
-        const std::string& metaFile); // remove later
-
+        const std::string& metaFile,
+        Block_manager* bmp): 
+        dataFile_(dataFile),
+        indexFile_(indexFile),
+        filterFile_(filterFile),
+        summaryFile_(summaryFile),
+        metaFile_(metaFile), 
+        bmp(bmp),
+        block_size(Config::block_size),
+        SPARSITY(Config::index_sparsity)
+        {
+        };
+        
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
      * Postupak:
@@ -52,7 +56,7 @@ public:
      *   5) Kreira sparse index (key -> offset) i upisuje u indexFile_
      *   6) Snima BloomFilter u filterFile_
      */
-    void build(std::vector<Record>& records);
+    virtual void build(std::vector<Record>& records) = 0;
 
     /**
      * get(key) - dohvatanje vrednosti iz data.sst
@@ -61,7 +65,7 @@ public:
      *   - ako kaze "mozda ima", binarno pretrazi index, pa cita data fajl
      *     dok ne nadje key ili ga ne predje (data fajl je sortiran)
      */
-    std::vector<Record> get(const std::string& key);
+    virtual std::vector<Record> get(const std::string& key) = 0;
 
     /**
      * (Opciono) range_scan(startKey, endKey):
@@ -69,8 +73,8 @@ public:
      
     std::vector<std::pair<std::string, std::string>>
         range_scan(const std::string& startKey, const std::string& endKey);
-     */
-private:
+    */
+protected:
     // putanje do fajlova
     int block_size;
     std::string dataFile_;
@@ -84,36 +88,39 @@ private:
 
     BloomFilter bloom_;
 
-    Block_manager* bm;
+    Block_manager* bmp;
 
     std::vector<std::string> tree;
     std::string rootHash;
+
+    size_t SPARSITY;
+
 
     void buildMerkleTree(const std::vector<std::string>& leaves);
 
     // ----- pomoćne metode -----
 
-    // Upisuje binarno (Record by record) u dataFile_
+    // Upisuje dataFile_
     // Vraca vector<IndexEntry> da bismo iz njega generisali sparse index
-    std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords);
+    virtual std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) = 0;
 
-    // Snima 'index_' u indexFile_ (binarno)
-    std::vector<IndexEntry> writeIndexToFile();
+    // Snima 'index_' u indexFile_
+    virtual std::vector<IndexEntry> writeIndexToFile() = 0;
 
-    // void readIndexFromFile();
-
-    // Snima 'bloom_' u filterFile_ (binarno)
-    void writeBloomToFile() const;
+    // Snima 'bloom_' u filterFile_
+    virtual void writeBloomToFile() const = 0;
 
     // Ucitava 'bloom_' iz filterFile_ ako vec nije
-    void readBloomFromFile();
-    void readSummaryHeader();
+    virtual void readBloomFromFile() = 0;
+    virtual void readSummaryHeader() = 0;
 
-    void writeSummaryToFile();
-    void writeMetaToFile() const;
-    void readMetaFromFile();
+    virtual void writeSummaryToFile() = 0;
+    virtual void writeMetaToFile() const = 0;
+    virtual void readMetaFromFile() = 0;
 
-    uint64_t findDataOffset(const std::string& key, bool& found) const;
+    virtual uint64_t findDataOffset(const std::string& key, bool& found) const = 0;
+
 
     bool readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const;
+
 };

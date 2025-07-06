@@ -7,7 +7,9 @@
 #include <vector>
 #include <cstring>
 #include <ctime>
+#include <algorithm>
 
+// NAPOMENA: Koristiti pametne pokazivace zbog potencijalnog curenja memorije ....
 template <int ORDER>
 void BTree<ORDER>::splitChild(BTreeNode* parent, BTreeNode* child, int childPos)
 {
@@ -131,14 +133,17 @@ void BTree<ORDER>::insertNotFull(BTreeNode* x, const std::string& key, const Ent
 template <int ORDER>
 typename BTree<ORDER>::BTreeNode* BTree<ORDER>::findNode(BTreeNode* start, const std::string& key, int& location) const
 {
-    int i = 0;
 
-    while (key > start->keys[i] && i < start->numKeys)
-    {
-        ++i;
-    }
+	if (!start)
+	{
+		location = -1; // Node nije pronadje
+		return nullptr;
+	}
 
-    if (key == start->keys[i] && i < start->numKeys)
+    auto it = std::lower_bound(start->keys, start->keys + start->numKeys, key);
+    int i = std::distance(start->keys, it);
+
+    if (i < start->numKeys && key == start->keys[i])
     {
         location = i;
         return start;
@@ -438,28 +443,6 @@ void BTree<ORDER>::setMaxSize(size_t newMaxSize)
 }
 
 template <int ORDER>
-void BTree<ORDER>::loadFromWal(const std::string& wal_file)
-{
-    std::ifstream file(wal_file);
-    if (!file.is_open()) {
-        std::cerr << "[BTree] Ne mogu da otvorim WAL fajl: " << wal_file << "\n";
-        return;
-    }
-
-    std::string op, key, value;
-    while (file >> op >> key) {
-        if (op == "INSERT") {
-            file >> value;
-            put(key, value);
-        }
-        else if (op == "REMOVE") {
-            remove(key);
-        }
-    }
-    file.close();
-}
-
-template <int ORDER>
 std::vector<MemtableEntry> BTree<ORDER>::getAllMemtableEntries() const
 {
     std::vector<MemtableEntry> result;
@@ -490,7 +473,6 @@ void BTree<ORDER>::inorder(BTreeNode* node, std::vector<MemtableEntry>& entries)
         inorder(node->children[node->numKeys], entries);
 }
 
-// OVO TREBA TESTIRATI NIJE STO POSTO SIGURNO
 template <int ORDER>
 std::optional<MemtableEntry> BTree<ORDER>::getEntry(const std::string& key) const {
     int location;
@@ -528,4 +510,12 @@ void BTree<ORDER>::updateEntry(const std::string& key, const MemtableEntry& entr
     node->entries[location].timestamp = entry.timestamp;
 
     std::cout << "[BTree] Key '" << key << "' updated successfully.\n";
+}
+
+
+template <int ORDER>
+std::vector<MemtableEntry> BTree<ORDER>::getSortedEntries() const
+{
+    // inorder() obilazak garantuje da ce zapisi biti sortirani po kljču.
+    return getAllMemtableEntries();
 }

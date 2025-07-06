@@ -5,6 +5,7 @@
 #include <map>
 #include <fstream>
 #include <filesystem>
+#include <cstring>
 
 #include "wal.h"
 
@@ -409,8 +410,8 @@ Record read_record(vector<byte> b, int& pos, int& valid, Wal_record_type& flag) 
 	r.key.resize(r.key_size);
 	r.value.resize(r.value_size);
 
-	memcpy(&r.key[0], b.data() + 30 + pos, r.key_size);  // Copy the data
-	memcpy(&r.value[0], b.data() + 30 + r.key_size + pos, r.value_size);  // Copy the data
+	std::memcpy(&r.key[0], b.data() + 30 + pos, r.key_size);  // Copy the data
+	std::memcpy(&r.value[0], b.data() + 30 + r.key_size + pos, r.value_size);  // Copy the data
 
 	valid = 1;
 	if (r.crc != calc_crc(flag, r.timestamp, r.tombstone, r.key_size, r.value_size, r.key, r.value))
@@ -479,7 +480,7 @@ vector<Record> Wal::get_all_records() {
 			//cout << record_type_to_string(flag) << endl;
 			//cout << endl;
 
-			// Ako je CRC nevalidan (ok == 0), ignoriši samo taj record
+			// Ako je CRC nevalidan (ok == 0), ignoriï¿½i samo taj record
 		}
 
 		next_block(key);
