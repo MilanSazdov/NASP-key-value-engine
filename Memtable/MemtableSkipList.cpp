@@ -1,11 +1,10 @@
-﻿
+
 #include "MemtableSkipList.h"
 #include <fstream>
 #include <iostream>
 
-
 MemtableSkipList::MemtableSkipList()
-    : maxSize_(1000)
+    : maxSize_(Config::memtable_max_size)
 {}
 
 void MemtableSkipList::put(const std::string& key, const std::string& value) {
@@ -24,17 +23,11 @@ void MemtableSkipList::remove(const std::string& key) {
 }
 
 // NOVO: Koristi novu metodu getNode iz SkipList-e 
-std::optional<std::string> MemtableSkipList::get(const std::string& key, bool& deleted) const {
-    deleted = false;
+std::optional<std::string> MemtableSkipList::get(const std::string& key) const {
     auto node = skiplist_.getNode(key); // Koristi novu metodu getNode iz SkipList-a
     if (node && !node->tombstone) {
         return node->value;
     }
-
-    // svakako se vraca nullopt, ali da markiram da je obrisan
-    if (node && node->tombstone) 
-        deleted = true;
-    
     return std::nullopt;
 }
 
@@ -46,37 +39,8 @@ void MemtableSkipList::setMaxSize(size_t maxSize) {
     maxSize_ = maxSize;
 }
 
-void MemtableSkipList::loadFromWal(const std::string& wal_file) {
-    std::ifstream file(wal_file);
-    if (!file.is_open()) {
-        std::cerr << "[MemtableSkipList] Ne mogu da otvorim WAL fajl: " << wal_file << "\n";
-        return;
-    }
-
-    std::string op, key, value;
-    while (file >> op >> key) {
-        if (op == "INSERT") {
-            file >> value;
-            put(key, value);
-        }
-        else if (op == "REMOVE") {
-            remove(key);
-        }
-        // Ignorisemo sve ostale linije koje ne odgovaraju INSERT ili REMOVE
-    }
-    file.close();
-}
-
 std::vector<MemtableEntry> MemtableSkipList::getAllMemtableEntries() const {
-    std::vector<MemtableEntry> entries;
-    auto pairs = skiplist_.getAllKeyValuePairs();
-    for (const auto& [key, value] : pairs) {
-        auto node = skiplist_.getNode(key);
-        if (node) {
-            entries.push_back({ node->key, node->value, node->tombstone, node->timestamp });
-        }
-    }
-    return entries;
+    return getSortedEntries(); 
 }
 
 std::optional<MemtableEntry> MemtableSkipList::getEntry(const std::string& key) const {
@@ -100,8 +64,22 @@ void MemtableSkipList::updateEntry(const std::string& key, const MemtableEntry& 
 }
 
 std::vector<MemtableEntry> MemtableSkipList::getSortedEntries() const {
+    // 1. Pozovi novu, efikasnu metodu iz SkipList-e koja radi SVE u jednom prolazu.
+    auto all_data = skiplist_.getAllEntries();
 
-    return std::vector<MemtableEntry>{};
+    // 2. Pretvori vektor SkipList::Data u vektor MemtableEntry.
+    // Ovo je samo kopiranje podataka, bez dodatnih pretraga.
+    std::vector<MemtableEntry> entries;
+    entries.reserve(all_data.size());
+
+    // Koristimo std::transform za elegantnu konverziju
+    std::transform(all_data.begin(), all_data.end(), std::back_inserter(entries),
+        [](const SkipList::Data& data) {
+            return MemtableEntry{ data.key, data.value, data.tombstone, data.timestamp };
+        }
+    );
+
+    return entries;
 }
 
 /*

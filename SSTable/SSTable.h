@@ -56,7 +56,7 @@ public:
      *   5) Kreira sparse index (key -> offset) i upisuje u indexFile_
      *   6) Snima BloomFilter u filterFile_
      */
-    virtual void build(std::vector<Record>& records);
+    virtual void build(std::vector<Record>& records) = 0;
 
     /**
      * get(key) - dohvatanje vrednosti iz data.sst
@@ -65,7 +65,7 @@ public:
      *   - ako kaze "mozda ima", binarno pretrazi index, pa cita data fajl
      *     dok ne nadje key ili ga ne predje (data fajl je sortiran)
      */
-    virtual std::vector<Record> get(const std::string& key);
+    virtual std::vector<Record> get(const std::string& key) = 0;
 
     /**
      * (Opciono) range_scan(startKey, endKey):
@@ -102,23 +102,23 @@ protected:
 
     // Upisuje dataFile_
     // Vraca vector<IndexEntry> da bismo iz njega generisali sparse index
-    virtual std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords);
+    virtual std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) = 0;
 
     // Snima 'index_' u indexFile_
-    virtual std::vector<IndexEntry> writeIndexToFile();
+    virtual std::vector<IndexEntry> writeIndexToFile() = 0;
 
     // Snima 'bloom_' u filterFile_
-    virtual void writeBloomToFile() const;
+    virtual void writeBloomToFile() const = 0;
 
     // Ucitava 'bloom_' iz filterFile_ ako vec nije
-    virtual void readBloomFromFile();
-    virtual void readSummaryHeader();
+    virtual void readBloomFromFile() = 0;
+    virtual void readSummaryHeader() = 0;
 
-    virtual void writeSummaryToFile();
-    virtual void writeMetaToFile() const;
-    virtual void readMetaFromFile();
+    virtual void writeSummaryToFile() = 0;
+    virtual void writeMetaToFile() const = 0;
+    virtual void readMetaFromFile() = 0;
 
-    virtual uint64_t findDataOffset(const std::string& key, bool& found) const;
+    virtual uint64_t findDataOffset(const std::string& key, bool& found) const = 0;
 
 
     bool readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const;

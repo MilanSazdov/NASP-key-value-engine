@@ -7,9 +7,10 @@ SSTableComp::SSTableComp(const std::string& dataFile,
                          const std::string& metaFile,
                          Block_manager* bmp,
                          unordered_map<string, uint32_t>& map,
+                         vector<string>& id_to_key,
                          uint32_t& nextId
                         )
-  : SSTable(dataFile, indexFile, filterFile, summaryFile, metaFile, bmp), mp(map), nextID(nextId)
+  : SSTable(dataFile, indexFile, filterFile, summaryFile, metaFile, bmp), key_to_id(map), id_to_key(id_to_key), nextID(nextId)
 {
 }
 
@@ -31,6 +32,7 @@ void SSTableComp::build(std::vector<Record>& records)
     // Index u fajl
     std::vector<IndexEntry> summaryAll = writeIndexToFile();
 
+    // Pravimo summary
     summary_.summary.reserve(summaryAll.size() / SPARSITY + 1);
 
     for (size_t i = 0; i < summaryAll.size(); i += SPARSITY) {
@@ -62,13 +64,16 @@ void SSTableComp::build(std::vector<Record>& records)
         << " zapisa u " << dataFile_ << ".\n";
 }
 
+
 // Funkcija NE PROVERAVA bloomfilter, pretpostavlja da je vec provereno
 vector<Record> SSTableComp::get(const std::string& key)
 {
     readSummaryHeader();
     vector<Record> matches;
 
-    // 3) binarna pretraga -> offset
+    cout << summary_.min << " " << summary_.max << endl;
+
+    // 3) pretraga -> offset
     bool found;
     uint64_t fileOffset = findDataOffset(key, found);
     if (!found)
@@ -76,19 +81,23 @@ vector<Record> SSTableComp::get(const std::string& key)
         return matches;
     }
 
+    size_t header_len = 0;
+
     // 4) Otvorimo dataFile, idemo od fileOffset redom
     while (true) {
-        if(block_size - (fileOffset % block_size) < 30) {
+        if(block_size - (fileOffset % block_size) <
+            sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t)) {
             fileOffset += block_size - (fileOffset % block_size);
-        } // Ako u bloku posle recorda nema mesta za header, znaci da smo padovali i sledeci record pocinje u sledecem bloku
+        } // Ako nema mesta za header u najgorem slucaju, paddujemo i to treba da se preskoci.
+          // Lose resenje, trebalo bi da se cita index i preskoci na sledeci offset, ali ubicu se ako jos to treba da napisem
 
         // citamo polja Record-a
-        uint32_t crc = 0;
+        uint crc = 0;
         uint64_t start = fileOffset;
-        readNumValue(crc, fileOffset, dataFile_);
+        readNumValue<uint>(crc, fileOffset, dataFile_);
         uint64_t crc_size = fileOffset - start;
 
-        char flag;
+        Wal_record_type flag;
         readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
 
         start = fileOffset;
@@ -101,67 +110,56 @@ vector<Record> SSTableComp::get(const std::string& key)
 
         bool isTomb = (bool)tomb;
 
-        uint64_t kSize = 0;
-        readBytes(&kSize, sizeof(kSize), fileOffset, dataFile_);
+        uint64_t v_size = 0;
+        if(!isTomb) readBytes(&v_size, sizeof(v_size), fileOffset, dataFile_);
 
-        uint64_t vSize = 0;
-        if(!isTomb) readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
+        start = fileOffset;
+        uint32_t r_key_id = 0;
+        readNumValue(r_key_id, fileOffset, dataFile_);
+        uint64_t r_key_size = fileOffset - start;
 
-        std::string rkey;
-        rkey.resize(kSize);
-        readBytes(&rkey[0], kSize, fileOffset, dataFile_);
+        string rkey = id_to_key[r_key_id];
 
-        std::string rvalue("");
-        rvalue.resize(vSize);
-        readBytes(&rvalue[0], vSize, fileOffset, dataFile_);
+        std::string rvalue;
+        rvalue.resize(v_size);
+        readBytes(&rvalue[0], v_size, fileOffset, dataFile_);
 
         Record r;
         r.crc = crc;
         r.timestamp = ts;
         r.tombstone = static_cast<byte>(tomb);
-        r.key_size = kSize;
-        r.value_size = vSize;
+        r.key_size = rkey.size();
+        r.value_size = v_size;
         r.key = rkey;
         r.value = rvalue;
 
-        
-        if (flag == 'F') {
-            while(true) {
-                fileOffset += crc_size;
-                
-                char flag;
-                readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
-                
-                fileOffset += ts_size;
-                
-                fileOffset += sizeof(tomb);
-                
-                uint64_t kSize = 0;
-                readBytes(&kSize, sizeof(kSize), fileOffset, dataFile_);
-                
-                uint64_t vSize = 0;
-                if(isTomb)readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
-                
-                std::string rkey;
-                rkey.resize(kSize);
-                readBytes(&rkey[0], kSize, fileOffset, dataFile_);
-                
-                std::string rvalue;
-                rvalue.resize(vSize);
-                readBytes(&rvalue[0], vSize, fileOffset, dataFile_);
-                
-                r.value.append(rvalue);
-                r.key.append(rkey);
-                r.key_size += kSize;
-                r.value_size += vSize;
-                
-                if(flag == 'L'){
-                    break;
+        if(rkey == key) {
+            if (flag == Wal_record_type::FIRST) {
+                while(true) {
+                    fileOffset += crc_size;
+                    
+                    Wal_record_type flag;
+                    readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
+                    
+                    fileOffset += ts_size;
+                    
+                    fileOffset += sizeof(tomb);
+                    
+                    uint64_t vSize = 0;
+                    if(!isTomb) readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
+                    
+                    std::string rvalue;
+                    rvalue.resize(vSize);
+                    readBytes(&rvalue[0], vSize, fileOffset, dataFile_);
+                    
+                    r.value.append(rvalue);
+                    r.value_size += vSize;
+                    
+                    if(flag == Wal_record_type::LAST){
+                        break;
+                    }
                 }
             }
-        }
-        
-        if(r.key == key) {
             matches.emplace_back(r);
         }
         
@@ -222,6 +220,8 @@ SSTable::range_scan(const std::string& startKey, const std::string& endKey)
 }
 */
 
+// Struktura: [crc(varInt), flag(byte), timestamp(varInt), tombstone(byte), val_size(uint64), key_id(varInt), value(string)]
+// Kada se splituje, samo prvi ima key_id
 std::vector<IndexEntry>
 SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 {
@@ -237,15 +237,11 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
     int block_id = 0;
 
     string concat;
-
-    // auto append_field = [&](const void* data, size_t len) {
-    //     auto ptr = reinterpret_cast<const char*>(data);
-    //     concat.append(ptr, len);
-    // };
+    concat.reserve(block_size);
 
     
     for (auto& r : sortedRecords) {
-        { // Deo za merkle tree
+        { // TODO: koristi klasu ne znam ni sta sam pokusavao ovde
             uint64_t h = hasher(r.key + r.value);
             string leaf;
             leaf.resize(sizeof(h));
@@ -262,9 +258,9 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
         bool tomb = (bool)rec.tombstone;
 
-        // Tomb se ne enkodira zato sto je 1 bajt, val i key size zbog splitovanja
-        string crc = varenc::encodeVarint<uint>(rec.crc);
-        string timestamp = varenc::encodeVarint<ull>(rec.timestamp);
+        // Tomb se ne enkodira zato sto je 1 bajt, val size zbog splitovanja
+        std::string crc = varenc::encodeVarint<uint>(rec.crc);
+        std::string timestamp = varenc::encodeVarint<ull>(rec.timestamp);
 
         if (tomb) {
             rec.value_size = 0;
@@ -274,11 +270,13 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
         // ---- Menjamo kljuc sa vrednoscu iz mape ---- //
 
         uint32_t key_val;
-        auto it = mp.find(r.key);
-        if (it == mp.end()) 
-            mp[r.key] = nextID++;
+        auto it = key_to_id.find(r.key);
+        if (it == key_to_id.end()) {
+            key_to_id[r.key] = nextID++;
+            id_to_key.emplace_back(r.key);
+        }
 
-        key_val = mp[r.key];
+        key_val = key_to_id[r.key];
 
         string key_str = varenc::encodeVarint<uint32_t>(key_val);
 
@@ -287,17 +285,17 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
         // -------------------------------------------- //
 
-        size_t header_len =  tomb ? crc.size() + timestamp.size() :
-                                    crc.size() + timestamp.size() + sizeof(rec.value_size);
+        size_t header_len =  tomb ? crc.size() + timestamp.size() + 2:
+                                    crc.size() + timestamp.size() + sizeof(rec.value_size) + 2;
 
         size_t len = header_len + rec.key_size + rec.value_size;
 
-        offset += rec.key_size + rec.value_size; // Dodajemo ceo key size i value size prvo, posle cemo videti koliko headera treba
-                            
         ull remaining = block_size - (offset % block_size);
-
-        // Ako u bloku nema dovoljno mesta ni za record metadata (key uvek u prvom delu, bice < 32bit)
-        if (remaining < header_len + rec.key_size) {
+        
+        offset += rec.key_size + rec.value_size; // Dodajemo ceo key size i value size prvo, posle cemo videti koliko headera treba
+        
+        // Ako u bloku nema dovoljno mesta za worst case header (worst case zbog citanja)
+        if (remaining < sizeof(r.crc) + sizeof(r.timestamp) + sizeof(char) + sizeof(r.tombstone) + sizeof(r.value_size) + sizeof(uint32_t)) {
             offset += remaining;
 
             bmp->write_block({block_id++, dataFile_}, concat);
@@ -309,11 +307,12 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
         if (remaining < len) {
             flag = Wal_record_type::FIRST;
-            concat.append(crc, crc.size());
+            concat.append(crc);
             concat.append(reinterpret_cast<const char*>(&flag), sizeof(flag));
-            concat.append(timestamp, timestamp.size());
+            concat.append(timestamp);
             concat.append(reinterpret_cast<const char*>(&rec.tombstone), sizeof(rec.tombstone));
-
+          
+            remaining -= header_len;
             remaining -= rec.key_size;
             
             ull value_written = min<ull>(remaining, rec.value_size);
@@ -321,19 +320,19 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
             
             if(!tomb) concat.append(reinterpret_cast<const char*>(&value_written), sizeof(value_written));
             
-            remaining -= header_len;
             offset += header_len;
-
+            
             concat.append(rec.key);
-            concat.append(rec.value, value_written);
+            concat.insert(concat.end(), rec.value.begin(), rec.value.begin() + value_written);
+            
+            rec.value = rec.value.substr(value_written);
+            rec.value_size -= value_written;
 
             // Flushujemo blok
             bmp->write_block({block_id++, dataFile_}, concat);
             concat.clear();
-
-            rec.value = rec.value.substr(value_written);
-            rec.value_size -= value_written;
-
+            concat.reserve(block_size);  
+            
             remaining = block_size;
 
             while (flag != Wal_record_type::LAST) {        
@@ -350,19 +349,20 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
                 // L -> ili remaining != 0, tj ima jos mesta, ili nema vise mesta ali smo zapisali ceo zapis
                 // M -> Nema vise mesta i ili nismo ispisali ceo kljuc ili nismo ispisali ceo value
 
-                concat.append(crc, crc.size());
+                concat.append(crc);
                 concat.append(reinterpret_cast<const char*>(&flag), sizeof(flag));
-                concat.append(timestamp, timestamp.size());
+                concat.append(timestamp);
                 concat.append(reinterpret_cast<const char*>(&rec.tombstone), sizeof(rec.tombstone));
                 if(!tomb) concat.append(reinterpret_cast<const char*>(&value_written), sizeof(value_written));
                 
 
-                concat.append(rec.value, value_written);
+                concat.insert(concat.end(),rec.value.begin(), rec.value.begin() + value_written);
                 
                 if (flag == Wal_record_type::MIDDLE){
                     // Flushujemo blok
                     bmp->write_block({block_id++, dataFile_}, concat);
                     concat.clear();
+                    concat.reserve(block_size);
 
                     rec.value = string(rec.value.begin() + value_written, rec.value.end());
 
@@ -374,16 +374,16 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
         } else {
             flag = Wal_record_type::FULL;
-            concat.append(crc, crc.size());
+            concat.append(crc);
             concat.append(reinterpret_cast<const char*>(&flag), sizeof(flag));
-            concat.append(timestamp, timestamp.size());
-            concat.append(reinterpret_cast<const char*>(&r.tombstone), sizeof(r.tombstone));
-            if(!tomb) concat.append(reinterpret_cast<const char*>(&r.value_size), sizeof(r.value_size));
+            concat.append(timestamp);
+            concat.append(reinterpret_cast<const char*>(&rec.tombstone), sizeof(rec.tombstone));
+            if(!tomb) concat.append(reinterpret_cast<const char*>(&rec.value_size), sizeof(rec.value_size));
 
             offset += header_len;
 
-            concat.append(r.key);
-            if(!tomb) concat.append(r.value, r.value_size);    
+            concat.append(rec.key);
+            if(!tomb) concat.append(rec.value);    
 
         }
     }
@@ -397,6 +397,7 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
     return ret;
 }
 
+// Struktura: count(varInt), [key_id1(varInt), offset1(varInt)...]
 std::vector<IndexEntry> SSTableComp::writeIndexToFile()
 {
     std::vector<IndexEntry> ret;
@@ -415,15 +416,14 @@ std::vector<IndexEntry> SSTableComp::writeIndexToFile()
         summEntry.offset = offset;
         ret.push_back(summEntry);
 
-        uint64_t k_size = ie.key.size();
-        string kSize_str = varenc::encodeVarint<uint64_t>(k_size);
+        uint32_t key_id = key_to_id[ie.key];
+        string key_str = varenc::encodeVarint<uint32_t>(key_id);
         string offset_str = varenc::encodeVarint<ull>(ie.offset);
 
-        payload.append(kSize_str);
-        payload.append(ie.key, k_size);
+        payload.append(key_str);
         payload.append(offset_str);
 
-        offset += kSize_str.size() + k_size + offset_str.size();
+        offset += key_str.size() + offset_str.size();
     }
 
     int block_id = 0;
@@ -439,28 +439,29 @@ std::vector<IndexEntry> SSTableComp::writeIndexToFile()
     return ret;
 }
 
+// Struktura: count(varInt), min_key(varInt), max_key(varInt), [key_id1(varInt), offset1(varInt)...]
 void SSTableComp::writeSummaryToFile()
 {
     string payload;
 
-    string min_len_str = varenc::encodeVarint<size_t>(summary_.min.size());
-    payload.append(min_len_str);
-    string max_len_str = varenc::encodeVarint<size_t>(summary_.max.size());
-    payload.append(max_len_str);
-    string count = varenc::encodeVarint<size_t>(summary_.summary.size());
-    payload.append(count);
+    payload.append(varenc::encodeVarint<uint64_t>(summary_.summary.size())); // Count
+
+    uint32_t min_key_val = key_to_id[summary_.min];
+    uint32_t max_key_val = key_to_id[summary_.max];
+
+    string min_key_str = varenc::encodeVarint<uint32_t>(min_key_val);
+    string max_key_str = varenc::encodeVarint<uint32_t>(max_key_val);
+
     
-    payload.append(summary_.min);
-    payload.append(summary_.max);
+    payload.append(min_key_str);
+    payload.append(max_key_str);
 
 
     for (auto& summEntry : summary_.summary) {
-        uint64_t k_size = summEntry.key.size();
-        string k_size_str = varenc::encodeVarint<uint64_t>(k_size);
-        string offset_str = varenc::encodeVarint<ull>(summEntry.offset);
+        string k_str = varenc::encodeVarint<uint32_t>(key_to_id[summEntry.key]);
+        payload.append(k_str);
 
-        payload.append(k_size_str);
-        payload.append(summEntry.key, k_size);
+        string offset_str = varenc::encodeVarint<ull>(summEntry.offset);
         payload.append(offset_str);
 
     }
@@ -516,11 +517,12 @@ void SSTableComp::writeBloomToFile() const
 
     string payload;
 
-    payload.append(len_str);
+    
+    payload.reserve(raw.size());
+    
+    // payload.append(len_str);
 
-    for (const auto& i : raw) {
-        payload.append(reinterpret_cast<const char*>(i), sizeof(i));
-    }
+    payload.append(reinterpret_cast<const char*>(raw.data()), raw.size());
 
     int block_id = 0;
     size_t total_bytes = payload.size();
@@ -528,8 +530,13 @@ void SSTableComp::writeBloomToFile() const
 
     while (offset + block_size <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
-        bmp->write_block({block_id++, summaryFile_}, chunk);
+        bmp->write_block({block_id++, filterFile_}, chunk);
         offset += block_size;
+    }
+
+    if (offset < total_bytes) {
+        std::string chunk = payload.substr(offset);
+        bmp->write_block({ block_id++, filterFile_ }, chunk);
     }
 }
 
@@ -555,7 +562,7 @@ void SSTableComp::writeMetaToFile() const
 
     while (offset + block_size <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
-        bmp->write_block({block_id++, summaryFile_}, chunk);
+        bmp->write_block({block_id++, metaFile_}, chunk);
         offset += block_size;
     }
 }
@@ -565,7 +572,7 @@ void SSTableComp::readBloomFromFile()
     uint64_t fileOffset = 0;
     uint64_t len = 0;
     
-    if (!readNumValue<uint64_t>(len, fileOffset, metaFile_)) {
+    if (!readNumValue<uint64_t>(len, fileOffset, filterFile_)) {
         std::cerr << "[SSTableComp::readBloomFromFile] Problem reading bloom length\n";
         return;
     }
@@ -573,7 +580,7 @@ void SSTableComp::readBloomFromFile()
     if(len==0) return;
 
     std::vector<byte> raw(len);
-    if (!readBytes(raw.data(), len, fileOffset, metaFile_)) {
+    if (!readBytes(raw.data(), len, fileOffset, filterFile_)) {
         std::cerr << "[SSTableComp::readBloomFromFile] Problem reading bloomfilter\n";
         return;
     }
@@ -587,37 +594,30 @@ void SSTableComp::readSummaryHeader()
     summary_.max.clear();
 
     uint64_t offset = 0;
-
-    uint64_t min_key_len = 0;
-    if (!readNumValue<uint64_t>(min_key_len, offset, summaryFile_)) {
-        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading min_key_len\n";
-        return;
-    }
-
-    uint64_t max_key_len = 0;
-    if (!readNumValue<uint64_t>(max_key_len, offset, summaryFile_)) {
-        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading max_key_len\n";
-        return;
-    }
-
+    
     if (!readNumValue<uint64_t>(summary_.count, offset, summaryFile_)) {
         std::cerr << "[SSTableComp::readSummaryHeader] Problem reading summary count\n";
         return;
     }
+    
+    uint32_t min_key_id = 0;
+    if (!readNumValue<uint32_t>(min_key_id, offset, summaryFile_)) {
+        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading min_key_len\n";
+        return;
+    }
+
+    summary_.min = id_to_key[min_key_id];
+    
+    uint32_t max_key_id = 0;
+    if (!readNumValue<uint32_t>(max_key_id, offset, summaryFile_)) {
+        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading max_key_len\n";
+        return;
+    }
+
+    summary_.max = id_to_key[max_key_id];
+
 
     summary_data_start = offset;
-
-    summary_.min.reserve(min_key_len);
-    if (!readBytes(&summary_.min, min_key_len, offset, summaryFile_)) {
-        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading summary_.min bytes\n";
-        return;
-    }
-
-    summary_.max.reserve(max_key_len);
-    if (!readBytes(&summary_.max, max_key_len, offset, summaryFile_)) {
-        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading summary_.max bytes\n";
-        return;
-    }
 }
 
 uint64_t SSTableComp::findDataOffset(const std::string& key, bool& found) const
@@ -627,45 +627,41 @@ uint64_t SSTableComp::findDataOffset(const std::string& key, bool& found) const
         return 0;
     }
 
-    uint64_t fileOffset = summary_data_start;
-
-    fileOffset += summary_.min.size() + summary_.max.size();
+    uint64_t file_offset = summary_data_start;
     
-    uint64_t kSize;
     bool error;
-
-    uint64_t lastOffset = 0;
     
-    string rKey;
+    uint64_t last_offset = 0;
+    
+    uint32_t r_key_id;
+    string r_key;
     for(int i = 0; i < summary_.count; i++){
-        readNumValue<uint64_t>(kSize, fileOffset, summaryFile_);
+        readNumValue<uint32_t>(r_key_id, file_offset, summaryFile_);
 
-        rKey.resize(kSize);
-        readBytes(&rKey[0], kSize, fileOffset, summaryFile_);
+        r_key = id_to_key[r_key_id];
 
-        if(rKey > key) {
+        if(r_key > key) {
             break;
         }
 
-        readNumValue<uint64_t>(lastOffset, fileOffset, summaryFile_);
+        readNumValue<uint64_t>(last_offset, file_offset, summaryFile_);
     }
 
-    fileOffset = lastOffset;
+    file_offset = last_offset;
     uint64_t off = 0;
 
     while (true) {
-        readNumValue<uint64_t>(kSize, fileOffset, indexFile_);
+        readNumValue<uint32_t>(r_key_id, file_offset, indexFile_);
         
-        rKey.resize(kSize);
-        readBytes(&rKey[0], kSize, fileOffset, indexFile_);
+        r_key = id_to_key[r_key_id];
 
-        readNumValue<uint64_t>(off, fileOffset, indexFile_);
+        readNumValue<uint64_t>(off, file_offset, indexFile_);
 
-        if (rKey == key) {
+        if (r_key == key) {
             found = true;
             return off;
         }
-        if (rKey > key) {
+        if (r_key > key) {
             found = false;
             return 0ULL;
         }
@@ -678,15 +674,15 @@ template<typename UInt>
 bool SSTableComp::readNumValue(UInt& dst, uint64_t& fileOffset, string fileName) const {
     char chunk;
     bool finished=false;
-    int val_offset = 0;
+    size_t val_offset = 0;
 
     dst = 0;
 
     do {
-        if (!readBytes(chunk&, 1, fileOffset, fileName)) {
+        if (!readBytes(&chunk, 1, fileOffset, fileName)) {
             return false;
         };
-        finished = varenc::decodeVarint(chunk, dst, val_offset);
+        finished = varenc::decodeVarint<UInt>(chunk, dst, val_offset);
     } while (finished != true);
     return true;
 }

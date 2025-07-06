@@ -12,21 +12,6 @@
 #include "../BloomFilter/BloomFilter.h"
 #include "SSTable.h"
 
-/**
- * Struktura za indeks: (key, offset),
- * offset je pozicija u data fajlu odakle pocinje taj zapis
- */
-struct IndexEntry {
-    std::string key;
-    ull offset;
-};
-
-struct Summary{
-    std::vector<IndexEntry> summary;
-    std::string min;
-    std::string max;
-    uint64_t count; 
-};
 
 class SSTableRaw : public SSTable {
 public:

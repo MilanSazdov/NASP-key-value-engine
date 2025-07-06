@@ -55,7 +55,7 @@ void Block_manager::write_block(composite_key key, string data){
 
 vector<byte> Block_manager::read_block(composite_key key, bool& error) {
 	error = false;
-	//cout << "Reading block: " << key.first << " " << key.second << endl;
+	cout << "Reading block: " << key.first << " " << key.second << endl;
 
 	bool exists = false;
 	vector<byte> ret;
@@ -84,6 +84,7 @@ vector<byte> Block_manager::read_block(composite_key key, bool& error) {
 			// unsuccesful read
 			if (!file.read(buffer, block_size)) {
 				error = true;
+				delete[] buffer;
 			}
 			else {
 				const byte* first = reinterpret_cast<const byte*>(buffer);

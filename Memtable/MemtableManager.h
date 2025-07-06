@@ -29,15 +29,9 @@ public:
 
     void remove(const std::string& key);
 
-    // Dohvatanje vrednosti iz memtable
-    std::optional<std::string> get(const std::string& key, bool& deleted) const;
-
-    // Kad zelimo rucno flush (npr. gasenje programa),
-    // ili ako se popune sve N memtables
+    // Dohvatanje vrednosti iz memtable (po potrebi i iz sstable)
+    std::optional<std::string> get(const std::string& key) const;
     
-    // TODO: ili obrisi, ili implementiraj
-    void flushAll();
-
     // Kada se sistem pokrene, Memtable treba popuniti zapisima iz WAL-a
     void loadFromWal(const std::vector<Record>& records);
 

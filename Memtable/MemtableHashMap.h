@@ -24,7 +24,6 @@ public:
     std::optional<std::string> get(const std::string& key, bool& deleted) const override;
     size_t size() const override;
     void setMaxSize(size_t maxSize) override;
-    void loadFromWal(const std::string& wal_file) override;
     // void loadFromRecords(const std::vector<Record>& records) override;
 
     // NOVO: vraća sve zapise sa (key, value, tombstone, timestamp)

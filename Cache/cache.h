@@ -5,7 +5,9 @@
 #include <unordered_map>
 #include <cstddef>
 #include <iostream>
-#include "Config.h"
+#include <vector>
+
+#include "../Config/Config.h"
 
 using namespace std;
 
@@ -136,6 +138,14 @@ public:
 			cache_map.erase(key_to_delete);
 		}
 
+	}
+	
+	void del(key_type key) {
+		if (cache_map.find(key) != cache_map.end()) {
+			Node<key_type>* old_node = cache_map[key];
+			remove_node(old_node);
+			delete old_node;
+		}
 	}
 
 	// function to get value. If exists == true, key exists

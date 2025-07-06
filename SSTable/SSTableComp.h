@@ -14,21 +14,6 @@
 #include "SSTable.h"
 #include "../Utils/VarEncoding.h"
 
-/**
- * Struktura za indeks: (key, offset),
- * offset je pozicija u data fajlu odakle pocinje taj zapis
- */
-struct IndexEntry {
-    std::string key;
-    ull offset;
-};
-
-struct Summary{
-    std::vector<IndexEntry> summary;
-    std::string min;
-    std::string max;
-    uint64_t count; 
-};
 
 class SSTableComp : public SSTable {
 public:
@@ -45,7 +30,8 @@ public:
         const std::string& summaryFile,
         const std::string& metaFile,
         Block_manager* bmp,
-        unordered_map<string, uint32_t>& mp,
+        unordered_map<string, uint32_t>& key_to_id,
+        vector<string>& id_to_key,
         uint32_t& nextId);
 
     /**
@@ -103,6 +89,7 @@ protected:
 
     uint64_t summary_data_start;
 
-    unordered_map<string, uint32_t>& mp;
+    unordered_map<string, uint32_t>& key_to_id;
+    vector<string>& id_to_key;
     uint32_t& nextID;
 };

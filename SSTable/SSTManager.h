@@ -20,6 +20,7 @@ private:
 
     uint32_t next_ID_map;
     unordered_map<string, uint32_t> key_map;
+    vector<string> id_to_key;
     void writeMap() const;
     void readMap();
 
@@ -30,12 +31,11 @@ private:
 
 public:
 
-    SSTManager(const std::string& directory, Block_manager& bm);
+    SSTManager(Block_manager& bm);
     ~SSTManager();
 
-    // NAPOMENA: ovu metodu bi trebalo imati u LSMManager jer on treba da upravlja po nivoima
-    // TODO: takodje, nije dobro da vraca "" ako je key obrisan ili ga nema. Napraviti da radi kao memtable optional<string> get(key, bool& deleted);
-    std::string get(const std::string& key);
+    optional<string> get(const std::string& key);
+    optional<string> get_from_level(const std::string& key, bool& deleted, int level);
 
     SSTableMetadata write(std::vector<Record> sortedRecords, int level);
 };

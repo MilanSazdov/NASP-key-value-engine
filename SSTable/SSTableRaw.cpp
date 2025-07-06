@@ -1,5 +1,5 @@
 ﻿#include "SSTableRaw.h"
-#include "VarEncoding.h"
+#include "../Utils/VarEncoding.h"
 
 SSTableRaw::SSTableRaw(const std::string& dataFile,
                        const std::string& indexFile,
@@ -240,7 +240,7 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
    size_t header_len = sizeof(uint) + 2*sizeof(byte) + 3*sizeof(ull);
 
     for (auto& r : sortedRecords) {
-        { // Deo za merkle tree
+        { // TODO: koristi klasu
             uint64_t h = hasher(r.key + r.value);
             string leaf;
             leaf.resize(sizeof(h));
@@ -520,7 +520,7 @@ void SSTableRaw::writeBloomToFile() const
 
     while (offset + block_size <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
-        bmp->write_block({block_id++, summaryFile_}, chunk);
+        bmp->write_block({block_id++, filterFile_}, chunk);
         offset += block_size;
     }
 }
@@ -547,7 +547,7 @@ void SSTableRaw::writeMetaToFile() const
 
     while (offset + block_size <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
-        bmp->write_block({block_id++, summaryFile_}, chunk);
+        bmp->write_block({block_id++, metaFile_}, chunk);
         offset += block_size;
     }
 }
@@ -557,12 +557,12 @@ void SSTableRaw::readBloomFromFile()
     uint64_t fileOffset = 0;
 
     uint64_t len = 0;
-    if (!readBytes(&len, sizeof(len), fileOffset, metaFile_) || len == 0) {
+    if (!readBytes(&len, sizeof(len), fileOffset, filterFile_) || len == 0) {
         return;
     }
 
     std::vector<byte> raw(len);
-    if (!readBytes(raw.data(), len, fileOffset, metaFile_)) {
+    if (!readBytes(raw.data(), len, fileOffset, filterFile_)) {
         return;
     }
 

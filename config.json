@@ -1,16 +1,13 @@
 {
   "cache_capacity": 10,
-  "block_size": 100,
+  "block_size": 75,
   "segment_size": 5,
   "memtable_type": "hash_map",
   "memtable_instances": 3,
   "memtable_max_size": 5,
-  "compaction_strategy": "leveled",
   "max_levels": 7,
   "l0_compaction_trigger": 4,
   "target_file_size_base": 2097152,
-  "level_size_multiplier": 10,
-  "min_threshold": 4,
-  "max_threshold": 32
-
+  "data_directory": "../data/level_0/",
+  "wal_directory": "../data/wal_logs"
 }

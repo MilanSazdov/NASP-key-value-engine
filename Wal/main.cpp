@@ -148,6 +148,9 @@ void delete_all_files(string folderPath) {
     }
 }
 
+//ovo je zbog maina, nema veze sa projekom!
+string log_directory = "../data/wal_logs";
+
 int main() {
     cout << "creating wal\n";
     Wal w1;
@@ -200,15 +203,15 @@ int main() {
     w1.delete_old_logs("wal_002.log");
     //cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
     
-    print_files_in_folder(LOG_DIRECTORY);
+    print_files_in_folder(log_directory);
     cout << endl;
     cout << "Deleting logs older than 'wal_004.log'...\n";
     w1.delete_old_logs("wal_004.log");
     //cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
 
     // Step 6: Final display of files in 'wal_logs'
-    cout << "\nFiles in '" << LOG_DIRECTORY << "' after all operations:\n";
-    print_files_in_folder(LOG_DIRECTORY);
+    cout << "\nFiles in '" << log_directory << "' after all operations:\n";
+    print_files_in_folder(log_directory);
 
 
     return 0;

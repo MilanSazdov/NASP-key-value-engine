@@ -5,12 +5,9 @@
 #include <iostream>
 #include <stdexcept>
 #include <algorithm>
+#include <cstdint>
 
 class Config {
-	// kontam da ovde mozemo da spicimo jos neke stvari. Ne znam da li ovde implementacija memtable (pa se bira, BStablo, SkipLista, sta vec)
-	// da li da stavimo neke putanje npr wal folder, data folder, itd... pa da i to bude konfiguraciono
-	
-	// cini mi se treba neke stvari za SSTAble, ali posto nisam radio ne znam tacno sta, to ubacite @Andrej, @Milan
 private:
 	Config() = default;		// Prevent instantiation
 
@@ -37,10 +34,14 @@ public:
 	// Size-Tiered Compaction
 	static int min_threshold;
 	static int max_threshold;
-	
-	// Data and Wal directory
+
+	// Data folder for: sstable/lsm , memtable, and Wal directory
 	static std::string data_directory;
 	static std::string wal_directory;
+
+	// SSTable
+	static int index_sparsity;
+	static bool compress_sstable;
 
 	static void load_init_configuration();
 };
