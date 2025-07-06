@@ -132,7 +132,7 @@ void Wal::update_current_block() {
 	}
 }
 
-Wal::Wal() : segment_size(Config::segment_size), log_directory(Config::wal_directory){
+Wal::Wal(Block_manager& bmRef) : segment_size(Config::segment_size), log_directory(Config::wal_directory), bm(bmRef){
 	ensure_wal_folder_exists();
 	init_crc32_table();
 	min_segment = find_min_segment(log_directory);

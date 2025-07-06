@@ -9,8 +9,8 @@ IMemtable* MemtableFactory::createMemtable() {
         return new MemtableSkipList();
     }
 
-    else if (type == "btree") {
-        return new BTree<16>(Config::memtable_max_size);
+    else if (Config::memtable_type == "btree") {
+        //return new BTree<16>(Config::memtable_max_size);
     }
     // Ako tip nije prepoznat, vracamo default, npr. hash
     return new MemtableHashMap();

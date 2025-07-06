@@ -16,11 +16,7 @@ public:
      * @param maxSizePerTable koliko elemenata moze stati u svaku memtable
      * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./".
      **/
-    MemtableManager(const std::string& type,
-        size_t N,
-        size_t maxSizePerTable,
-        const std::string& directory
-    );
+    MemtableManager(Block_manager& bm);
 
     ~MemtableManager();
 
@@ -30,13 +26,19 @@ public:
     void remove(const std::string& key);
 
     // Dohvatanje vrednosti iz memtable (po potrebi i iz sstable)
-    std::optional<std::string> get(const std::string& key) const;
+    std::optional<std::string> get(const std::string& key, bool& deleted) const;
     
     // Kada se sistem pokrene, Memtable treba popuniti zapisima iz WAL-a
     void loadFromWal(const std::vector<Record>& records);
 
     // Print all data from memtables
     void printAllData() const;
+
+    void flushMemtable();
+
+    bool checkFlushIfNeeded(); // proverava da li je potrebno preci na novu tabelu ili uraditi flush
+
+    vector<Record> getRecordsFromOldest();
 
 private:
     std::string type_;   // sacuvamo koji tip je korisnik izabrao
@@ -60,7 +62,5 @@ private:
     void switchToNewMemtable();
 
     void flushOldest(); // prazni samo najstariju memtable (prvu napravljenu)
-
-    void checkAndFlushIfNeeded(); // proverava da li je potrebno preci na novu tabelu ili uraditi flush
 };
 

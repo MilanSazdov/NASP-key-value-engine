@@ -30,7 +30,7 @@ private:
     bool readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const;
 
 public:
-
+    //SSTManager();
     SSTManager(Block_manager& bm);
     ~SSTManager();
 

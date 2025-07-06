@@ -36,15 +36,17 @@ void MemtableHashMap::remove(const std::string& key) {
 }
 
 // get => vraća value ako tombstone=false, inače nullopt
-optional<string> MemtableHashMap::get(const string& key) const {
+optional<string> MemtableHashMap::get(const string& key, bool& deleted) const {
     auto it = table_.find(key);
     if (it == table_.end()) {
         return nullopt;
     }
     if (it->second.tombstone) {
         // obrisan
+        deleted = true;
         return nullopt;
     }
+    deleted = false;
     return it->second.value;
 }
 

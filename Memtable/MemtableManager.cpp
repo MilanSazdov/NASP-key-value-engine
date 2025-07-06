@@ -9,7 +9,7 @@
 #include "SizeTieredCompaction.h"
 #include "LeveledCompaction.h"
 
-MemtableManager::MemtableManager()
+MemtableManager::MemtableManager(Block_manager& bm)
     : type_(Config::memtable_type),
     N_(Config::memtable_instances),
     maxSize_(Config::memtable_max_size),
@@ -17,7 +17,7 @@ MemtableManager::MemtableManager()
     activeIndex_(0)
 {
     // Kreiraj SSTManager
-    sstManager_ = std::make_unique<SSTManager>();
+    sstManager_ = std::make_unique<SSTManager>(bm);
 
     // Kreiraj odabranu strategiju kompakcije na osnovu vrednosti iz Config klase
     std::unique_ptr<CompactionStrategy> strategy;
@@ -43,7 +43,7 @@ MemtableManager::MemtableManager()
     }
 
     // Kreiraj LSMManager i prosledi mu kreiranu strategiju
-    lsmManager_ = std::make_unique<LSMManager>(std::move(strategy), Config::max_levels);
+    lsmManager_ = std::make_unique<LSMManager>(std::move(strategy), Config::max_levels, bm);
 
     // Inicijalizuj prvu (aktivnu) Memtable
     memtables_.reserve(N_);
@@ -148,7 +148,6 @@ void MemtableManager::flushOldest() {
     }
 }
 
-// (Milan kaze) NAPOMENA: OVO TREBA PREBACITI U LSM MANAGER DEO (vedran pita zasto??)
 std::optional<std::string> MemtableManager::get(const std::string& key, bool& deleted) const {
     // prvo pretrazujemo memtable, od najnovije ka najstarijoj
     deleted = false;

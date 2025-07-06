@@ -153,7 +153,9 @@ string log_directory = "../data/wal_logs";
 
 int main() {
     cout << "creating wal\n";
-    Wal w1;
+    Block_manager bm;
+
+    Wal w1(bm);
     
     vector<Record> ret1 = w1.get_all_records();
     for (Record r : ret1) {

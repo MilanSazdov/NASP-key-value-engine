@@ -42,7 +42,7 @@ private:
 	static composite_key current_block;
 	
 	// block manager for IO operations on disc
-	Block_manager bm;
+	Block_manager& bm;
 
 	// private attribute for segment size
 	int segment_size;
@@ -57,7 +57,7 @@ private:
 
 	void ensure_wal_folder_exists();
 public:
-	Wal();
+	Wal(Block_manager& bm);
 
 	void put(string key, string data);
 	void del(string key);

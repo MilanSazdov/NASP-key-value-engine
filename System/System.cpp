@@ -27,13 +27,14 @@ System::System() {
 
     std::cout << "Reading Config file ... \n";
 	Config::load_init_configuration();
+    Block_manager sharedInstanceBM;
 
     // --- Folder checks ---
     ensureDirectory(Config::data_directory);
 
     // --- WAL setup ---
     std::cout << "[Debug] Initializing WAL...\n";
-    wal = new Wal();
+    wal = new Wal(sharedInstanceBM);
 
     // --- Cache setup ---
     cout << "[Debug] Initializing Cache...\n";
@@ -42,7 +43,7 @@ System::System() {
 
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
-    memtable = new MemtableManager();
+    memtable = new MemtableManager(sharedInstanceBM);
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";

@@ -10,12 +10,12 @@
 
 namespace fs = std::filesystem;
 
-LSMManager::LSMManager(std::unique_ptr<CompactionStrategy> strategy, int max_levels)
+LSMManager::LSMManager(std::unique_ptr<CompactionStrategy> strategy, int max_levels, Block_manager& bm)
     : base_directory_(Config::data_directory),
 	manifest_path_(Config::data_directory + "/MANIFEST"),
     strategy_(std::move(strategy)),
     max_levels_(max_levels),
-    sstManager_(),
+    sstManager_(bm),
     stop_worker_(false),
     compaction_needed_(false) {
     levels_.resize(max_levels_);
