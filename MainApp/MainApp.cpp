@@ -53,7 +53,10 @@ void MainApp::handleDelete() {
 }
 
 void MainApp::handleGet() {
-
+    cout << "Enter key to get: ";
+    getline(cin, key);
+    system->del(key);
+    cout << "[DELETE] Marked as deleted: " << key << "\n";
 }
 
 void MainApp::run() {
