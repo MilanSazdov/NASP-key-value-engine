@@ -12,7 +12,7 @@ namespace fs = std::filesystem;
 
 using ull = unsigned long long;
 
-SSTManager::SSTManager(Block_manager& bm) : directory_(Config::data_directory), bm(bm) {
+SSTManager::SSTManager(Block_manager& bm) : directory_(Config::data_directory), bm(bm), block_size(Config::block_size) {
     cout << Config::data_directory << endl;
     readMap();
 }
