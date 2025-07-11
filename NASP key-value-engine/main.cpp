@@ -10,9 +10,9 @@
 */
 
 int main() {
-    
+ 
     MainApp app;
-    app.run();
+    app.test_case();
 
     return 0;
 }

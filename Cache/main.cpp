@@ -39,17 +39,14 @@ void get(string key) {
 void get2(composite_key key) {
 	cout << "Get (" << key.first << ", " << key.second << ") -> ";
 	vector<byte> val;
-	bool err;
+	bool exists;
 
-	val = c2.get(key, err);
+	val = c2.get(key, exists);
 
-
-
-	if (err) {
+	if (!exists) {
 		cout << "  doesnt exists\n";
 	}
 	else {
-
 		for (byte b : val) {
 			cout << (char)b;
 		}
@@ -57,6 +54,7 @@ void get2(composite_key key) {
 	}
 	cout << endl;
 }
+
 vector<byte> d1 = { (byte)75, (byte)101, (byte)121, (byte)49 };
 vector<byte> d2 = { (byte)75, (byte)101, (byte)121, (byte)50 };
 vector<byte> d3 = { (byte)75, (byte)101, (byte)121, (byte)51 };
@@ -119,8 +117,6 @@ void test2() {
 
 	c2.put(s5, d5);
 
-
-
 	get2(s1);
 	get2(s2);
 
@@ -168,7 +164,7 @@ void test_logic() {
 
 // Both test passed. (No bugs I hope :))
 int main() {
-
+	test2();
 	//test_logic();
 	//test_memory_leaks();
 

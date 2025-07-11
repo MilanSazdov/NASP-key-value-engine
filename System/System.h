@@ -11,6 +11,7 @@ public:
 	Wal* wal;
 	MemtableManager* memtable;
 	SSTManager* sstable;
+	Block_manager* sharedInstanceBM;
 	Cache<string>* cache;
 
 public:

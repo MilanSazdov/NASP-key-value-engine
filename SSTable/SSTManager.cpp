@@ -12,7 +12,7 @@ namespace fs = std::filesystem;
 
 using ull = unsigned long long;
 
-SSTManager::SSTManager(Block_manager& bm) : directory_(Config::data_directory), bm(bm), block_size(Config::block_size) {
+SSTManager::SSTManager(Block_manager& bmRef) : directory_(Config::data_directory), bm(bmRef), block_size(Config::block_size) {
     cout << Config::data_directory << endl;
     readMap();
 }
@@ -64,8 +64,11 @@ void SSTManager::writeMap() const {
 
     int i = 0;
     for(auto kv : key_map) {
-        payload.append(reinterpret_cast<const char*>(kv.first.size()), sizeof(kv.first.size()));
-        payload.append(kv.first);
+        cout << "kvfirstsize == " << kv.first.size() << endl;
+
+        size_t len = kv.first.size();  // get the size
+        payload.append(reinterpret_cast<const char*>(&len), sizeof(len));  // append size in bytes
+        payload.append(kv.first);  // append the string data
     }
 
     int block_id = 0;

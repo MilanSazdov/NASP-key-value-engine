@@ -14,6 +14,7 @@ struct pair_hash {
 class Block_manager {
 	int block_size;
 	Cache<composite_key, pair_hash>* c;
+
 	void fill_in_padding(vector<byte>& bad_data);
 
 public:

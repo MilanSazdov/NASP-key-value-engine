@@ -60,13 +60,37 @@ void MainApp::handleGet() {
     }
 }
 
+void MainApp::test_case() {
+    system->put("apple", "fruit");
+    system->put("car", "vehicle");
+    system->put("house", "building");
+    system->put("sky", "blue");
+    system->put("book", "read");
+    //new memtable
+
+    system->put("phone", "call");
+    system->put("water", "drink");
+    system->put("fire", "hot");
+    system->put("music", "sound");
+    system->put("cat", "animal");
+    //new memtable
+
+    system->put("moon", "night");
+    system->put("train", "transport");
+    system->put("light", "bright");
+    system->put("code", "program");
+    system->put("tree", "green");
+    // flush
+}
+
 void MainApp::run() {
     int choice;
-    cin.ignore();
+    //cin.ignore();
 
     while (true) {
         showMenu();
         cin >> choice;
+        cin.ignore();
 
         switch (choice) {
         case 1: handlePut(); break;

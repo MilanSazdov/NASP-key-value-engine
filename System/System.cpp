@@ -27,53 +27,41 @@ System::System() {
 
     std::cout << "Reading Config file ... \n";
 	Config::load_init_configuration();
-    Block_manager sharedInstanceBM;
+    sharedInstanceBM = new Block_manager();
 
     // --- Folder checks ---
     ensureDirectory(Config::data_directory);
 
     // --- WAL setup ---
     std::cout << "[Debug] Initializing WAL...\n";
-    wal = new Wal(sharedInstanceBM);
+    wal = new Wal(*sharedInstanceBM);
 
     // --- Cache setup ---
+
     cout << "[Debug] Initializing Cache...\n";
     cache = new Cache<string>();
     cout << "Cache initialized\n";
 
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
-    memtable = new MemtableManager(sharedInstanceBM);
+    memtable = new MemtableManager(*sharedInstanceBM);
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";
     std::vector<Record> records = wal->get_all_records();
-
-    /*std::cout << "[Debug] WAL Records:\n";
-    for (const Record& r : records) {
-        std::cout << "-----------------------------------\n";
-        std::cout << "Key       : " << r.key << "\n";
-        std::cout << "Value     : " << r.value << "\n";
-        std::cout << "Tombstone : " << static_cast<int>(r.tombstone) << "\n";
-        std::cout << "Timestamp : " << r.timestamp << "\n";
-        std::cout << "CRC       : " << r.crc << "\n";
-    }
-    std::cout << "-----------------------------------\n";*/
 
     std::cout << "[Debug] Loading records into Memtable...\n";
     memtable->loadFromWal(records);
 	//memtable->printAllData();
 
     std::cout << "[Debug] System initialization completed.\n";
-
-
-	//std::cout << "[System] Data from WAL loaded into the Memory table.\n";
 }
 
 System::~System() {
 	std::cout << "[SYSTEM] Shutting down system and freeing resources...\n";
-	delete wal;
+	//delete wal;
 	delete memtable;
+    //delete sharedInstanceBM;
 	std::cout << "[SYSTEM] System shutdown complete.\n";
 }
 
@@ -109,7 +97,6 @@ void System::put(const std::string& key, const std::string& value) {
     cout << "Put to memtable\n";
     memtable->put(key, value);
 
-    
     if (memtable->checkFlushIfNeeded()) {
         //prvo ubacujem sve recorde iz najstarijeg memtablea u cache.
         vector<Record> records = memtable->getRecordsFromOldest();

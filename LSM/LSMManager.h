@@ -19,7 +19,7 @@ class CompactionStrategy;
 class LSMManager {
 public:
     // konstruktor sada prima odabranu strategiju i maksimalan broj nivoa
-    LSMManager(std::unique_ptr<CompactionStrategy> strategy, int max_levels, Block_manager& bm);
+    LSMManager(std::unique_ptr<CompactionStrategy> strategy, int max_levels, SSTManager& sstRef);
 
     // destruktor se brine o bezbednom zaustavljanju pozadinske niti
     ~LSMManager();
@@ -47,7 +47,7 @@ private:
     std::string base_directory_;
 	std::string manifest_path_; // putanja do MANIFEST fajla
     int max_levels_;
-    SSTManager sstManager_;
+    SSTManager& sstManager_;
     std::unique_ptr<CompactionStrategy> strategy_;
 
     // Centralna struktura koja cuva stanje LSM stabla u memoriji

@@ -31,7 +31,7 @@ private:
 
 public:
     //SSTManager();
-    SSTManager(Block_manager& bm);
+    SSTManager(Block_manager& bmRef);
     ~SSTManager();
 
     optional<string> get(const std::string& key);

@@ -13,6 +13,7 @@ private:
 	void debugMemtable();
 
 public:
+	void test_case();	//just for testing
 
 	MainApp();
 	~MainApp();

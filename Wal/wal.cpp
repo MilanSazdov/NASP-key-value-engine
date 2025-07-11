@@ -287,7 +287,7 @@ void extract_data(vector<byte>& record, uint crc, Wal_record_type flag, ull time
 void Wal::write_record(string key, string value, byte tombstone) {
 	bool error;
 	vector<byte> bytes;
-	//cout << current_block.first << " " << current_block.second << endl;
+	//cout << "current block: " << current_block.first << " " << current_block.second << endl;
 	
 	bytes = bm.read_block(current_block, error);
 
