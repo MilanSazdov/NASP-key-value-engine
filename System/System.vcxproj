@@ -155,6 +155,9 @@
     <ProjectReference Include="..\Memtable\Memtable.vcxproj">
       <Project>{c45940cd-1736-4b0a-8801-edb702e39602}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\TokenBucket\TokenBucket.vcxproj">
+      <Project>{076c451d-7dc4-43a9-aec9-117576c3fd40}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\Wal\Wal.vcxproj">
       <Project>{5da9bc8b-8645-418b-9050-1b0e61e1121a}</Project>
     </ProjectReference>
