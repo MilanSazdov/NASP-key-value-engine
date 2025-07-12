@@ -140,6 +140,8 @@ void System::loadTokenBucket() {
             std::cout << "[RATE LIMIT] State loaded successfully from key: " << RATE_LIMIT_KEY << "\n";
         }
         else {
+            tokenBucket = new TokenBucket(Config::max_tokens, Config::refill_interval);
+
             std::cout << "[RATE LIMIT] No saved state found, using default configuration\n";
         }
 

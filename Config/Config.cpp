@@ -32,6 +32,9 @@ int Config::max_threshold = 32;
 bool Config::compress_sstable = true;
 int Config::index_sparsity = 64;
 
+int Config::max_tokens = 20;
+int Config::refill_interval = 10;
+
 int getValueFromLine(const std::string& line) {
     size_t colonPos = line.find(':');
     if (colonPos == std::string::npos) return -1;
@@ -68,7 +71,10 @@ void Config::debug() {
     std::cout << std::left << std::setw(30) << "  max_threshold:" << max_threshold << "\n";
 
     std::cout << std::left << std::setw(30) << "  wal_directory:" << wal_directory << "\n";
-    std::cout << std::left << std::setw(30) << "  data_directory:" << data_directory << "\n";
+    std::cout << std::left << std::setw(30) << "  data_directory:" << data_directory << "\n\n";
+
+    std::cout << std::left << std::setw(30) << "  max_tokens:" << max_tokens << "\n";
+    std::cout << std::left << std::setw(30) << "  refill_interval:" << refill_interval << "\n";
 }
 
 void remove_white_space_or_coma(std::string& s) {
@@ -152,6 +158,12 @@ void Config::load_init_configuration() {
       }
       else if (line.find("compress_sstable") != std::string::npos) {
         compress_sstable = (bool)getValueFromLine(line);
+      }
+      else if (line.find("max_tokens") != std::string::npos) {
+            max_tokens = getValueFromLine(line);
+      }
+      else if (line.find("refill_interval") != std::string::npos) {
+            refill_interval = getValueFromLine(line);
       }
     }
     debug();

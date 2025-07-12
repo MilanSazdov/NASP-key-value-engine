@@ -43,5 +43,9 @@ public:
 	static int index_sparsity;
 	static bool compress_sstable;
 
+	// Token Bucket
+	static int max_tokens;
+	static int refill_interval; // in seconds
+
 	static void load_init_configuration();
 };
