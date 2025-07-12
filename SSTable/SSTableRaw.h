@@ -58,6 +58,8 @@ public:
         range_scan(const std::string& startKey, const std::string& endKey);
      */
 
+	bool validate() override;
+
 protected:
     std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) override;
 

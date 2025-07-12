@@ -8,6 +8,7 @@
 
 #include "../Wal/wal.h"
 #include "../BloomFilter/BloomFilter.h"
+#include "../MerkleTree/MerkleTree.h"
 
 struct IndexEntry {
     std::string key;
@@ -74,6 +75,9 @@ public:
     std::vector<std::pair<std::string, std::string>>
         range_scan(const std::string& startKey, const std::string& endKey);
     */
+
+	virtual bool validate() = 0;
+
 protected:
     // putanje do fajlova
     int block_size;
@@ -90,13 +94,10 @@ protected:
 
     Block_manager* bmp;
 
-    std::vector<std::string> tree;
-    std::string rootHash;
+    std::string rootHash_; // Cuvamo samo korenski hash
+	std::vector<std::string> originalLeafHashes_; // Cuvamo originalne listove Merkle stabla
 
     size_t SPARSITY;
-
-
-    void buildMerkleTree(const std::vector<std::string>& leaves);
 
     // ----- pomoćne metode -----
 
@@ -122,5 +123,7 @@ protected:
 
 
     bool readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const;
+
+
 
 };
