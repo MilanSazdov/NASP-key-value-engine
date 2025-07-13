@@ -116,7 +116,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableManager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableFactory.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableSkipList.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableHashMap.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableRaw.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableComp.obj;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\Wal\x64\Debug\Wal.obj;$(SolutionDir)..\CMS\x64\Debug\cms.obj;$(SolutionDir)..\MurmurHash3\x64\Debug\MurmurHash3.obj;$(SolutionDir)..\LSM\x64\Debug\LSMManager.obj;$(SolutionDir)..\LSM\x64\Debug\LeveledCompaction.obj;$(SolutionDir)..\LSM\x64\Debug\MergeIterator.obj;$(SolutionDir)..\LSM\x64\Debug\SizeTieredCompaction.obj;$(SolutionDir)..\LSM\x64\Debug\SSTableIterator.obj;$(SolutionDir)..\Config\x64\Debug\Config.obj;$(SolutionDir)..\TokenBucket\x64\Debug\ToketBucket.obj;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableManager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableFactory.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableSkipList.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableHashMap.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableRaw.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableComp.obj;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\Wal\x64\Debug\Wal.obj;$(SolutionDir)..\CMS\x64\Debug\cms.obj;$(SolutionDir)..\MurmurHash3\x64\Debug\MurmurHash3.obj;$(SolutionDir)..\LSM\x64\Debug\LSMManager.obj;$(SolutionDir)..\LSM\x64\Debug\LeveledCompaction.obj;$(SolutionDir)..\LSM\x64\Debug\MergeIterator.obj;$(SolutionDir)..\LSM\x64\Debug\SizeTieredCompaction.obj;$(SolutionDir)..\LSM\x64\Debug\SSTableIterator.obj;$(SolutionDir)..\Config\x64\Debug\Config.obj;$(SolutionDir)..\TokenBucket\x64\Debug\ToketBucket.obj;$(SolutionDir)..\hyperloglog\x64\Debug\hll.obj;$(SolutionDir)..\SimHash\x64\Debug\simhash.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -141,14 +141,18 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="System.cpp" />
+    <ClCompile Include="TypesManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="System.h" />
-    <ClInclude Include="TypeManager.h" />
+    <ClInclude Include="TypesManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\block-manager\block-manager.vcxproj">
       <Project>{6228c74d-ae1e-441e-b7cb-f26bc73c89b6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\BloomFilter\BloomFilter.vcxproj">
+      <Project>{c925acb9-baa1-45e2-b9b9-7119c12f3540}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Cache\Cache.vcxproj">
       <Project>{bbe2b400-ec22-4474-bdef-8923446cf937}</Project>

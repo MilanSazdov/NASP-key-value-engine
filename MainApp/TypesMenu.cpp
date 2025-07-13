@@ -1,21 +1,30 @@
 #include "TypesMenu.h"
 #include <iostream>
 
-TypesMenu::TypesMenu(System* system) : system(system) {}
+using namespace std;
+
+TypesMenu::TypesMenu(System* sys) {
+	system = sys;
+    if (!system) {
+        throw invalid_argument("System pointer cannot be null");
+	} else{
+        typesManager = system->getTypesManager();
+    }
+}
 
 void TypesMenu::showMenu() {
     int choice;
     do {
-        std::cout << "\n========== Special Data Types ==========\n";
-        std::cout << "1. Bloom Filter Operations\n";
-        std::cout << "2. Count-Min Sketch Operations\n";
-        std::cout << "3. HyperLogLog Operations\n";
-        std::cout << "4. SimHash Operations\n";
-        std::cout << "5. Back to Main Menu\n";
-        std::cout << "======================================\n";
-        std::cout << "Enter choice: ";
-        std::cin >> choice;
-        std::cin.ignore();
+        cout << "\n========== Special Data Types ==========\n";
+        cout << "1. Bloom Filter Operations\n";
+        cout << "2. Count-Min Sketch Operations\n";
+        cout << "3. HyperLogLog Operations\n";
+        cout << "4. SimHash Operations\n";
+        cout << "5. Back to Main Menu\n";
+        cout << "======================================\n";
+        cout << "Enter choice: ";
+        cin >> choice;
+        cin.ignore();
 
         switch (choice) {
         case 1: handleBloomFilter(); break;
@@ -23,267 +32,298 @@ void TypesMenu::showMenu() {
         case 3: handleHyperLogLog(); break;
         case 4: handleSimHash(); break;
         case 5: return;
-        default: std::cout << "Invalid choice.\n";
+        default: cout << "Invalid choice.\n";
         }
     } while (choice != 5);
 }
 
 void TypesMenu::showBloomFilterMenu() {
-    std::cout << "\n========== Bloom Filter ==========\n";
-    std::cout << "1. New BF \n";
-    std::cout << "2. Delete BF \n";
-    std::cout << "3. BF Add \n";
-    std::cout << "4. BF HasKey \n";
-    std::cout << "5. Back\n";
-    std::cout << "================================\n";
+    cout << "\n========== Bloom Filter ==========\n";
+    cout << "1. New BF \n";
+    cout << "2. Delete BF \n";
+    cout << "3. BF Add \n";
+    cout << "4. BF HasKey \n";
+    cout << "5. Back\n";
+    cout << "================================\n";
 }
 
 void TypesMenu::handleBloomFilter() {
     int choice;
     do {
         showBloomFilterMenu();
-        std::cout << "Enter choice: ";
-        std::cin >> choice;
-        std::cin.ignore();
+        cout << "Enter choice: ";
+        cin >> choice;
+        cin.ignore();
 
         switch (choice) {
         case 1: {
-            std::string key;
+            string key;
             int n;
             double p;
 
-            std::cout << "Enter key: ";
-            std::getline(std::cin, key);
+            cout << "Enter key: ";
+            getline(cin, key);
 
             // TODO: Check for int values
-            std::cout << "Enter number of elements (n): ";
-            std::cin >> n;
+            cout << "Enter number of elements (n): ";
+            cin >> n;
 
-            std::cout << "Enter false positivity probability (p): ";
-            std::cin >> p;
-            std::cin.ignore(); // To consume the newline
+            cout << "Enter false positivity probability (p): ";
+            cin >> p;
+            cin.ignore(); // To consume the newline
 
-            // TODO: Create Bloom Filter with these parameters, check if it already exist
-            std::cout << "Bloom Filter created with key: " << key
-                << ", n: " << n << ", p: " << p << std::endl;
+			typesManager->createBloomFilter(key, n, p);
+            cout << "Bloom Filter created with key: " << key
+                << ", n: " << n << ", p: " << p << endl;
             break;
         }
         case 2: {
-            std::string key;
-            std::cout << "Enter key to delete: ";
-            std::getline(std::cin, key);
-            // TODO: Delete Bloom Filter
-            std::cout << "Bloom Filter with key: " << key << " deleted" << std::endl;
+            string key;
+            cout << "Enter key to delete: ";
+            getline(cin, key);
+
+			typesManager->deleteBloomFilter(key);
+            cout << "Bloom Filter with key: " << key << " deleted" << endl;
             break;
         }
         case 3: {
-            std::string key, value;
-            std::cout << "Enter key: ";
-            std::getline(std::cin, key);
-            std::cout << "Enter value to add: ";
-            std::getline(std::cin, value);
-            // TODO: Add value to Bloom Filter with the given key
+            string key, value;
+            cout << "Enter key: ";
+            getline(cin, key);
+            cout << "Enter value to add: ";
+            getline(cin, value);
+
+			typesManager->addToBloomFilter(key, value);
+			cout << "Value '" << value << "' added to Bloom Filter '" << key << "'.\n";
             break;
         }
         case 4: {
-            std::string key, value;
-            std::cout << "Enter key: ";
-            std::getline(std::cin, key);
-            std::cout << "Enter value to check: ";
-            std::getline(std::cin, value);
-            // TODO: Check if value exists in Bloom Filter with the given key
+            string key, value;
+            cout << "Enter key: ";
+            getline(cin, key);
+            cout << "Enter value to check: ";
+            getline(cin, value);
+
+			bool exist =  typesManager->hasKeyInBloomFilter(key, value);
+            cout << "Value '" << value << "' is "
+				<< (exist ? "present" : "not present") << " in Bloom Filter '" << key << "'.\n";
             break;
         }
         case 5: return;
-        default: std::cout << "Invalid choice.\n";
+        default: cout << "Invalid choice.\n";
         }
     } while (choice != 5);
 }
 
 void TypesMenu::showCountMinSketchMenu() {
-    std::cout << "\n========== Count-Min Sketch ==========\n";
-    std::cout << "1. New CMS \n";
-    std::cout << "2. Delete CMS\n";
-    std::cout << "3. CMS Add \n";
-    std::cout << "4. CMS Get \n";
-    std::cout << "5. Back\n";
-    std::cout << "======================================\n";
+    cout << "\n========== Count-Min Sketch ==========\n";
+    cout << "1. New CMS \n";
+    cout << "2. Delete CMS\n";
+    cout << "3. CMS Add \n";
+    cout << "4. CMS Get \n";
+    cout << "5. Back\n";
+    cout << "======================================\n";
 }
 
 void TypesMenu::handleCountMinSketch() {
     int choice;
     do {
         showCountMinSketchMenu();
-        std::cout << "Enter choice: ";
-        std::cin >> choice;
-        std::cin.ignore();
+        cout << "Enter choice: ";
+        cin >> choice;
+        cin.ignore();
         switch (choice) {
         case 1:
         {
-            std::string key;
+            string key;
             double epsilon, delta;
-            std::cout << "Enter key: ";
-            std::getline(std::cin, key);
-            std::cout << "Enter epsilon: ";
-            std::cin >> epsilon;
-            std::cout << "Enter delta: ";
-            std::cin >> delta;
-            std::cin.ignore(); // To consume the newline
+            cout << "Enter key: ";
+            getline(cin, key);
+            cout << "Enter epsilon: ";
+            cin >> epsilon;
+            cout << "Enter delta: ";
+            cin >> delta;
+            cin.ignore(); 
 
-            std::cout << "Count-Min Sketch created with key: " << key
-                << ", epsilon: " << epsilon << ", delta: " << delta << std::endl;
 
-            // TODO: Create Count-Min Sketch with these parameters, check if it already exists
+            typesManager->createCountMinSketch(key, epsilon, delta);
+            cout << "Count-Min Sketch created with key: " << key
+                << ", epsilon: " << epsilon << ", delta: " << delta << endl;
             break;
         }
         case 2: {
-            std::string key;
-            std::cout << "Enter key to delete: ";
-            std::getline(std::cin, key);
+            string key;
+            cout << "Enter key to delete: ";
+            getline(cin, key);
 
-            std::cout << "Count-Min Sketch with key: " << key << " deleted" << std::endl;
-
-            // TODO: Delete Count-Min Sketch    
+			typesManager->deleteCountMinSketch(key);
+            cout << "Count-Min Sketch with key: " << key << " deleted" << endl;
             break;
         }
         case 3: {
-            std::string key, value;
-            std::cout << "Enter key: ";
-            std::getline(std::cin, key);
-            std::cout << "Enter value to add: ";
-            std::getline(std::cin, value);
+            string key, value;
+            cout << "Enter key: ";
+            getline(cin, key);
+            cout << "Enter value to add: ";
+            getline(cin, value);
 
-            // TODO: Add value to Count-Min Sketch with the given key
+			typesManager->addToCountMinSketch(key, value);
+			cout << "Value '" << value << "' added to Count-Min Sketch '" << key << "'.\n";
             break;
         }
         case 4: {
-            std::string key, value;
-            std::cout << "Enter key: ";
-            std::getline(std::cin, key);
-            std::cout << "Enter value to get: ";
-            std::getline(std::cin, value);
+            string key, value;
+            cout << "Enter key: ";
+            getline(cin, key);
+            cout << "Enter value to get: ";
+            getline(cin, value);
 
-            // TODO: Get value from Count-Min Sketch with the given key
+			auto frequency = typesManager->getFromCountMinSketch(key, value);
+            if (frequency.has_value()) {
+                cout << "Estimated frequency of '" << value << "' in Count-Min Sketch '" << key << "': "
+                     << frequency.value() << endl;
+            } else {
+                cout << "Value '" << value << "' not found in Count-Min Sketch '" << key << "'.\n";
+			}
             break;
         }
         case 5: return;
-        default: std::cout << "Invalid choice.\n";
+        default: cout << "Invalid choice.\n";
         }
     } while (choice != 5);
 }
 
 void TypesMenu::showHyperLogLogMenu() {
-    std::cout << "\n========== HyperLogLog ==========\n";
-    std::cout << "1. New HLL\n";
-    std::cout << "2. Delete HLL\n";
-    std::cout << "3. HLL Add\n";
-    std::cout << "4. HLL Estimate\n";
-    std::cout << "5. Back\n";
-    std::cout << "==================================\n";
+    cout << "\n========== HyperLogLog ==========\n";
+    cout << "1. New HLL\n";
+    cout << "2. Delete HLL\n";
+    cout << "3. HLL Add\n";
+    cout << "4. HLL Estimate\n";
+    cout << "5. Back\n";
+    cout << "==================================\n";
 }
 
 void TypesMenu::handleHyperLogLog() {
     int choice;
     do {
         showHyperLogLogMenu();
-        std::cout << "Enter choice: ";
-        std::cin >> choice;
-        std::cin.ignore();
+        cout << "Enter choice: ";
+        cin >> choice;
+        cin.ignore();
         switch (choice) {
         case 1: {
-            std::string key;
+            string key;
             int p;
-            std::cout << "Enter key: ";
-            std::getline(std::cin, key);
-            std::cout << "Enter precision (p): ";
-            std::cin >> p;
-            std::cin.ignore(); // To consume the newline
+            cout << "Enter key: ";
+            getline(cin, key);
+            cout << "Enter precision (p): ";
+            cin >> p;
+            cin.ignore(); // To consume the newline
 
-            std::cout << "HyperLogLog created with key: " << key << ", p: " << p << std::endl;
-            // TODO: Create HyperLogLog with these parameters, check if it already exists
+			typesManager->createHyperLogLog(key, p);
+            cout << "HyperLogLog created with key: " << key << ", p: " << p << endl;
             break;
         }
         case 2: {
-            std::string key;
-            std::cout << "Enter key to delete: ";
-            std::getline(std::cin, key);
+            string key;
+            cout << "Enter key to delete: ";
+            getline(cin, key);
 
-            std::cout << "HyperLogLog with key: " << key << " deleted" << std::endl;
-            // TODO: Delete HyperLogLog
+			typesManager->deleteHyperLogLog(key);
+            cout << "HyperLogLog with key: " << key << " deleted" << endl;
 
             break;
         }
         case 3: {
-            std::string key, value;
-            std::cout << "Enter key: ";
-            std::getline(std::cin, key);
-            std::cout << "Enter value to add: ";
-            std::getline(std::cin, value);
+            string key, value;
+            cout << "Enter key: ";
+            getline(cin, key);
+            cout << "Enter value to add: ";
+            getline(cin, value);
 
-            // TODO: Add value to HyperLogLog with the given key
+			typesManager->addToHyperLogLog(key, value);
+			cout << "Value '" << value << "' added to HyperLogLog '" << key << "'.\n";
             break;
         }
         case 4: {
-            std::string key;
-            std::cout << "Enter key to estimate: ";
-            std::getline(std::cin, key);
+            string key;
+            cout << "Enter key to estimate: ";
+            getline(cin, key);
 
-            // TODO: Estimate cardinality of HyperLogLog with the given key
+			auto cardinality = typesManager->estimateHyperLogLog(key);
+            if (cardinality.has_value()) {
+                cout << "Estimated cardinality of HyperLogLog '" << key << "': "
+                     << cardinality.value() << endl;
+            } else {
+                cout << "HyperLogLog with key '" << key << "' does not exist.\n";
+			}
+
             break;
         }
         case 5: return;
-        default: std::cout << "Invalid choice.\n";
+        default: cout << "Invalid choice.\n";
         }
     } while (choice != 5);
 }
 
 void TypesMenu::showSimHashMenu() {
-    std::cout << "\n========== SimHash ==========\n";
-    std::cout << "1. SH Add Fingerprint\n";
-    std::cout << "2. SH Delete Fingerprint\n";
-    std::cout << "3. SH Get Hamming Distance\n";
-    std::cout << "4. Back\n";
-    std::cout << "=============================\n";
+    cout << "\n========== SimHash ==========\n";
+    cout << "1. SH Add Fingerprint\n";
+    cout << "2. SH Delete Fingerprint\n";
+    cout << "3. SH Get Hamming Distance\n";
+    cout << "4. Back\n";
+    cout << "=============================\n";
 }
 
 void TypesMenu::handleSimHash() {
     int choice;
     do {
         showSimHashMenu();
-        std::cout << "Enter choice: ";
-        std::cin >> choice;
-        std::cin.ignore();
+        cout << "Enter choice: ";
+        cin >> choice;
+        cin.ignore();
         switch (choice) {
         case 1: {
-            std::string key, text;
-            std::cout << "Enter key: ";
-            std::getline(std::cin, key);
-            std::cout << "Enter text to add: ";
-            std::getline(std::cin, text);
+            string key, text;
+            cout << "Enter key: ";
+            getline(cin, key);
+            cout << "Enter text to add: ";
+            getline(cin, text);
 
-            // TODO: Add fingerprint to SimHash with the given key
+            typesManager->addSimHashFingerprint(key, text);
+            cout << "Fingerprint for key '" << key << "' added successfully.\n";
             break;
         }
         case 2: {
-            std::string key;
-            std::cout << "Enter key to delete: ";
-            std::getline(std::cin, key);
+            string key;
+            cout << "Enter key to delete: ";
+            getline(cin, key);
 
-            // TODO: Delete fingerprint from SimHash with the given key
+            typesManager->deleteSimHashFingerprint(key);
+            cout << "Fingerprint with key: " << key << " deleted" << endl;
             break;
         }
         case 3: {
-            std::string key1, key2;
-            std::cout << "Enter first key: ";
-            std::getline(std::cin, key1);
-            std::cout << "Enter second key: ";
-            std::getline(std::cin, key2);
+            string key1, key2;
+            cout << "Enter first key: ";
+            getline(cin, key1);
+            cout << "Enter second key: ";
+            getline(cin, key2);
 
-            // TODO: Get Hamming distance between fingerprints of the two keys
+            auto distance = typesManager->getHammingDistance(key1, key2);
+            if (distance.has_value()) {
+                cout << "Hamming distance between '" << key1 << "' and '" << key2 << "': "
+                    << distance.value() << endl;
+            }
+            else {
+                cout << "One or both fingerprints do not exist.\n";
+                break;
+            }
+
             break;
         }
         case 4: return;
-        default: std::cout << "Invalid choice.\n";
+        default: cout << "Invalid choice.\n";
         }
-    } while (choice != 4);
+        } while (choice != 4);
 }

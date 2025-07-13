@@ -60,6 +60,10 @@ System::System() : requestCounter(0) {
     std::cout << "[Debug] Loading Rate Limiter state...\n";
     loadTokenBucket();
 
+	// --- TypesManager setup ---
+	std::cout << "[Debug] Initializing TypesManager...\n";
+	typesManager = new TypesManager(this);
+
     std::cout << "[Debug] System initialization completed.\n";
 }
 
@@ -74,6 +78,10 @@ System::~System() {
     delete tokenBucket;
 
 	std::cout << "[SYSTEM] System shutdown complete.\n";
+}
+
+TypesManager* System::getTypesManager() {
+    return typesManager;
 }
 
 bool System::checkRateLimit() {

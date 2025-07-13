@@ -1,10 +1,11 @@
 #pragma once
 
+//#include "TypesManager.h"
 #include "System.h"
 
 class TypesMenu {
 public:
-    explicit TypesMenu(System* system);
+    TypesMenu(System* system);
 
     void showMenu();
     void handleBloomFilter();
@@ -14,6 +15,7 @@ public:
 
 private:
     System* system;
+    TypesManager* typesManager;
 
     void showBloomFilterMenu();
     void showCountMinSketchMenu();

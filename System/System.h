@@ -4,6 +4,7 @@
 #include "wal.h"
 #include "MemtableManager.h"
 #include "Config.h"
+#include "TypesManager.h"
 #include "../TokenBucket/TokenBucket.h"
 
 class System {
@@ -15,6 +16,7 @@ public:
 	Block_manager* sharedInstanceBM;
 	Cache<string>* cache;
 	TokenBucket* tokenBucket;
+	TypesManager* typesManager;
 
 public:
 	System();
@@ -24,6 +26,8 @@ public:
 	void put(const std::string& key, const std::string& value);
 	void del(const std::string& key);
 	std::optional<std::string> get(const std::string& key);
+
+	TypesManager* getTypesManager();
 
 	void debugWal() const;
 	void debugMemtable() const;
