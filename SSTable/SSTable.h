@@ -35,13 +35,17 @@ public:
         const std::string& filterFile,
         const std::string& summaryFile,
         const std::string& metaFile,
-        Block_manager* bmp): 
+        Block_manager* bmp,
+        bool is_single_file,
+        bool is_compressed): 
         dataFile_(dataFile),
         indexFile_(indexFile),
         filterFile_(filterFile),
         summaryFile_(summaryFile),
         metaFile_(metaFile), 
         bmp(bmp),
+		is_single_file_mode_(is_single_file),
+		is_compressed_(is_compressed),
         block_size(Config::block_size),
         SPARSITY(Config::index_sparsity)
         {
@@ -86,6 +90,9 @@ protected:
     std::string filterFile_;
     std::string summaryFile_;
     std::string metaFile_;
+
+    bool is_single_file_mode_;
+    bool is_compressed_;
 
     std::vector<IndexEntry> index_;
     Summary summary_;

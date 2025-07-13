@@ -42,6 +42,7 @@ public:
 	// SSTable
 	static int index_sparsity;
 	static bool compress_sstable;
+	static bool sstable_single_file;
 
 	static void load_init_configuration();
 };

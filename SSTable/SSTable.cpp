@@ -1,4 +1,4 @@
-#include "SSTable.h"
+﻿#include "SSTable.h"
 
 void SSTable::build(std::vector<Record>& records)
 {
@@ -7,43 +7,76 @@ void SSTable::build(std::vector<Record>& records)
         return;
     }
 
-    index_ = writeDataMetaFiles(records);
+	std::sort(records.begin(), records.end(),
+		[](const Record& a, const Record& b) { return a.key < b.key; });
 
-    BloomFilter bf(records.size(), 0.01);
-    for (const auto& r : records) {
-        bf.add(r.key);
+    if (is_single_file_mode_) {
+        std::cout << "[SSTable] Započinjem build u SINGLE-FILE modu..." << std::endl;
+
+        std::stringstream data_stream, index_stream, summary_stream, filter_stream, meta_stream;
+
+		index_ = writeDataToBuffer(records, data_stream);
+        std::vector<IndexEntry> full_index = writeIndexToBuffer(index_stream);
+
+        bloom_ = BloomFilter(records.size(), 0.01);
+        for (const auto& r : records) bloom_.add(r.key);
+        writeBloomToBuffer(filter_stream);
+
+        buildSummary(full_index);
+        writeSummaryToBuffer(summary_stream);
+
+        std::vector<std::string> data_for_merkle;
+        for (const auto& r : records) data_for_merkle.push_back(r.key + r.value);
+        MerkleTree mt(data_for_merkle);
+        rootHash_ = mt.getRootHash();
+        originalLeafHashes_ = mt.getLeaves();
+        writeMetaToBuffer(meta_stream);
+
+        // Ovde treba sklapanje u jedan veliki payload i upisivanje na disk
+        // Dolazi logika za TOC i pisanje preko Block Managera
     }
-    bloom_ = bf;
+    else {
+        std::cout << "[SSTable] Započinjem build u MULTI-FILE modu..." << std::endl;
 
-    // Index u fajl
-    std::vector<IndexEntry> summaryAll = writeIndexToFile();
 
-    summary_.summary.reserve(summaryAll.size() / SPARSITY + 1);
+        index_ = writeDataMetaFiles(records);
 
-    for (size_t i = 0; i < summaryAll.size(); i += SPARSITY) {
-        summary_.summary.push_back(summaryAll[i]);
+        BloomFilter bf(records.size(), 0.01);
+        for (const auto& r : records) {
+            bf.add(r.key);
+        }
+        bloom_ = bf;
+
+        // Index u fajl
+        std::vector<IndexEntry> summaryAll = writeIndexToFile();
+
+        summary_.summary.reserve(summaryAll.size() / SPARSITY + 1);
+
+        for (size_t i = 0; i < summaryAll.size(); i += SPARSITY) {
+            summary_.summary.push_back(summaryAll[i]);
+        }
+        if (!summaryAll.empty() &&
+            ((summaryAll.size() - 1) % SPARSITY) != 0) {
+            summary_.summary.push_back(summaryAll.back());
+        }
+
+        if (!summaryAll.empty()) {
+            auto minEntry = std::min_element(
+                summaryAll.begin(), summaryAll.end(),
+                [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
+            auto maxEntry = std::max_element(
+                summaryAll.begin(), summaryAll.end(),
+                [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
+
+            summary_.min = minEntry->key;
+            summary_.max = maxEntry->key;
+        }
+
+        // Bloom, meta, summary u fajl
+        writeBloomToFile();
+        writeSummaryToFile();
+        writeMetaToFile();
     }
-    if (!summaryAll.empty() &&
-        ((summaryAll.size() - 1) % SPARSITY) != 0) {
-        summary_.summary.push_back(summaryAll.back());
-    }
-
-    if (!summaryAll.empty()) {
-        auto minEntry = std::min_element(
-            summaryAll.begin(), summaryAll.end(),
-            [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-        auto maxEntry = std::max_element(
-            summaryAll.begin(), summaryAll.end(),
-            [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-
-        summary_.min = minEntry->key;
-        summary_.max = maxEntry->key;
-    }
-
-    // Bloom, meta, summary u fajl
-    writeBloomToFile();
-    writeSummaryToFile();
-    writeMetaToFile();
 
     std::cout << "[SSTable] build: upisano " << records.size()
         << " zapisa u " << dataFile_ << ".\n";

@@ -143,6 +143,7 @@
     <ClInclude Include="SSTable.h" />
     <ClInclude Include="SSTableComp.h" />
     <ClInclude Include="SSTableRaw.h" />
+    <ClInclude Include="SSTableSingleFile.h" />
     <ClInclude Include="SSTManager.h" />
   </ItemGroup>
   <ItemGroup>
@@ -163,6 +164,7 @@
     <ClCompile Include="SSTable.cpp" />
     <ClCompile Include="SSTableComp.cpp" />
     <ClCompile Include="SSTableRaw.cpp" />
+    <ClCompile Include="SSTableSingleFile.cpp" />
     <ClCompile Include="SSTableTest.cpp" />
     <ClCompile Include="SSTManager.cpp" />
   </ItemGroup>
