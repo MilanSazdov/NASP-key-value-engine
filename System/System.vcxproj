@@ -160,6 +160,9 @@
     <ProjectReference Include="..\Memtable\Memtable.vcxproj">
       <Project>{c45940cd-1736-4b0a-8801-edb702e39602}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\simhash\simhash.vcxproj">
+      <Project>{78e45c51-cbcb-4a2d-85cd-044e20dc9743}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\TokenBucket\TokenBucket.vcxproj">
       <Project>{076c451d-7dc4-43a9-aec9-117576c3fd40}</Project>
     </ProjectReference>

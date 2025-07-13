@@ -136,6 +136,11 @@
   <ItemGroup>
     <ClInclude Include="cache.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Config\Config.vcxproj">
+      <Project>{7b9abda1-acc1-45dd-b7eb-ad59512ddea9}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

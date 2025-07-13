@@ -151,6 +151,9 @@
     <ProjectReference Include="..\CMS\CMS.vcxproj">
       <Project>{a440936e-9b40-409f-8ccb-2870acc8af8f}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\hyperloglog\hyperloglog.vcxproj">
+      <Project>{c305a871-ab18-4136-889f-5f453477c26a}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\MerkleTree\MerkleTree.vcxproj">
       <Project>{8d9bd6ce-9ff7-4514-91c8-da81f2a162e4}</Project>
     </ProjectReference>
