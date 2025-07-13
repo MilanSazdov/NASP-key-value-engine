@@ -137,6 +137,9 @@
     <ProjectReference Include="..\Cache\Cache.vcxproj">
       <Project>{bbe2b400-ec22-4474-bdef-8923446cf937}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Config\Config.vcxproj">
+      <Project>{7b9abda1-acc1-45dd-b7eb-ad59512ddea9}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="block-manager.cpp" />

@@ -15,7 +15,6 @@ int main() {
         // Provera dokaza
         bool isValid = MerkleTree::verifyProof(tree.getRootHash(), target, proof);
         std::cout << "Provera dokaza za '" << target << "': " << (isValid ? "Validno" : "Nevalidno") << std::endl;
-
     }
     catch (const std::exception& e) {
         std::cerr << "Greška: " << e.what() << std::endl;
