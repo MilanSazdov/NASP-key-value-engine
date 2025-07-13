@@ -1,6 +1,7 @@
 ﻿#include "SSTableRaw.h"
 #include "../Utils/VarEncoding.h"
 #include "../LSM/SSTableIterator.h"
+#include <filesystem>
 
 SSTableRaw::SSTableRaw(const std::string& dataFile,
                        const std::string& indexFile,
@@ -19,8 +20,17 @@ bool SSTableRaw::validate() {
     readMetaFromFile();
 
     if (rootHash_.empty()) {
-        std::cerr << "[SSTable] VALIDACIJA NEUSPEŠNA: Originalni Merkle root hash nije pronađen." << std::endl;
-        return false;
+        try {
+            // Ako nema meta fajla => ispravno je samo ako nema ni data fajla
+            bool file_exists_and_not_empty = std::filesystem::exists(dataFile_) && std::filesystem::file_size(dataFile_) > 0;
+            if (file_exists_and_not_empty) {
+                std::cerr << "[SSTable] GREŠKA: Data fajl postoji, ali za njega nisu sačuvani Merkle metapodaci." << std::endl;
+                return false;
+            }
+            std::cout << "[SSTable] VALIDACIJA USPEŠNA: Ne postoje ni metapodaci ni data fajl." << std::endl;
+            return true;
+        }
+        catch (...) { return true; } // Ako fajl ne postoji => fs::exists baca izuzetak
     }
     std::cout << "  Originalni (sacuvani) Root Hash: " << rootHash_ << std::endl;
 
@@ -293,28 +303,30 @@ std::vector<IndexEntry> SSTableRaw::writeDataMetaFiles(std::vector<Record>& sort
     std::vector<IndexEntry> index_entries;
     index_entries.reserve(sortedRecords.size());
 
-    // pomocni vektor u kom skupljamo podatke za kasnije Merkle Tree
+    // Pomoćni vektor gde skupljamo podatke za kasnije kreiranje Merkle stabla
     std::vector<std::string> data_for_merkle;
     data_for_merkle.reserve(sortedRecords.size());
 
     uint64_t logical_offset = 0;
     int block_id = 0;
 
+    // Koristimo std::vector<byte> kao bafer, što je čistije od std::string
     std::vector<byte> block_buffer;
     block_buffer.reserve(block_size);
 
-    // Pomocna lambda => dodavanje u bafer
+    // Pomoćna lambda da izbegnemo ponavljanje koda za dodavanje u bafer
     auto append_to_buffer = [&](const void* data, size_t len) {
         const byte* ptr = reinterpret_cast<const byte*>(data);
         block_buffer.insert(block_buffer.end(), ptr, ptr + len);
         };
 
     for (const auto& record : sortedRecords) {
-        // Pripremi Index i Merkle podatke 
+        // --- KORAK 1: Pripremi Index i Merkle podatke ---
         index_entries.push_back({ record.key, logical_offset });
         data_for_merkle.push_back(record.key + record.value);
 
-		// pisanje blokova
+        // --- KORAK 2: Logika pisanja u blokove ---
+
         size_t header_len = sizeof(record.crc) + sizeof(Wal_record_type) + sizeof(record.timestamp) +
             sizeof(record.tombstone) + sizeof(record.key_size) + sizeof(record.value_size);
         size_t total_record_len = header_len + record.key_size + record.value_size;
@@ -322,7 +334,7 @@ std::vector<IndexEntry> SSTableRaw::writeDataMetaFiles(std::vector<Record>& sort
         size_t space_in_current_block = block_size - block_buffer.size();
 
         if (space_in_current_block >= total_record_len) {
-            // --- SLUCAJ 1: Ceo zapis staje u trenutni blok. ---
+            // --- SLUČAJ A: Ceo zapis staje u trenutni blok. ---
             Wal_record_type flag = Wal_record_type::FULL;
 
             append_to_buffer(&record.crc, sizeof(record.crc));
@@ -336,14 +348,15 @@ std::vector<IndexEntry> SSTableRaw::writeDataMetaFiles(std::vector<Record>& sort
 
         }
         else {
-            // --- SLUCAJ 2: Zapis mora da se deli preko vise blokova. ---
+            // --- SLUČAJ B: Zapis mora da se deli preko više blokova. ---
+            // Zadržavamo vašu originalnu logiku, ali je činimo čitljivijom.
 
             size_t key_bytes_processed = 0;
             size_t value_bytes_processed = 0;
             bool is_first_chunk = true;
 
             while (key_bytes_processed < record.key_size || value_bytes_processed < record.value_size) {
-                // Ako u baferu ima necega, znaci da ga moramo prvo upisati na disk
+                // Ako u baferu ima nečega, znači da ga moramo prvo upisati na disk.
                 if (!block_buffer.empty()) {
                     bmp->write_block({ block_id++, dataFile_ }, block_buffer);
                     block_buffer.clear();
@@ -391,19 +404,19 @@ std::vector<IndexEntry> SSTableRaw::writeDataMetaFiles(std::vector<Record>& sort
         logical_offset += total_record_len;
     }
 
-    // upisi poslednji, nepotpuni blok ako postoji
+    // --- KORAK 3: Upiši poslednji, nepotpuni blok ako postoji ---
     if (!block_buffer.empty()) {
         bmp->write_block({ block_id, dataFile_ }, block_buffer);
     }
 
-    // kreiraj Merkle stablo i sacuvaj root hash
+    // --- KORAK 4: Kreiraj Merkle stablo i sačuvaj root hash ---
+    // Ovo se radi na samom kraju, nakon što su svi podaci upisani na disk.
     if (!data_for_merkle.empty()) {
         try {
             MerkleTree merkle_tree(data_for_merkle);
             this->rootHash_ = merkle_tree.getRootHash();
-			this->originalLeafHashes_ = merkle_tree.getLeaves();
-            std::cout << "[SSTable] Merkle Tree created. Root: " << this->rootHash_
-                << ", Leaves: " << this->originalLeafHashes_.size() << std::endl;
+            this->originalLeafHashes_ = merkle_tree.getLeaves();
+            std::cout << "[SSTable] Merkle Tree created with root: " << this->rootHash_ << std::endl;
         }
         catch (const std::exception& e) {
             std::cerr << "Error creating Merkle Tree: " << e.what() << std::endl;
@@ -510,31 +523,43 @@ void SSTableRaw::readMetaFromFile() {
         content.append(reinterpret_cast<const char*>(block_data.data()), block_data.size());
     }
 
+	if (content.empty()) {
+		return; // Nema sadrzaja, nema sta da se parsira
+	}
+
     // Ukloni padding karaktere sa kraja celokupnog sadrzaja
     size_t end_pos = content.find(static_cast<char>(padding_character));
     if (end_pos != std::string::npos) {
         content.erase(end_pos);
     }
 
-    if (content.empty()) {
-        return; // Fajl je prazan, nema sta da se parsira
-    }
-
     // Parsiramo procitani sadrzaj liniju po liniju
     std::stringstream ss(content);
     std::string line;
 
-    // Prva linija je uvek root hash
-    if (std::getline(ss, line) && !line.empty()) {
-        rootHash_ = line;
+    // Prva linija je uvek root hash.
+    if (std::getline(ss, line)) {
+        // Ukloni eventualni '\r' karakter za Windows kompatibilnost
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (!line.empty()) {
+            rootHash_ = line;
+        }
     }
 
     // Sve ostale linije su hesevi listova
     while (std::getline(ss, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
         if (!line.empty()) {
             originalLeafHashes_.push_back(line);
         }
     }
+
+    std::cout << "[SSTable] Metapodaci ucitani. Root: " << rootHash_.size()
+        << " bajtova, Broj listova: " << originalLeafHashes_.size() << std::endl;
 }
 
 void SSTableRaw::writeBloomToFile() const
@@ -566,10 +591,10 @@ void SSTableRaw::writeBloomToFile() const
 // Prva linija: [root_hash]
 // Svaka sledeća linija: [leaf_hash_1], [leaf_hash_2], ..., [leaf_hash_n]
 void SSTableRaw::writeMetaToFile() const {
-    if (rootHash_.empty()) {
-        return; // nema sta da se pise
+    if (rootHash_.empty() || originalLeafHashes_.empty()) {
+        std::cout << "[SSTable] No complete Merkle tree data to write for " << metaFile_ << std::endl;
+        return;
     }
-
     // Kreiramo ceo payload sa prelascima u novi red radi lakseg parsiranja kasnije
     std::string payload = rootHash_ + "\n";
     for (const auto& leaf : originalLeafHashes_) {

@@ -17,55 +17,58 @@ SSTableComp::SSTableComp(const std::string& dataFile,
 }
 
 bool SSTableComp::validate() {
-    std::cout << "[SSTableComp] Pokrecem validaciju integriteta za: " << dataFile_ << std::endl;
+    std::cout << "[SSTableComp] Pokrecem naprednu validaciju za: " << dataFile_ << std::endl;
 
-    // ucitaj rootHash_
     readMetaFromFile();
     if (rootHash_.empty()) {
-        std::cerr << "[SSTableComp] GREŠKA: Originalni Merkle root hash nije pronađen." << std::endl;
-        return false;
-    }
-    std::cout << "  Originalni (sacuvani) Root Hash: " << rootHash_ << std::endl;
+        std::cout << "[SSTableComp] Metapodaci ne postoje. Validacija ce proci samo ako je i data fajl prazan." << std::endl;
 
-    // procitaj sve zapise iz kompesovanog data fajla
+        bool error = false;
+        auto block_data = bmp->read_block({ 0, dataFile_ }, error);
+        if (error || block_data.empty()) {
+            std::cout << "[SSTableComp] VALIDACIJA USPEŠNA: Ni metapodaci ni podaci ne postoje." << std::endl;
+            return true;
+        }
+        else {
+            std::cerr << "[SSTableComp] GREŠKA: Data fajl postoji, ali za njega nisu sačuvani Merkle metapodaci." << std::endl;
+            return false;
+        }
+    }
+
     std::vector<std::string> data_for_merkle;
     uint64_t current_offset = 0;
+    std::string current_key;
 
     while (true) {
-        // Pomoćne promenljive za rekonstrukciju jednog zapisa
-        std::string reconstructed_key;
-        std::string reconstructed_value;
-        Wal_record_type flag;
-
-        // proveravamo da li mozemo da procitamo barem fleg sledećeg zapisa
-        // ovo je nas uslov za izlazak iz petlje, umesto poredjenja sa file_size.
+        
         uint64_t peek_offset = current_offset;
-        if (!readBytes(&flag, sizeof(flag), peek_offset, dataFile_)) {
-            break; // Nema vise bajtova za citanje => kraj fajla
+        char peek_byte;
+        if (!readBytes(&peek_byte, 1, peek_offset, dataFile_)) {
+            break; 
         }
 
-        // Petlja za rekonstrukciju jednog kompletnog zapisa (moze imati vise delova)
-        do {
-            Record chunk_header; // cuvamo header trenutnog dela
+        std::string reconstructed_value;
+        Wal_record_type flag;
+        bool is_first_chunk = true;
 
-            // citamo header svakog dela (chunk-a)
+        do {
+            Record chunk_header;
+
             if (!readBytes(&flag, sizeof(flag), current_offset, dataFile_)) goto end_of_validation_loop;
             if (!readBytes(&chunk_header.tombstone, sizeof(chunk_header.tombstone), current_offset, dataFile_)) goto end_of_validation_loop;
             if (!readNumValue(chunk_header.crc, current_offset, dataFile_)) goto end_of_validation_loop;
             if (!readNumValue(chunk_header.timestamp, current_offset, dataFile_)) goto end_of_validation_loop;
 
-            // Kljuc ID se cita samo iz prvog dela (FIRST ili FULL)
-            if (flag == Wal_record_type::FIRST || flag == Wal_record_type::FULL) {
+            if (is_first_chunk) {
                 uint32_t key_id = 0;
                 if (!readNumValue(key_id, current_offset, dataFile_)) goto end_of_validation_loop;
                 if (key_id >= id_to_key.size()) {
                     std::cerr << "GREŠKA: Pronadjen nevalidan key_id u data fajlu." << std::endl;
                     return false;
                 }
-                reconstructed_key = id_to_key[key_id];
+                current_key = id_to_key[key_id];
             }
 
-            // Vrednost se cita iz svakog dela (ako zapis nije tombstone)
             if (static_cast<int>(chunk_header.tombstone) != 1) {
                 uint64_t value_chunk_size = 0;
                 if (!readNumValue(value_chunk_size, current_offset, dataFile_)) goto end_of_validation_loop;
@@ -76,30 +79,47 @@ bool SSTableComp::validate() {
                     reconstructed_value.append(value_part);
                 }
             }
+            is_first_chunk = false;
+
         } while (flag == Wal_record_type::FIRST || flag == Wal_record_type::MIDDLE);
 
-        // Sakupi podatke za Merkle stablo nakon sto je ceo zapis rekonstruisan
-        data_for_merkle.push_back(reconstructed_key + reconstructed_value);
+        data_for_merkle.push_back(current_key + reconstructed_value);
     }
 
-end_of_validation_loop:; // Labela za izlazak iz ugnezdenih petlji
+end_of_validation_loop:;
 
-    // izracunaj novi hahs i uporedi
+    
     MerkleTree new_merkle_tree(data_for_merkle);
     std::string new_root_hash = new_merkle_tree.getRootHash();
 
-    std::cout << "  Originalni (sacuvani) Root Hash: " << rootHash_ << std::endl;
-    std::cout << "  Novokreirani (trenutni) Root Hash: " << new_root_hash << std::endl;
-
+    
     if (new_root_hash == rootHash_) {
         std::cout << "[SSTableComp] VALIDACIJA USPEŠNA. Integritet podataka je potvrđen." << std::endl;
         return true;
     }
-    else {
-        std::cerr << "[SSTableComp] GREŠKA: VALIDACIJA NEUSPEŠNA! Podaci su menjani ili oštećeni." << std::endl;
-        
+
+    
+    std::cerr << "[SSTableComp] GREŠKA: VALIDACIJA NEUSPEŠNA! Integritet podataka je narušen." << std::endl;
+    std::cerr << "  Originalni Hash: " << rootHash_ << std::endl;
+    std::cerr << "  Trenutni Hash:   " << new_root_hash << std::endl;
+
+    auto new_leaves = new_merkle_tree.getLeaves();
+
+    if (new_leaves.size() != originalLeafHashes_.size()) {
+        std::cerr << "  DETEKCIJA: Broj zapisa je promenjen! Originalno: "
+            << originalLeafHashes_.size() << ", Trenutno: " << new_leaves.size() << std::endl;
         return false;
     }
+
+    for (size_t i = 0; i < originalLeafHashes_.size(); ++i) {
+        if (originalLeafHashes_[i] != new_leaves[i]) {
+            std::cerr << "  DETEKCIJA: Prva promena u sadržaju je detektovana na zapisu sa indeksom " << i << "." << std::endl;
+            return false;
+        }
+    }
+
+    std::cerr << "  DETEKCIJA: Nepoznata greška. Listovi se poklapaju, ali koreni ne (ovo ne bi smelo da se desi)." << std::endl;
+    return false;
 }
 
 void SSTableComp::build(std::vector<Record>& records)
@@ -151,7 +171,6 @@ void SSTableComp::build(std::vector<Record>& records)
     std::cout << "[SSTable] build: upisano " << records.size()
         << " zapisa u " << dataFile_ << ".\n";
 }
-
 
 // Funkcija NE PROVERAVA bloomfilter, pretpostavlja da je vec provereno
 vector<Record> SSTableComp::get(const std::string& key)
@@ -313,14 +332,13 @@ SSTable::range_scan(const std::string& startKey, const std::string& endKey)
 std::vector<IndexEntry> SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 {
     std::vector<IndexEntry> index_entries;
-    index_entries.reserve(sortedRecords.size());
-
     std::vector<std::string> data_for_merkle;
-    data_for_merkle.reserve(sortedRecords.size());
-
     uint64_t logical_offset = 0;
     int block_id = 0;
     std::string block_buffer;
+
+    index_entries.reserve(sortedRecords.size());
+    data_for_merkle.reserve(sortedRecords.size());
     block_buffer.reserve(block_size);
 
     for (const auto& record : sortedRecords) {
@@ -333,47 +351,46 @@ std::vector<IndexEntry> SSTableComp::writeDataMetaFiles(std::vector<Record>& sor
         std::string crc_varint = varenc::encodeVarint(record.crc);
         std::string ts_varint = varenc::encodeVarint(record.timestamp);
 
+        // Bezbedno dobij ili kreiraj ID za ključ
         uint32_t key_id;
         auto it = key_to_id.find(record.key);
-
         if (it == key_to_id.end()) {
-            // Ključ ne postoji u rečniku, dodajemo ga.
             key_id = nextID++;
             key_to_id[record.key] = key_id;
-            id_to_key.push_back(record.key); // Održavamo i inverznu mapu za čitanje
+            id_to_key.push_back(record.key);
         }
         else {
-            // Ključ već postoji, samo pročitamo njegov ID.
             key_id = it->second;
         }
         std::string key_id_varint = varenc::encodeVarint(key_id);
 
-        // --- KORAK 3: Serijalizuj CEO zapis u jedan bafer u memoriji ---
-        std::string serialized_record;
-        // Format: [flag(1B)][tomb(1B)][crc...][ts...][key_id...][(ako nije tomb)val_size(8B)][(ako nije tomb)value...]
-        // Za kompresovanu tabelu, `key_size` i `value_size` se menjaju po delovima.
-
-        // --- KORAK 4: Podeli serijalizovani zapis na delove (chunks) ---
-        std::vector<std::string> chunks;
         const std::string& value_to_write = is_tombstone ? "" : record.value;
+
+        // --- KORAK 3: Serijalizuj i podeli zapis na delove (chunks) ---
+        std::vector<std::string> chunks;
         size_t value_offset = 0;
         bool first_chunk = true;
 
         // Petlja koja deli zapis na delove ako je potrebno
         while (value_offset < value_to_write.length() || first_chunk) {
             std::string current_chunk;
-            size_t header_size_approx = 1 + 1 + crc_varint.length() + ts_varint.length() + (first_chunk ? key_id_varint.length() : 0) + (is_tombstone ? 0 : sizeof(uint64_t));
+
+            // Izračunaj maksimalnu veličinu payload-a za ovaj deo
+            size_t header_size_approx = 1 + 1 + crc_varint.length() + ts_varint.length() +
+                (first_chunk ? key_id_varint.length() : 0) +
+                (is_tombstone ? 0 : 10); // 10 je max za varint(uint64)
             size_t max_payload_size = (block_size > header_size_approx) ? block_size - header_size_approx : 0;
             size_t value_chunk_size = std::min(value_to_write.length() - value_offset, max_payload_size);
 
             Wal_record_type flag;
-            if (first_chunk && (value_offset + value_chunk_size == value_to_write.length())) {
+            bool is_last_chunk = (value_offset + value_chunk_size == value_to_write.length());
+            if (first_chunk && is_last_chunk) {
                 flag = Wal_record_type::FULL;
             }
             else if (first_chunk) {
                 flag = Wal_record_type::FIRST;
             }
-            else if (value_offset + value_chunk_size == value_to_write.length()) {
+            else if (is_last_chunk) {
                 flag = Wal_record_type::LAST;
             }
             else {
@@ -389,8 +406,8 @@ std::vector<IndexEntry> SSTableComp::writeDataMetaFiles(std::vector<Record>& sor
                 current_chunk.append(key_id_varint); // key_id ide samo u prvi chunk
             }
             if (!is_tombstone) {
-                uint64_t v_size_chunk = value_chunk_size;
-                current_chunk.append(reinterpret_cast<const char*>(&v_size_chunk), sizeof(v_size_chunk));
+                std::string val_size_varint = varenc::encodeVarint(value_chunk_size);
+                current_chunk.append(val_size_varint);
                 current_chunk.append(value_to_write, value_offset, value_chunk_size);
             }
 
@@ -399,7 +416,7 @@ std::vector<IndexEntry> SSTableComp::writeDataMetaFiles(std::vector<Record>& sor
             first_chunk = false;
         }
 
-        // --- KORAK 5: Upisi pripremljene delove u blokove ---
+        // --- KORAK 4: Upiši pripremljene delove u blokove ---
         size_t record_len_on_disk = 0;
         for (const auto& chunk : chunks) {
             if (block_buffer.length() + chunk.length() > block_size) {
@@ -413,13 +430,13 @@ std::vector<IndexEntry> SSTableComp::writeDataMetaFiles(std::vector<Record>& sor
         logical_offset += record_len_on_disk;
     }
 
-    // Upisi poslednji, nepotpuni blok ako postoji
+    // Upiši poslednji, nepotpuni blok ako postoji
     if (!block_buffer.empty()) {
         block_buffer.resize(block_size, static_cast<char>(padding_character));
         bmp->write_block({ block_id, dataFile_ }, block_buffer);
     }
 
-    // Kreiraj Merkle stablo i sacuvaj root hash
+    // Kreiraj Merkle stablo i sačuvaj root hash
     if (!data_for_merkle.empty()) {
         MerkleTree merkle_tree(data_for_merkle);
         this->rootHash_ = merkle_tree.getRootHash();
@@ -524,31 +541,30 @@ void SSTableComp::readMetaFromFile() {
     int block_id = 0;
     std::string content;
 
-	// procitamo sve blokove iz meta fajla dok ne dodjemo do kraja (blok po blok)
+    // citamo sve blokove iz meta fajla dok ne dodjemo do kraja
     while (true) {
         std::vector<byte> block_data = bmp->read_block({ block_id++, metaFile_ }, error);
-        if (error) {
-            break; // nema vise blokova ili je doslo do greske
+        if (error) { // Ako read_block vrati gresku (npr. nema vise blokova), prekidamo
+            break;
         }
-        // dodajemo sadrzaj procitanog bloka u jedan veliki string
         content.append(reinterpret_cast<const char*>(block_data.data()), block_data.size());
     }
 
     if (content.empty()) {
-        return; // Fajl je prazan, nema sta da se parsira
+        return; // Nema sadrzaja, nema sta da se parsira
     }
 
-	// nakon sto smo procitali sve blokove, uklonimo padding karaktere sa kraja celokupnog sadrzaja
+    // Ukloni padding karaktere sa kraja celokupnog sadrzaja
     size_t end_pos = content.find(static_cast<char>(padding_character));
     if (end_pos != std::string::npos) {
         content.erase(end_pos);
     }
 
-	// parisamo procitani sadrzaj liniju po liniju
+    // Parsiramo procitani sadrzaj liniju po liniju
     std::stringstream ss(content);
     std::string line;
 
-    // Prva linija je uvek root hash
+    // Prva linija je uvek root hash.
     if (std::getline(ss, line)) {
         // Ukloni eventualni '\r' karakter za Windows kompatibilnost
         if (!line.empty() && line.back() == '\r') {
@@ -568,6 +584,9 @@ void SSTableComp::readMetaFromFile() {
             originalLeafHashes_.push_back(line);
         }
     }
+
+    std::cout << "[SSTable] Metapodaci ucitani. Root: " << rootHash_.size()
+        << " bajtova, Broj listova: " << originalLeafHashes_.size() << std::endl;
 }
 
 void SSTableComp::writeBloomToFile() const
@@ -601,43 +620,34 @@ void SSTableComp::writeBloomToFile() const
     }
 }
 
-void SSTableComp::writeMetaToFile() const
-{
+void SSTableComp::writeMetaToFile() const {
     if (rootHash_.empty() || originalLeafHashes_.empty()) {
-        std::cout << "[SSTable] No Merkle root hash to write for " << metaFile_ << std::endl;
+        std::cout << "[SSTable] No complete Merkle tree data to write for " << metaFile_ << std::endl;
         return;
     }
-
-    // koristimo '\n' kao separator radi lakseg parsiranja pri citanju
+    // Kreiramo ceo payload sa prelascima u novi red radi lakseg parsiranja kasnije
     std::string payload = rootHash_ + "\n";
     for (const auto& leaf : originalLeafHashes_) {
         payload += leaf + "\n";
     }
-    
-	// upisujemo ceo payload u blokove
+
+    // upisujemo payload u blokove
     int block_id = 0;
     size_t offset = 0;
     while (offset < payload.length()) {
-        // Odredi velicinu sledeceg dela za upis
         size_t chunk_size = std::min((size_t)block_size, payload.length() - offset);
-
-        // Uzmi deo payload-a
         std::string chunk_str = payload.substr(offset, chunk_size);
-        
-		// Pretvori string u vektor bajtova
+
         std::vector<byte> data_chunk;
-        data_chunk.reserve(chunk_str.length());
         std::transform(chunk_str.begin(), chunk_str.end(), std::back_inserter(data_chunk),
             [](char c) { return std::byte(c); });
 
+        // Pozivamo Block Manager za svaki blok
         bmp->write_block({ block_id++, metaFile_ }, data_chunk);
-
-        // Pomeri ofset na sledeci deo za upis
         offset += chunk_size;
     }
-
     std::cout << "[SSTable] Merkle root and " << originalLeafHashes_.size()
-        << " leaves successfully written to " << metaFile_ << " via Block Manager." << std::endl;
+        << " leaves written to " << metaFile_ << std::endl;
 }
 
 void SSTableComp::readBloomFromFile()

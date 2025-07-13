@@ -49,31 +49,6 @@ void SSTable::build(std::vector<Record>& records)
         << " zapisa u " << dataFile_ << ".\n";
 }
 
-
-void SSTable::buildMerkleTree(const std::vector<std::string>& leaves) {
-    tree.clear();
-
-    if (leaves.empty()) return;
-    std::hash<std::string> hasher;
-    std::vector<std::string> currentLevel = leaves;
-    while (currentLevel.size() > 1) {
-        std::vector<std::string> nextLevel;
-
-        for (size_t i = 0; i < currentLevel.size(); i += 2) {
-            std::string left = currentLevel[i];
-            std::string right = (i + 1 < currentLevel.size()) ? currentLevel[i + 1] : left;
-
-            nextLevel.push_back(std::to_string(hasher(left + right)));
-            tree.push_back(std::to_string(hasher(left + right)));
-
-        }
-        currentLevel = nextLevel;
-    }
-
-    rootHash = currentLevel.front();
-};
-
-
 bool SSTable::readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const
 {
     if(n==0) return true;
