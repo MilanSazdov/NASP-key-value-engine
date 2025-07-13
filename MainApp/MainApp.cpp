@@ -4,6 +4,7 @@ using namespace std;
 MainApp::MainApp() {
     std::cout << "[MainApp] Initializing Key-Value Engine...\n";
     system = new System();
+    typesMenu = new TypesMenu(system);
 }
 
 MainApp::~MainApp() {
@@ -25,7 +26,8 @@ void MainApp::showMenu() {
     std::cout << "1. PUT(key, value)   - Add or update a key-value pair\n";
     std::cout << "2. DELETE(key)       - Mark key as deleted\n";
     std::cout << "3. GET(key)          - (Not implemented yet)\n";
-    std::cout << "4. EXIT              - Exit program\n";
+    std::cout << "4. TYPES             - Types menu\n";
+    std::cout << "5. EXIT              - Exit program\n";
     std::cout << "======================================\n";
     std::cout << "Enter choice: ";
 }
@@ -96,7 +98,8 @@ void MainApp::run() {
         case 1: handlePut(); break;
         case 2: handleDelete(); break;
         case 3: handleGet(); break;
-        case 4:
+        case 4: typesMenu->showMenu(); break;
+        case 5:
             cout << "Exiting...\n";
             return;
         case 404:

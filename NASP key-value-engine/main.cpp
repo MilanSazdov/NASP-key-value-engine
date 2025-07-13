@@ -12,7 +12,7 @@
 int main() {
  
     MainApp app;
-    app.test_case();
+    app.run();
 
     return 0;
 }

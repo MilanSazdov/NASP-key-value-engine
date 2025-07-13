@@ -40,7 +40,7 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
@@ -132,9 +132,11 @@
   <ItemGroup>
     <ClCompile Include="MainApp.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="TypesMenu.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainApp.h" />
+    <ClInclude Include="TypesMenu.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\System\System.vcxproj">

@@ -2,12 +2,14 @@
 #include <iostream>
 #include <string>
 #include "System.h"
+#include "TypesMenu.h"
 
 class MainApp {
 
 // TODO: verovatno bi ovde (u ovaj projekat) bilo najbolje dodati Config klasu, pa je pozvati pre kreiranja system klase, i proslediti joj
 private:
 	System* system;
+	TypesMenu* typesMenu;
 
 	void debugWal();
 	void debugMemtable();
