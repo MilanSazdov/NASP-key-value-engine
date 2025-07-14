@@ -16,7 +16,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SkipList", "..\SkipList\Ski
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SSTable", "..\SSTable\SSTable.vcxproj", "{98DA3A64-2FBB-44DD-8F1A-E53990FC8985}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MerkleTree", "..\MerkleTree\MerkleTree.vcxproj", "{8D9BD6CE-9FF7-4514-91C8-DA81F2A162E4}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MerkleTree", "..\MerkleTree\MerkleTree.vcxproj", "{04FC8391-1275-4F57-A469-431E85A20CFF}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NASP key-value-engine", "NASP key-value-engine.vcxproj", "{764A778A-9FCD-42A8-B1D2-3FD20B4ADD15}"
 EndProject
@@ -102,14 +102,14 @@ Global
 		{98DA3A64-2FBB-44DD-8F1A-E53990FC8985}.Release|x64.Build.0 = Release|x64
 		{98DA3A64-2FBB-44DD-8F1A-E53990FC8985}.Release|x86.ActiveCfg = Release|Win32
 		{98DA3A64-2FBB-44DD-8F1A-E53990FC8985}.Release|x86.Build.0 = Release|Win32
-		{8D9BD6CE-9FF7-4514-91C8-DA81F2A162E4}.Debug|x64.ActiveCfg = Debug|x64
-		{8D9BD6CE-9FF7-4514-91C8-DA81F2A162E4}.Debug|x64.Build.0 = Debug|x64
-		{8D9BD6CE-9FF7-4514-91C8-DA81F2A162E4}.Debug|x86.ActiveCfg = Debug|Win32
-		{8D9BD6CE-9FF7-4514-91C8-DA81F2A162E4}.Debug|x86.Build.0 = Debug|Win32
-		{8D9BD6CE-9FF7-4514-91C8-DA81F2A162E4}.Release|x64.ActiveCfg = Release|x64
-		{8D9BD6CE-9FF7-4514-91C8-DA81F2A162E4}.Release|x64.Build.0 = Release|x64
-		{8D9BD6CE-9FF7-4514-91C8-DA81F2A162E4}.Release|x86.ActiveCfg = Release|Win32
-		{8D9BD6CE-9FF7-4514-91C8-DA81F2A162E4}.Release|x86.Build.0 = Release|Win32
+		{04FC8391-1275-4F57-A469-431E85A20CFF}.Debug|x64.ActiveCfg = Debug|x64
+		{04FC8391-1275-4F57-A469-431E85A20CFF}.Debug|x64.Build.0 = Debug|x64
+		{04FC8391-1275-4F57-A469-431E85A20CFF}.Debug|x86.ActiveCfg = Debug|Win32
+		{04FC8391-1275-4F57-A469-431E85A20CFF}.Debug|x86.Build.0 = Debug|Win32
+		{04FC8391-1275-4F57-A469-431E85A20CFF}.Release|x64.ActiveCfg = Release|x64
+		{04FC8391-1275-4F57-A469-431E85A20CFF}.Release|x64.Build.0 = Release|x64
+		{04FC8391-1275-4F57-A469-431E85A20CFF}.Release|x86.ActiveCfg = Release|Win32
+		{04FC8391-1275-4F57-A469-431E85A20CFF}.Release|x86.Build.0 = Release|Win32
 		{764A778A-9FCD-42A8-B1D2-3FD20B4ADD15}.Debug|x64.ActiveCfg = Debug|x64
 		{764A778A-9FCD-42A8-B1D2-3FD20B4ADD15}.Debug|x64.Build.0 = Debug|x64
 		{764A778A-9FCD-42A8-B1D2-3FD20B4ADD15}.Debug|x86.ActiveCfg = Debug|Win32
@@ -195,7 +195,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		        SolutionGuid = {3BC272C2-F25B-43AA-8B31-F59A92F3982B}
 		SolutionGuid = {EAF1405F-ABAD-4324-B6AC-025559F3B8C6}
+		        SolutionGuid = {3BC272C2-F25B-43AA-8B31-F59A92F3982B}
 	EndGlobalSection
 EndGlobal
