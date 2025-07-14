@@ -21,13 +21,14 @@ public:
      *  - indexFile (npr. "index.sst")
      *  - filterFile (npr. "filter.sst")
      */
-    SSTableRaw(
-        const std::string& dataFile,
-        const std::string& indexFile,
-        const std::string& filterFile,
-        const std::string& summaryFile,
-        const std::string& metaFile,
-        Block_manager* bmp);
+	SSTableRaw(
+		const std::string& dataFile,
+		const std::string& indexFile,
+		const std::string& filterFile,
+		const std::string& summaryFile,
+		const std::string& metaFile,
+		Block_manager* bmp,
+		bool is_single_file);
 
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
@@ -80,4 +81,10 @@ protected:
     void readMetaFromFile() override;
 
     uint64_t findDataOffset(const std::string& key, bool& found) const override;
+
+    std::vector<IndexEntry> writeDataToBuffer(std::vector<Record>& sortedRecords, std::ostream& out) override;
+    std::vector<IndexEntry> writeIndexToBuffer(std::ostream& out) override;
+    void writeSummaryToBuffer(std::ostream& out) override;
+    void writeBloomToBuffer(std::ostream& out) const override;
+    void writeMetaToBuffer(std::ostream& out) const override;
 };

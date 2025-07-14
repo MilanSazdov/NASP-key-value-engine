@@ -22,6 +22,20 @@ struct Summary{
     uint64_t count; 
 };
 
+struct TOC
+{
+    uint64_t saved_block_size;
+	uint64_t saved_sparsity;
+	uint64_t flags; // Bit 0: is_compressed
+	uint64_t magic_number = 0xABCDDCBA12344321;
+	uint64_t version = 1; // za upuduce ako se updejtuje TOC
+	uint64_t data_offset, data_len;
+	uint64_t index_offset, index_len;
+	uint64_t summary_offset, summary_len;
+	uint64_t filter_offset, filter_len;
+	uint64_t meta_offset, meta_len;
+};
+
 class SSTable {
 public:
     /**
@@ -131,6 +145,12 @@ protected:
 
     bool readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const;
 
+
+	virtual std::vector<IndexEntry> writeDataToBuffer(std::vector<Record>& sortedRecords, std::ostream& out) = 0;
+	virtual std::vector<IndexEntry> writeIndexToBuffer(std::ostream& out) = 0;
+	virtual void writeSummaryToBuffer(std::ostream& out) = 0;
+	virtual void writeBloomToBuffer(std::ostream& out) const = 0;
+	virtual void writeMetaToBuffer(std::ostream& out) const = 0;
 
 
 };

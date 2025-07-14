@@ -32,7 +32,8 @@ public:
         Block_manager* bmp,
         unordered_map<string, uint32_t>& key_to_id,
         vector<string>& id_to_key,
-        uint32_t& nextId);
+        uint32_t& nextId,
+        bool is_single_file);
 
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
@@ -94,4 +95,10 @@ protected:
     unordered_map<string, uint32_t>& key_to_id;
     vector<string>& id_to_key;
     uint32_t& nextID;
+    
+    std::vector<IndexEntry> writeDataToBuffer(std::vector<Record>& sortedRecords, std::ostream& out) override;
+    std::vector<IndexEntry> writeIndexToBuffer(std::ostream& out) override;
+    void writeSummaryToBuffer(std::ostream& out) override;
+    void writeBloomToBuffer(std::ostream& out) const override;
+    void writeMetaToBuffer(std::ostream& out) const override;
 };
