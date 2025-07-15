@@ -144,13 +144,6 @@ protected:
 
 
     bool readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const;
-
-
-	virtual std::vector<IndexEntry> writeDataToBuffer(std::vector<Record>& sortedRecords, std::ostream& out) = 0;
-	virtual std::vector<IndexEntry> writeIndexToBuffer(std::ostream& out) = 0;
-	virtual void writeSummaryToBuffer(std::ostream& out) = 0;
-	virtual void writeBloomToBuffer(std::ostream& out) const = 0;
-	virtual void writeMetaToBuffer(std::ostream& out) const = 0;
-
+    
 
 };

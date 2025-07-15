@@ -243,35 +243,46 @@ SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) 
 
     int fileId = findNextIndex(levelDir);
     std::string numStr = std::to_string(fileId);
-    std::string ending = "_" + numStr + ".sst"; // Koristimo _ da odvojimo ime i broj
 
-    // Kreiraj putanje za sve komponente SSTable-a
-    std::string data_path = levelDir + "/sstable" + ending;
-    std::string index_path = levelDir + "/index" + ending;
-    std::string filter_path = levelDir + "/filter" + ending;
-    std::string summary_path = levelDir + "/summary" + ending;
-    std::string meta_path = levelDir + "/meta" + ending;
+    // Ovde treba da se handluje ako je jedan file
+    bool use_single_file = Config::sstable_single_file;
+    bool use_compression = Config::compress_sstable;
 
-    // Instanciraj SSTable objekat koji ce obaviti upisivanje
-    SSTable* sst;
+	SSTable* sst = nullptr;
+    std::string data_path, index_path, filter_path, summary_path, meta_path;
 
-    if(Config::compress_sstable) {
-        sst = new SSTableComp((data_path),
-        (index_path),
-        (filter_path),
-        (summary_path),
-        (meta_path),
-        &bm, key_map, id_to_key, next_ID_map);
-    } else {
-        sst = new SSTableRaw((data_path),
-        (index_path),
-        (filter_path),
-        (summary_path),
-        (meta_path), &bm);
+    if (use_single_file) {
+        std::string type_str = use_compression ? "_sf_comp_" : "_sf_raw_";
+        data_path = levelDir + "/sstable" + type_str + numStr + ".dat";
+        index_path = filter_path = summary_path = meta_path = data_path;
+        std::cout << "[SSTManager] Creating a SINGLE-FILE SSTable: " << data_path << std::endl;
+    }
+    else {
+
+        std::string type_str = use_compression ? "_comp_" : "_raw_";
+        std::string extension = ".db";
+
+        data_path = levelDir + "/data" + type_str + numStr + extension;
+        index_path = levelDir + "/index" + type_str + numStr + extension;
+        filter_path = levelDir + "/filter" + type_str + numStr + extension;
+        summary_path = levelDir + "/summary" + type_str + numStr + extension;
+        meta_path = levelDir + "/meta" + type_str + numStr + extension;
+
+        std::cout << "[SSTManager] Creating a MULTI-FILE SSTable (ID: " << numStr << ")" << std::endl;
+
     }
 
-    // Ova metoda vrsi "tezak posao" upisivanja svih 5 fajlova.
+    if (use_compression) {
+        sst = new SSTableComp(data_path, index_path, filter_path, summary_path, meta_path,
+            &bm, key_map, id_to_key, next_ID_map, use_single_file);
+    }
+    else {
+        sst = new SSTableRaw(data_path, index_path, filter_path, summary_path, meta_path,
+            &bm, use_single_file);
+    }
+
     sst->build(sortedRecords);
+    
 
     // Nakon sto su fajlovi upisani, kreiramo i popunjavamo metapodatke.
     SSTableMetadata meta;
@@ -283,15 +294,21 @@ SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) 
     // Sracunaj ukupnu velicinu fajla sabiranjem velicina svih komponenti
     uint64_t total_size = 0;
     try {
-        total_size += fs::file_size(data_path);
-        total_size += fs::file_size(index_path);
-        total_size += fs::file_size(summary_path);
-        total_size += fs::file_size(filter_path);
-        total_size += fs::file_size(meta_path);
+        if (use_single_file) {
+            // U single-file modu, samo uzimamo veličinu tog jednog fajla
+            total_size = fs::file_size(data_path);
+        }
+        else {
+            // U multi-file modu, sabiramo veličine svih 5 fajlova
+            total_size += fs::file_size(data_path);
+            total_size += fs::file_size(index_path);
+            total_size += fs::file_size(summary_path);
+            total_size += fs::file_size(filter_path);
+            total_size += fs::file_size(meta_path);
+        }
     }
     catch (const fs::filesystem_error& e) {
         std::cerr << "Error getting file size for SSTable " << fileId << ": " << e.what() << std::endl;
-        // U slučaju greske, postavi velicinu na 0
         total_size = 0;
     }
     meta.file_size = total_size;
@@ -306,6 +323,7 @@ SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) 
     std::cout << "[SSTManager] Successfully wrote SSTable " << fileId << " to level " << level
         << " (Total Size: " << total_size << " bytes)." << std::endl;
 
+	delete sst; // Oslobodi memoriju
     return meta;
 }
 
