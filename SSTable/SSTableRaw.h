@@ -21,14 +21,17 @@ public:
      *  - indexFile (npr. "index.sst")
      *  - filterFile (npr. "filter.sst")
      */
-	SSTableRaw(
-		const std::string& dataFile,
-		const std::string& indexFile,
-		const std::string& filterFile,
-		const std::string& summaryFile,
-		const std::string& metaFile,
-		Block_manager* bmp,
-		bool is_single_file);
+    SSTableRaw(
+        const std::string& dataFile,
+        const std::string& indexFile,
+        const std::string& filterFile,
+        const std::string& summaryFile,
+        const std::string& metaFile,
+        Block_manager* bmp);
+
+    SSTableRaw(
+        const std::string& dataFile,
+        Block_manager* bmp);
 
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
@@ -51,15 +54,16 @@ public:
      */
     std::vector<Record> get(const std::string& key);
 
+	std::vector<Record> get(const std::string& key, int n) override;
     /**
      * (Opciono) range_scan(startKey, endKey):
      *    vraca sve (key,value) koji su izmedju startKey i endKey
-     
+
     std::vector<std::pair<std::string, std::string>>
         range_scan(const std::string& startKey, const std::string& endKey);
      */
 
-	bool validate() override;
+    bool validate() override;
 
 protected:
     std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) override;
@@ -70,16 +74,16 @@ protected:
     // void readIndexFromFile();
 
     // Snima 'bloom_' u filterFile_
-    void writeBloomToFile() const override;
+    void writeBloomToFile() override;
 
     // Ucitava 'bloom_' iz filterFile_ ako vec nije
     void readBloomFromFile() override;
     void readSummaryHeader() override;
 
     void writeSummaryToFile() override;
-    void writeMetaToFile() const override;
+    void writeMetaToFile() override;
     void readMetaFromFile() override;
 
     uint64_t findDataOffset(const std::string& key, bool& found) const override;
-    
+
 };

@@ -9,12 +9,17 @@
 #include "SSTManager.h"
 #include "wal.h"
 #include "Compaction.h"
+#include "SSTable.h"
+#include "SSTableComp.h"
+#include "SSTableRaw.h"
+#include "SSTableIterator.h"
+#include "MergeIterator.h"
 
 
 class LSMManager {
 public:
     
-    LSMManager(const std::string& base_directory, std::string strategy, int max_levels, int max_sstable_levels,int multiplier_level);
+    LSMManager(const std::string& base_directory, std::string strategy, int max_levels, int max_sstable_levels,int multiplier_level, SSTManager& sstm);
 
 	void checkIfCompactionIsNeeded();
 

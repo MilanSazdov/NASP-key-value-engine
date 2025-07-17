@@ -4,13 +4,18 @@
 #include <filesystem>
 
 SSTableRaw::SSTableRaw(const std::string& dataFile,
-	const std::string& indexFile,
-	const std::string& filterFile,
-	const std::string& summaryFile,
-	const std::string& metaFile,
-	Block_manager* bmp,
-	bool is_single_file)
-	: SSTable(dataFile, indexFile, filterFile, summaryFile, metaFile, bmp, is_single_file, false)
+    const std::string& indexFile,
+    const std::string& filterFile,
+    const std::string& summaryFile,
+    const std::string& metaFile,
+    Block_manager* bmp)
+    : SSTable(dataFile, indexFile, filterFile, summaryFile, metaFile, bmp)
+{
+}
+
+SSTableRaw::SSTableRaw(const std::string& dataFile,
+    Block_manager* bmp)
+    : SSTable(dataFile, bmp)
 {
 }
 
@@ -67,8 +72,8 @@ bool SSTableRaw::validate() {
         std::cout << "[SSTable] VALIDACIJA USPEŠNA. Integritet podataka je potvrđen." << std::endl;
         return true;
     }
-    
-	// --- 5. Detaljna analiza => ako se koreni ne poklapaju, gde je greska? ---
+
+    // --- 5. Detaljna analiza => ako se koreni ne poklapaju, gde je greska? ---
     std::cerr << "[SSTable] GREŠKA: VALIDACIJA NEUSPEŠNA! Root hashevi se ne poklapaju." << std::endl;
     std::cerr << "  Originalni Hash: " << rootHash_ << std::endl;
     std::cerr << "  Trenutni Hash:   " << new_root_hash << std::endl;
@@ -94,56 +99,6 @@ bool SSTableRaw::validate() {
 }
 
 
-void SSTableRaw::build(std::vector<Record>& records)
-{
-    if (records.empty()) {
-        std::cerr << "[SSTable] build: Nema zapisa.\n";
-        return;
-    }
-
-    index_ = writeDataMetaFiles(records);
-
-    BloomFilter bf(records.size(), 0.01);
-    for (const auto& r : records) {
-        bf.add(r.key);
-    }
-    bloom_ = bf;
-
-    // Index u fajl
-    std::vector<IndexEntry> summaryAll = writeIndexToFile();
-
-    summary_.summary.reserve(summaryAll.size() / SPARSITY + 1);
-
-    for (size_t i = 0; i < summaryAll.size(); i += SPARSITY) {
-        summary_.summary.push_back(summaryAll[i]);
-    }
-    if (!summaryAll.empty() &&
-        ((summaryAll.size() - 1) % SPARSITY) != 0) {
-        summary_.summary.push_back(summaryAll.back());
-    }
-
-    if (!summaryAll.empty()) {
-        auto minEntry = std::min_element(
-            summaryAll.begin(), summaryAll.end(),
-            [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-        auto maxEntry = std::max_element(
-            summaryAll.begin(), summaryAll.end(),
-            [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-
-        summary_.min = minEntry->key;
-        summary_.max = maxEntry->key;
-    }
-
-    // Bloom, meta, summary u fajl
-    writeBloomToFile();
-    writeSummaryToFile();
-    writeMetaToFile();
-
-    std::cout << "[SSTable] build: upisano " << records.size()
-        << " zapisa u " << dataFile_ << ".\n";
-}
-
-
 // Funkcija NE PROVERAVA bloomfilter, pretpostavlja da je vec provereno
 vector<Record> SSTableRaw::get(const std::string& key)
 {
@@ -160,7 +115,7 @@ vector<Record> SSTableRaw::get(const std::string& key)
 
     // 4) Otvorimo dataFile, idemo od fileOffset redom
     while (true) {
-        if(block_size - (fileOffset % block_size) < 30) {
+        if (block_size - (fileOffset % block_size) < 30) {
             fileOffset += block_size - (fileOffset % block_size);
         } // Ako u bloku posle recorda nema mesta za header, znaci da smo padovali i sledeci record pocinje u sledecem bloku
 
@@ -200,47 +155,47 @@ vector<Record> SSTableRaw::get(const std::string& key)
         r.key = rkey;
         r.value = rvalue;
 
-        
+
         if (flag == 'F') {
-            while(true) {
+            while (true) {
                 fileOffset += sizeof(crc);
-                
+
                 char flag;
                 readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
-                
+
                 fileOffset += sizeof(ts);
-                
+
                 fileOffset += sizeof(tomb);
-                
+
                 uint64_t kSize = 0;
                 readBytes(&kSize, sizeof(kSize), fileOffset, dataFile_);
-                
+
                 uint64_t vSize = 0;
                 readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
-                
+
                 std::string rkey;
                 rkey.resize(kSize);
                 readBytes(&rkey[0], kSize, fileOffset, dataFile_);
-                
+
                 std::string rvalue;
                 rvalue.resize(vSize);
                 readBytes(&rvalue[0], vSize, fileOffset, dataFile_);
-                
+
                 r.value.append(rvalue);
                 r.key.append(rkey);
                 r.key_size += kSize;
                 r.value_size += vSize;
-                
-                if(flag == 'L'){
+
+                if (flag == 'L') {
                     break;
                 }
             }
         }
-        
-        if(r.key == key) {
+
+        if (r.key == key) {
             matches.emplace_back(r);
         }
-        
+
         if (r.key > key) {
             // nema smisla ici dalje, data fajl je sortiran
             return matches;
@@ -249,169 +204,180 @@ vector<Record> SSTableRaw::get(const std::string& key)
     return matches;
 }
 
-/*
-std::vector<std::pair<std::string, std::string>>
-SSTable::range_scan(const std::string& startKey, const std::string& endKey)
+
+
+std::vector<IndexEntry>
+SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 {
-    std::vector<std::pair<std::string, std::string>> result;
+    toc.data_offset = (sizeof(toc) / block_size + 1) * block_size; // Mesto za toc
 
-    readBloomFromFile();
-    readIndexFromFile();
+    std::vector<IndexEntry> ret;
+    ret.reserve(sortedRecords.size());
 
-    // pocetni offset
-    uint64_t offset = findDataOffset(startKey);
-
-    std::ifstream in(dataFile_, std::ios::binary);
-    if (!in.is_open()) {
-        return result;
-    }
-    in.seekg(offset, std::ios::beg);
-
-    while (true) {
-        uint32_t crc;
-        if (!in.read(reinterpret_cast<char*>(&crc), sizeof(crc))) break;
-        char flag;
-        if (!in.read(reinterpret_cast<char*>(&flag), sizeof(flag))) break;
-        uint64_t ts;
-        if (!in.read(reinterpret_cast<char*>(&ts), sizeof(ts))) break;
-        char tomb;
-        if (!in.read(reinterpret_cast<char*>(&tomb), sizeof(tomb))) break;
-        uint64_t kSize;
-        if (!in.read(reinterpret_cast<char*>(&kSize), sizeof(kSize))) break;
-        uint64_t vSize;
-        if (!in.read(reinterpret_cast<char*>(&vSize), sizeof(vSize))) break;
-
-        std::string rkey(kSize, '\0');
-        if (!in.read(&rkey[0], kSize)) break;
-        std::string rvalue(vSize, '\0');
-        if (!in.read(&rvalue[0], vSize)) break;
-
-        if (rkey > endKey) {
-            break;
-        }
-        if (rkey >= startKey && rkey <= endKey && tomb == 0) {
-            result.push_back({ rkey, rvalue });
-        }
-    }
-
-    return result;
-}
-*/
-
-
-std::vector<IndexEntry> SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
-{
-    std::vector<IndexEntry> index_entries;
-    index_entries.reserve(sortedRecords.size());
-
-    // Pomoćni vektor gde skupljamo podatke za kasnije kreiranje Merkle stabla
+    // Merkle tree
     std::vector<std::string> data_for_merkle;
     data_for_merkle.reserve(sortedRecords.size());
 
-    uint64_t logical_offset = 0;
-    int block_id = 0;
+    ull offset = toc.data_offset;
 
-    // Koristimo std::vector<byte> kao bafer, što je čistije od std::string
-    std::vector<byte> block_buffer;
-    block_buffer.reserve(block_size);
+    int block_id = toc.data_offset / block_size;
 
-    // Pomoćna lambda da izbegnemo ponavljanje koda za dodavanje u bafer
-    auto append_to_buffer = [&](const void* data, size_t len) {
-        const byte* ptr = reinterpret_cast<const byte*>(data);
-        block_buffer.insert(block_buffer.end(), ptr, ptr + len);
+    string concat;
+
+    auto append_field = [&](const void* data, size_t len) {
+        auto ptr = reinterpret_cast<const char*>(data);
+        concat.append(ptr, len);
         };
 
-    for (const auto& record : sortedRecords) {
-        // --- KORAK 1: Pripremi Index i Merkle podatke ---
-        index_entries.push_back({ record.key, logical_offset });
-        data_for_merkle.push_back(record.key + record.value);
+    size_t header_len = sizeof(uint) + 2 * sizeof(byte) + 3 * sizeof(ull);
 
-        // --- KORAK 2: Logika pisanja u blokove ---
+    for (auto& r : sortedRecords) {
 
-        size_t header_len = sizeof(record.crc) + sizeof(Wal_record_type) + sizeof(record.timestamp) +
-            sizeof(record.tombstone) + sizeof(record.key_size) + sizeof(record.value_size);
-        size_t total_record_len = header_len + record.key_size + record.value_size;
+        data_for_merkle.push_back(r.key + r.value);
 
-        size_t space_in_current_block = block_size - block_buffer.size();
+        ret.emplace_back(r.key, offset);
 
-        if (space_in_current_block >= total_record_len) {
-            // --- SLUČAJ A: Ceo zapis staje u trenutni blok. ---
-            Wal_record_type flag = Wal_record_type::FULL;
 
-            append_to_buffer(&record.crc, sizeof(record.crc));
-            append_to_buffer(&flag, sizeof(flag));
-            append_to_buffer(&record.timestamp, sizeof(record.timestamp));
-            append_to_buffer(&record.tombstone, sizeof(record.tombstone));
-            append_to_buffer(&record.key_size, sizeof(record.key_size));
-            append_to_buffer(&record.value_size, sizeof(record.value_size));
-            append_to_buffer(record.key.data(), record.key_size);
-            append_to_buffer(record.value.data(), record.value_size);
+        size_t len = header_len + r.key_size + r.value_size;
+
+        ull remaining = block_size - (offset % block_size);
+
+        offset += r.key_size + r.value_size; // Dodajemo ceo key size i value size prvo, posle cemo videti koliko headera treba
+
+        // Ako u bloku nema dovoljno mesta ni za record metadata
+        if (remaining < header_len) {
+            // concat.insert(concat.end(), remaining, (byte)0); write_block valjda vec paduje
+            offset += remaining;
+
+            bmp->write_block({ block_id++, dataFile_ }, concat);
+            concat.clear();
+            remaining = block_size;
+        }
+
+        Wal_record_type flag;
+
+        if (remaining < len) {
+            flag = Wal_record_type::FIRST;
+            Record rec(r);
+            append_field(&rec.crc, sizeof(rec.crc));
+            append_field(&flag, sizeof(flag));
+            append_field(&rec.timestamp, sizeof(rec.timestamp));
+            append_field(&rec.tombstone, sizeof(rec.tombstone));
+
+            remaining -= header_len;
+
+            ull key_written = min<ull>(remaining, rec.key_size);
+            remaining -= key_written;
+
+            ull value_written = min<ull>(remaining, rec.value_size);
+            remaining -= value_written;
+
+            concat.append(
+                reinterpret_cast<const char*>(&key_written),
+                sizeof(key_written)
+            );
+
+
+            concat.append(
+                reinterpret_cast<const char*>(&value_written),
+                sizeof(value_written)
+            );
+
+
+            offset += header_len;
+
+            concat.insert(concat.end(), rec.key.begin(), rec.key.begin() + key_written);
+            concat.insert(concat.end(), rec.value.begin(), rec.value.begin() + value_written);
+
+
+            // Flushujemo blok
+            bmp->write_block({ block_id++, dataFile_ }, concat);
+            concat.clear();
+
+            rec.key = rec.key.substr(key_written);
+            rec.value = rec.value.substr(value_written);
+
+            rec.key_size -= key_written;
+            rec.value_size -= value_written;
+
+            remaining = block_size;
+
+            while (flag != Wal_record_type::LAST) {
+                remaining -= header_len;
+
+                ull key_written = min<ull>(remaining, rec.key_size);
+                remaining -= key_written;
+                ull value_written = min<ull>(remaining, rec.value_size);
+                remaining -= value_written;
+
+                if (remaining == 0 && (rec.key_size - key_written != 0 || rec.value_size - value_written != 0)) {
+                    flag = Wal_record_type::MIDDLE;
+                }
+                else flag = Wal_record_type::LAST;
+
+                // L -> ili remaining != 0, tj ima jos mesta, ili nema vise mesta ali smo zapisali ceo zapis
+                // M -> Nema vise mesta i ili nismo ispisali ceo kljuc ili nismo ispisali ceo value
+
+                append_field(&rec.crc, sizeof(rec.crc));
+                append_field(&flag, sizeof(flag));
+                append_field(&rec.timestamp, sizeof(rec.timestamp));
+                append_field(&rec.tombstone, sizeof(rec.tombstone));
+
+                offset += header_len;
+
+                concat.append(
+                    reinterpret_cast<const char*>(&key_written),
+                    sizeof(key_written)
+                );
+
+                concat.append(
+                    reinterpret_cast<const char*>(&value_written),
+                    sizeof(value_written)
+                );
+
+                concat.insert(concat.end(), rec.key.begin(), rec.key.begin() + key_written);
+                concat.insert(concat.end(), rec.value.begin(), rec.value.begin() + value_written);
+
+                if (flag == Wal_record_type::MIDDLE) {
+                    // Flushujemo blok
+                    bmp->write_block({ block_id++, dataFile_ }, concat);
+                    concat.clear();
+
+
+                    rec.key = string(rec.key.begin() + key_written, rec.key.end());
+                    rec.value = string(rec.value.begin() + value_written, rec.value.end());
+
+                    rec.key_size -= key_written;
+                    rec.value_size -= value_written;
+
+                    remaining = block_size;
+                }
+
+            }
 
         }
         else {
-            // --- SLUČAJ B: Zapis mora da se deli preko više blokova. ---
-            // Zadržavamo vašu originalnu logiku, ali je činimo čitljivijom.
+            flag = Wal_record_type::FULL;
+            append_field(&r.crc, sizeof(r.crc));
+            append_field(&flag, sizeof(flag));
+            append_field(&r.timestamp, sizeof(r.timestamp));
+            append_field(&r.tombstone, sizeof(r.tombstone));
+            append_field(&r.key_size, sizeof(r.key_size));
+            append_field(&r.value_size, sizeof(r.value_size));
 
-            size_t key_bytes_processed = 0;
-            size_t value_bytes_processed = 0;
-            bool is_first_chunk = true;
+            offset += header_len;
 
-            while (key_bytes_processed < record.key_size || value_bytes_processed < record.value_size) {
-                // Ako u baferu ima nečega, znači da ga moramo prvo upisati na disk.
-                if (!block_buffer.empty()) {
-                    bmp->write_block({ block_id++, dataFile_ }, block_buffer);
-                    block_buffer.clear();
-                }
+            concat.insert(concat.end(), r.key.begin(), r.key.begin() + r.key_size);
+            concat.insert(concat.end(), r.value.begin(), r.value.begin() + r.value_size);
 
-                size_t available_for_payload = block_size - header_len;
-
-                size_t key_to_write = std::min((size_t)(record.key_size - key_bytes_processed), available_for_payload);
-                size_t value_to_write = std::min((size_t)(record.value_size - value_bytes_processed), available_for_payload - key_to_write);
-
-                bool is_last_chunk = (key_bytes_processed + key_to_write == record.key_size) &&
-                    (value_bytes_processed + value_to_write == record.value_size);
-
-                Wal_record_type flag;
-                if (is_first_chunk) {
-                    flag = Wal_record_type::FIRST;
-                    is_first_chunk = false;
-                }
-                else if (is_last_chunk) {
-                    flag = Wal_record_type::LAST;
-                }
-                else {
-                    flag = Wal_record_type::MIDDLE;
-                }
-
-                // Upisivanje zaglavlja i dela podataka u bafer
-                append_to_buffer(&record.crc, sizeof(record.crc));
-                append_to_buffer(&flag, sizeof(flag));
-                append_to_buffer(&record.timestamp, sizeof(record.timestamp));
-                append_to_buffer(&record.tombstone, sizeof(record.tombstone));
-                append_to_buffer(&key_to_write, sizeof(key_to_write));
-                append_to_buffer(&value_to_write, sizeof(value_to_write));
-
-                if (key_to_write > 0) {
-                    append_to_buffer(record.key.data() + key_bytes_processed, key_to_write);
-                }
-                if (value_to_write > 0) {
-                    append_to_buffer(record.value.data() + value_bytes_processed, value_to_write);
-                }
-
-                key_bytes_processed += key_to_write;
-                value_bytes_processed += value_to_write;
-            }
         }
-        logical_offset += total_record_len;
     }
 
-    // --- KORAK 3: Upiši poslednji, nepotpuni blok ako postoji ---
-    if (!block_buffer.empty()) {
-        bmp->write_block({ block_id, dataFile_ }, block_buffer);
-    }
+    if (!concat.empty())
+        bmp->write_block({ block_id, dataFile_ }, concat);
 
-    // --- KORAK 4: Kreiraj Merkle stablo i sačuvaj root hash ---
-    // Ovo se radi na samom kraju, nakon što su svi podaci upisani na disk.
+    toc.index_offset = (block_id + 1) * block_size;
+
     if (!data_for_merkle.empty()) {
         try {
             MerkleTree merkle_tree(data_for_merkle);
@@ -424,12 +390,19 @@ std::vector<IndexEntry> SSTableRaw::writeDataMetaFiles(std::vector<Record>& sort
         }
     }
 
-    return index_entries;
-}
 
+    return ret;
+}
 
 std::vector<IndexEntry> SSTableRaw::writeIndexToFile()
 {
+
+    uint64_t start_offset = 0;
+
+    if (is_single_file_mode_) {
+        start_offset = toc.index_offset; // Set in data writer
+    }
+
     std::vector<IndexEntry> ret;
 
     string payload;
@@ -453,21 +426,29 @@ std::vector<IndexEntry> SSTableRaw::writeIndexToFile()
         offset += 8 + kSize + 8;
     }
 
-    int block_id = 0;
+    int block_id = start_offset / block_size;
     size_t total_bytes = payload.size();
     offset = 0;
 
     while (offset + block_size <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
-        bmp->write_block({block_id++, indexFile_}, chunk);
+        bmp->write_block({ block_id++, indexFile_ }, chunk);
         offset += block_size;
     }
+
+    toc.summary_offset = (block_id + 1) * block_size;
 
     return ret;
 }
 
 void SSTableRaw::writeSummaryToFile()
 {
+
+    uint64_t start_offset = 0;
+    if (is_single_file_mode_) {
+        start_offset = toc.summary_offset; // Set in index writer
+    }
+
     string payload;
 
     uint64_t minLen = summary_.min.size();
@@ -476,7 +457,7 @@ void SSTableRaw::writeSummaryToFile()
     payload.append(reinterpret_cast<const char*>(&maxLen), sizeof(maxLen));
     uint64_t count = summary_.summary.size();
     payload.append(reinterpret_cast<const char*>(&count), sizeof(count));
-    
+
     payload.append(summary_.min);
     payload.append(summary_.max);
 
@@ -489,13 +470,13 @@ void SSTableRaw::writeSummaryToFile()
 
     }
 
-    int block_id = 0;
+    int block_id = start_offset / block_size;
     uint64_t total_bytes = payload.size();
     uint64_t offset = 0;
 
     while (offset + block_size <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
-        bmp->write_block({block_id++, summaryFile_}, chunk);
+        bmp->write_block({ block_id++, summaryFile_ }, chunk);
         offset += block_size;
     }
 
@@ -504,6 +485,7 @@ void SSTableRaw::writeSummaryToFile()
         bmp->write_block({ block_id++, summaryFile_ }, chunk);
     }
 
+    toc.filter_offset = (block_id + 1) * block_size;
 }
 
 void SSTableRaw::readMetaFromFile() {
@@ -512,21 +494,22 @@ void SSTableRaw::readMetaFromFile() {
     originalLeafHashes_.clear();
 
     bool error = false;
-    int block_id = 0;
+    int block_id = toc.meta_offset / block_size;
     std::string content;
 
     // citamo sve blokove iz meta fajla dok ne dodjemo do kraja
     while (true) {
         std::vector<byte> block_data = bmp->read_block({ block_id++, metaFile_ }, error);
         if (error) { // Ako read_block vrati gresku (npr. nema vise blokova), prekidamo
+            // Meta je na kraju u single file mode, tako da, hvala bogu, mozemo ovako i u tom slucaju da citamo
             break;
         }
         content.append(reinterpret_cast<const char*>(block_data.data()), block_data.size());
     }
 
-	if (content.empty()) {
-		return; // Nema sadrzaja, nema sta da se parsira
-	}
+    if (content.empty()) {
+        return; // Nema sadrzaja, nema sta da se parsira
+    }
 
     // Ukloni padding karaktere sa kraja celokupnog sadrzaja
     size_t end_pos = content.find(static_cast<char>(padding_character));
@@ -563,8 +546,13 @@ void SSTableRaw::readMetaFromFile() {
         << " bajtova, Broj listova: " << originalLeafHashes_.size() << std::endl;
 }
 
-void SSTableRaw::writeBloomToFile() const
+void SSTableRaw::writeBloomToFile()
 {
+    uint64_t start_offset = 0;
+    if (is_single_file_mode_) {
+        start_offset = toc.filter_offset; // Set in summary writer
+    }
+
     std::vector<byte> raw = bloom_.serialize();
 
     uint64_t len = raw.size();
@@ -577,21 +565,28 @@ void SSTableRaw::writeBloomToFile() const
         payload.append(reinterpret_cast<const char*>(i), sizeof(i));
     }
 
-    int block_id = 0;
+    int block_id = start_offset / block_size;
     size_t total_bytes = payload.size();
     size_t offset = 0;
 
     while (offset + block_size <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
-        bmp->write_block({block_id++, filterFile_}, chunk);
+        bmp->write_block({ block_id++, filterFile_ }, chunk);
         offset += block_size;
     }
+
+    toc.meta_offset = (block_id + 1) * block_size;
 }
 
 // NOVI FORMAT U Meta fajlu:
-// Prva linija: [root_hash]
-// Svaka sledeća linija: [leaf_hash_1], [leaf_hash_2], ..., [leaf_hash_n]
-void SSTableRaw::writeMetaToFile() const {
+// Prva linija: root_hash
+// Svaka sledeća linija: [leaf_hash_1, leaf_hash_2, ..., leaf_hash_n]
+void SSTableRaw::writeMetaToFile() {
+    uint64_t start_offset = 0;
+    if (is_single_file_mode_) {
+        start_offset = toc.meta_offset; // Set in summary writer
+    }
+
     if (rootHash_.empty() || originalLeafHashes_.empty()) {
         std::cout << "[SSTable] No complete Merkle tree data to write for " << metaFile_ << std::endl;
         return;
@@ -602,7 +597,7 @@ void SSTableRaw::writeMetaToFile() const {
         payload += leaf + "\n";
     }
 
-	// upisujemo payload u blokove
+    // upisujemo payload u blokove
     int block_id = 0;
     size_t offset = 0;
     while (offset < payload.length()) {
@@ -623,7 +618,7 @@ void SSTableRaw::writeMetaToFile() const {
 
 void SSTableRaw::readBloomFromFile()
 {
-    uint64_t fileOffset = 0;
+    uint64_t fileOffset = toc.filter_offset;
 
     uint64_t len = 0;
     if (!readBytes(&len, sizeof(len), fileOffset, filterFile_) || len == 0) {
@@ -642,67 +637,37 @@ void SSTableRaw::readSummaryHeader()
 {
     summary_.min.clear();
     summary_.max.clear();
-    bool err;
-    
-    int block_id = 0;
-    int offset = 0;
-    
-    vector<byte> block = bmp->read_block({block_id, summaryFile_}, err);
 
-    uint64_t minKeyLength = 0;
-    memcpy(&minKeyLength, block.data(), sizeof(minKeyLength));
+    uint64_t offset = toc.summary_offset;
 
-    offset += sizeof(minKeyLength);
+    uint64_t min_len;
+    uint64_t max_len;
+    uint64_t count;
 
-    uint64_t maxKeyLength = 0; 
-    memcpy(&maxKeyLength, block.data()+offset, sizeof(maxKeyLength));
-    offset += sizeof(maxKeyLength);
-
-    memcpy(&summary_.count, block.data()+offset, sizeof(uint64_t));
-    offset += sizeof(uint64_t);
-
-    summary_.min.reserve(minKeyLength);
-
-    size_t fileOffset = offset;
-    size_t remaining  = minKeyLength;
-
-    while (remaining > 0) {
-        int neededBlock = fileOffset / block_size;
-        size_t block_offset = fileOffset % block_size;
-
-        if (neededBlock != block_id) {
-            block_id = neededBlock;
-            block = bmp->read_block({block_id, summaryFile_}, err);
-        }
-
-        size_t take = std::min(remaining, block_size - block_offset);
-
-        summary_.min.append(reinterpret_cast<const char*>(block.data() + block_offset), take);
-
-        fileOffset += take;
-        remaining  -= take;
+    if (!readBytes(&min_len, sizeof(min_len), offset, summaryFile_)) {
+        std::cerr << "[SSTableRaw::readSummaryHeader] Problem reading summary min_key_len\n";
+        return;
     }
 
-    summary_.max.reserve(maxKeyLength);
+    if (!readBytes(&max_len, sizeof(max_len), offset, summaryFile_)) {
+        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading max_key_len\n";
+        return;
+    }
 
-    offset = fileOffset;
-    remaining = maxKeyLength;
-    while (remaining > 0) {
-            int neededBlock = fileOffset / block_size;
-            size_t block_offset = fileOffset % block_size;
+    if (!readBytes(&count, sizeof(count), offset, summaryFile_)) {
+        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading count\n";
+        return;
+    }
 
-            if (neededBlock != block_id) {
-                block_id = neededBlock;
-                block = bmp->read_block({block_id, summaryFile_}, err);
-            }
+    if (!readBytes(&summary_.min, min_len, offset, summaryFile_)) {
+        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading min key\n";
+        return;
+    }
 
-            size_t take = std::min(remaining, block_size - block_offset);
-
-            summary_.max.append(reinterpret_cast<const char*>(block.data() + block_offset), take);
-
-            fileOffset += take;
-            remaining  -= take;
-        }
+    if (!readBytes(&summary_.max, max_len, offset, summaryFile_)) {
+        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading max key\n";
+        return;
+    }
 }
 
 uint64_t SSTableRaw::findDataOffset(const std::string& key, bool& found) const
@@ -712,21 +677,21 @@ uint64_t SSTableRaw::findDataOffset(const std::string& key, bool& found) const
         return 0;
     }
 
-    size_t fileOffset = summary_.min.size() + summary_.max.size() + 3*sizeof(uint64_t);
-    
+    size_t fileOffset = summary_.min.size() + summary_.max.size() + 3 * sizeof(uint64_t);
+
     uint64_t kSize;
     bool error;
 
     uint64_t lastOffset = 0ULL;
-    
+
     string rKey;
-    for(int i = 0; i < summary_.count; i++){
+    for (int i = 0; i < summary_.count; i++) {
         readBytes(&kSize, sizeof(kSize), fileOffset, summaryFile_);
 
         rKey.resize(kSize);
         readBytes(&rKey[0], kSize, fileOffset, summaryFile_);
 
-        if(rKey > key) {
+        if (rKey > key) {
             break;
         }
 
@@ -739,7 +704,7 @@ uint64_t SSTableRaw::findDataOffset(const std::string& key, bool& found) const
 
     while (true) {
         readBytes(&kSize, sizeof(kSize), fileOffset, indexFile_);
-        
+
         rKey.resize(kSize);
         readBytes(&rKey[0], kSize, fileOffset, indexFile_);
 

@@ -32,8 +32,13 @@ public:
         Block_manager* bmp,
         unordered_map<string, uint32_t>& key_to_id,
         vector<string>& id_to_key,
-        uint32_t& nextId,
-        bool is_single_file);
+        uint32_t& nextId);
+
+    SSTableComp(const std::string& dataFile,
+        Block_manager* bmp,
+        unordered_map<string, uint32_t>& map,
+        vector<string>& id_to_key,
+        uint32_t& nextId);
 
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
@@ -45,7 +50,7 @@ public:
      *   5) Kreira sparse index (key -> offset) i upisuje u indexFile_
      *   6) Snima BloomFilter u filterFile_
      */
-    void build(std::vector<Record>& records);
+    void build(std::vector<Record>& records) override;
 
     /**
      * get(key) - dohvatanje vrednosti iz data.sst
@@ -54,17 +59,19 @@ public:
      *   - ako kaze "mozda ima", binarno pretrazi index, pa cita data fajl
      *     dok ne nadje key ili ga ne predje (data fajl je sortiran)
      */
-    std::vector<Record> get(const std::string& key);
+    std::vector<Record> get(const std::string& key) override;
+
+    std::vector<Record> get(const std::string& key, int n) override;
 
     /**
      * (Opciono) range_scan(startKey, endKey):
      *    vraca sve (key,value) koji su izmedju startKey i endKey
-     
+
     std::vector<std::pair<std::string, std::string>>
         range_scan(const std::string& startKey, const std::string& endKey);
      */
 
-	bool validate() override;
+    bool validate() override;
 
 protected:
     std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) override;
@@ -75,14 +82,14 @@ protected:
     // void readIndexFromFile();
 
     // Snima 'bloom_' u filterFile_
-    void writeBloomToFile() const override;
+    void writeBloomToFile() override;
 
     // Ucitava 'bloom_' iz filterFile_ ako vec nije
     void readBloomFromFile() override;
     void readSummaryHeader() override;
 
     void writeSummaryToFile() override;
-    void writeMetaToFile() const override;
+    void writeMetaToFile() override;
     void readMetaFromFile() override;
 
     uint64_t findDataOffset(const std::string& key, bool& found) const override;
@@ -95,5 +102,5 @@ protected:
     unordered_map<string, uint32_t>& key_to_id;
     vector<string>& id_to_key;
     uint32_t& nextID;
-    
+
 };
