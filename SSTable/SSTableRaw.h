@@ -54,7 +54,7 @@ public:
      */
     std::vector<Record> get(const std::string& key) override;
 
-    std::vector<Record> get(const std::string& key, int n) override {std::vector<Record> r; return r;}
+    // std::vector<Record> get(const std::string& key, int n) override {std::vector<Record> r; return r;}
 
     /**
      * (Opciono) range_scan(startKey, endKey):
