@@ -2,162 +2,157 @@
 
 void SSTable::build(std::vector<Record>& records)
 {
+    std::sort(records.begin(), records.end(),
+              [](auto const& a, auto const& b) {
+                  return a.key < b.key;
+              });
+
     if (records.empty()) {
         std::cerr << "[SSTable] build: Nema zapisa.\n";
         return;
     }
 
-    std::sort(records.begin(), records.end(),
-        [](const Record& a, const Record& b) { return a.key < b.key; });
+    // Data u fajl
+    std::vector<IndexEntry> indexAll = writeDataMetaFiles(records);
 
-    if (is_single_file_mode_) {
-        std::cout << "[SSTable] Započinjem build u SINGLE-FILE modu..." << std::endl;
-
-        std::stringstream data_stream, index_stream, summary_stream, filter_stream, meta_stream;
-
-        index_ = writeDataToBuffer(records, data_stream);
-        std::vector<IndexEntry> full_index = writeIndexToBuffer(index_stream);
-
-        bloom_ = BloomFilter(records.size(), 0.01);
-        for (const auto& r : records) bloom_.add(r.key);
-        writeBloomToBuffer(filter_stream);
-
-        std::vector<IndexEntry> summaryAll = writeIndexToFile();
-
-        summary_.summary.reserve(summaryAll.size() / SPARSITY + 1);
-
-        for (size_t i = 0; i < summaryAll.size(); i += SPARSITY) {
-            summary_.summary.push_back(summaryAll[i]);
-        }
-        if (!summaryAll.empty() &&
-            ((summaryAll.size() - 1) % SPARSITY) != 0) {
-            summary_.summary.push_back(summaryAll.back());
-        }
-
-        if (!summaryAll.empty()) {
-            auto minEntry = std::min_element(
-                summaryAll.begin(), summaryAll.end(),
-                [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-            auto maxEntry = std::max_element(
-                summaryAll.begin(), summaryAll.end(),
-                [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-
-            summary_.min = minEntry->key;
-            summary_.max = maxEntry->key;
-        }
-
-        writeSummaryToBuffer(summary_stream);
-
-        std::vector<std::string> data_for_merkle;
-        for (const auto& r : records) data_for_merkle.push_back(r.key + r.value);
-        MerkleTree mt(data_for_merkle);
-        rootHash_ = mt.getRootHash();
-        originalLeafHashes_ = mt.getLeaves();
-        writeMetaToBuffer(meta_stream);
-
-        // Ovde treba sklapanje u jedan veliki payload i upisivanje na disk
-        // Dolazi logika za TOC i pisanje preko Block Managera
-        std::string data_content = data_stream.str();
-        std::string index_content = index_stream.str();
-        std::string summary_content = summary_stream.str();
-        std::string filter_content = filter_stream.str();
-        std::string meta_content = meta_stream.str();
-
-        TOC toc;
-        toc.saved_block_size = this->block_size;
-        toc.saved_sparsity = this->SPARSITY;
-        toc.flags = this->is_compressed_ ? 1 : 0;
-
-        toc.data_len = data_content.length();
-        toc.index_len = index_content.length();
-        toc.summary_len = summary_content.length();
-        toc.filter_len = filter_content.length();
-        toc.meta_len = meta_content.length();
-
-        uint64_t current_offset = sizeof(TOC);
-        toc.data_offset = current_offset;
-        current_offset += toc.data_len;
-        toc.index_offset = current_offset;
-        current_offset += toc.index_len;
-        toc.summary_offset = current_offset;
-        current_offset += toc.summary_len;
-        toc.filter_offset = current_offset;
-        current_offset += toc.filter_len;
-        toc.meta_offset = current_offset;
-
-        // Sklapanje svega u jedan veliki `std::vector<byte>`
-        std::vector<byte> final_payload;
-        final_payload.reserve(current_offset + toc.meta_len);
-
-        final_payload.resize(sizeof(TOC));
-        memcpy(final_payload.data(), &toc, sizeof(TOC));
-
-        final_payload.insert(final_payload.end(), reinterpret_cast<const byte*>(data_content.c_str()), reinterpret_cast<const byte*>(data_content.c_str()) + data_content.length());
-        final_payload.insert(final_payload.end(), reinterpret_cast<const byte*>(index_content.c_str()), reinterpret_cast<const byte*>(index_content.c_str()) + index_content.length());
-        final_payload.insert(final_payload.end(), reinterpret_cast<const byte*>(summary_content.c_str()), reinterpret_cast<const byte*>(summary_content.c_str()) + summary_content.length());
-        final_payload.insert(final_payload.end(), reinterpret_cast<const byte*>(filter_content.c_str()), reinterpret_cast<const byte*>(filter_content.c_str()) + filter_content.length());
-        final_payload.insert(final_payload.end(), reinterpret_cast<const byte*>(meta_content.c_str()), reinterpret_cast<const byte*>(meta_content.c_str()) + meta_content.length());
-
-        // Pisanje na disk pomocu Block Managera
-        int block_id = 0;
-        size_t written_offset = 0;
-        while (written_offset < final_payload.size()) {
-            size_t chunk_size = std::min((size_t)this->block_size, final_payload.size() - written_offset);
-
-            std::vector<byte> chunk_data(
-                final_payload.begin() + written_offset,
-                final_payload.begin() + written_offset + chunk_size
-            );
-
-            bmp->write_block({ block_id++, dataFile_ }, chunk_data);
-            written_offset += chunk_size;
-        }
+    index_.reserve(indexAll.size() / index_sparsity + 1);
+    for (size_t i = 0; i < indexAll.size(); i += index_sparsity) {
+        index_.push_back(indexAll[i]);
     }
-    else {
-        std::cout << "[SSTable] Započinjem build u MULTI-FILE modu..." << std::endl;
-
-
-        index_ = writeDataMetaFiles(records);
-
-        BloomFilter bf(records.size(), 0.01);
-        for (const auto& r : records) {
-            bf.add(r.key);
-        }
-        bloom_ = bf;
-
-        // Index u fajl
-        std::vector<IndexEntry> summaryAll = writeIndexToFile();
-
-        summary_.summary.reserve(summaryAll.size() / SPARSITY + 1);
-
-        for (size_t i = 0; i < summaryAll.size(); i += SPARSITY) {
-            summary_.summary.push_back(summaryAll[i]);
-        }
-        if (!summaryAll.empty() &&
-            ((summaryAll.size() - 1) % SPARSITY) != 0) {
-            summary_.summary.push_back(summaryAll.back());
-        }
-
-        if (!summaryAll.empty()) {
-            auto minEntry = std::min_element(
-                summaryAll.begin(), summaryAll.end(),
-                [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-            auto maxEntry = std::max_element(
-                summaryAll.begin(), summaryAll.end(),
-                [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-
-            summary_.min = minEntry->key;
-            summary_.max = maxEntry->key;
-        }
-
-        // Bloom, meta, summary u fajl
-        writeBloomToFile();
-        writeSummaryToFile();
-        writeMetaToFile();
+    if (!indexAll.empty() &&
+        ((indexAll.size() - 1) % summary_sparsity) != 0) {
+        index_.push_back(indexAll.back());
     }
+
+    BloomFilter bf(records.size(), 0.01);
+    for (const auto& r : records) {
+        bf.add(r.key);
+    }
+    bloom_ = bf;
+
+    // Index u fajl
+    std::vector<IndexEntry> summaryAll = writeIndexToFile();
+
+    // Pravimo summary
+    summary_.summary.reserve(summaryAll.size() / summary_sparsity + 1);
+
+    for (size_t i = 0; i < summaryAll.size(); i += summary_sparsity) {
+        summary_.summary.push_back(summaryAll[i]);
+    }
+    if (!summaryAll.empty() &&
+        ((summaryAll.size() - 1) % summary_sparsity) != 0) {
+        summary_.summary.push_back(summaryAll.back());
+    }
+
+    if (!summaryAll.empty()) {
+        auto minEntry = std::min_element(
+            indexAll.begin(), indexAll.end(),
+            [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
+        auto maxEntry = std::max_element(
+            indexAll.begin(), indexAll.end(),
+            [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
+
+        summary_.min = minEntry->key;
+        summary_.max = maxEntry->key;
+    }
+
+    // Bloom, meta, summary u fajl
+    writeSummaryToFile();
+    writeBloomToFile();
+    writeMetaToFile();
+
+    
+    // Pisemo toc
+    // Moze da se zameni memcpy(&payload[0], ...) ali ce padovati 
+    string payload;
+    payload.resize(sizeof(toc));
+    std::memcpy(&payload[0], &toc, sizeof(toc));
+    // payload.append(reinterpret_cast<char*>(&toc.saved_block_size), sizeof(toc.saved_block_size));
+    // payload.append(reinterpret_cast<char*>(&toc.saved_idx_sparsity), sizeof(toc.saved_idx_sparsity));
+    // payload.append(reinterpret_cast<char*>(&toc.saved_summ_sparsity), sizeof(toc.saved_summ_sparsity));
+    // payload.append(reinterpret_cast<char*>(&toc.flags), sizeof(toc.flags));
+    // payload.append(reinterpret_cast<char*>(&toc.version), sizeof(toc.version));
+
+    // payload.append(reinterpret_cast<char*>(&toc.data_offset), sizeof(toc.data_offset));
+    // payload.append(reinterpret_cast<char*>(&toc.data_end), sizeof(toc.data_end));
+
+    // payload.append(reinterpret_cast<char*>(&toc.index_offset), sizeof(toc.index_offset));
+    // payload.append(reinterpret_cast<char*>(&toc.summary_offset), sizeof(toc.summary_offset));
+    // payload.append(reinterpret_cast<char*>(&toc.filter_offset), sizeof(toc.filter_offset));
+    // payload.append(reinterpret_cast<char*>(&toc.meta_offset), sizeof(toc.meta_offset));
+
+
+    int block_id = 0;
+    uint64_t total_bytes = payload.size();
+    uint64_t offset = 0;
+
+    while (offset + block_size <= total_bytes) {
+        string chunk = payload.substr(offset, block_size);
+        bmp->write_block({block_id++, dataFile_}, chunk);
+        offset += block_size;
+    }
+
+    if (offset < total_bytes) {
+        std::string chunk = payload.substr(offset);
+        bmp->write_block({ block_id++, dataFile_ }, chunk);
+    }
+    
 
     std::cout << "[SSTable] build: upisano " << records.size()
         << " zapisa u " << dataFile_ << ".\n";
+}
+
+void SSTable::prepare() {
+    // if(toc.data_offset != 0) return; // Gledamo da li smo vec inicijalizovali.
+                                      // TODO: toc.data_offset je setovan u write pathu ali nije u read pathu van ove funkcije.
+                                      // To ne bi trebalo da bude problem, ali proveri svakako.
+
+    uint64_t offset = 0;
+
+    if(!readBytes(&toc, sizeof(toc), offset, dataFile_)) {
+        return;
+    }
+
+/*
+    if (!readBytes(&block_size, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+    if (!readBytes(&index_sparsity, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+    if (!readBytes(&summary_sparsity, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+    
+    offset += sizeof(uint8_t); // Preskacemo flags bajt zato sto vec znamo da li smo kompresovani i single file
+    
+    if (!readBytes(&toc.version, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+
+    if (!readBytes(&toc.data_offset, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+
+    if (!readBytes(&toc.data_end, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+
+    if (!readBytes(&toc.index_offset, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+    if (!readBytes(&toc.summary_offset, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+    if (!readBytes(&toc.filter_offset, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+    if (!readBytes(&toc.meta_offset, sizeof(uint64_t), offset, dataFile_)) {
+        return;
+    }
+        */
+
+    readSummaryHeader();
 }
 
 bool SSTable::readBytes(void *dst, size_t n, uint64_t& offset, string fileName) const

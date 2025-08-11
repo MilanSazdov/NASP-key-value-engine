@@ -30,7 +30,8 @@ int Config::min_threshold = 4;
 int Config::max_threshold = 32;
 
 bool Config::compress_sstable = true;
-int Config::index_sparsity = 64;
+int Config::index_sparsity = 32;
+int Config::summary_sparsity = 64;
 bool Config::sstable_single_file = false; // Default je multi-file
 
 int getValueFromLine(const std::string& line) {
@@ -149,13 +150,16 @@ void Config::load_init_configuration() {
               remove_white_space_or_coma(wal_directory);
           }
           else if (line.find("compress_sstable") != std::string::npos) {
-            index_sparsity = getValueFromLine(line);
-          }
-          else if (line.find("compress_sstable") != std::string::npos) {
             compress_sstable = (bool)getValueFromLine(line);
-	      }
+	        }
           else if (line.find("sstable_single_file") != std::string::npos) {
                 sstable_single_file = (bool)getValueFromLine(line);
+          }
+          else if (line.find("summary_sparsity") != std::string::npos) {
+            summary_sparsity = getValueFromLine(line);
+          }
+          else if (line.find("index_sparsity") != std::string::npos) {
+            index_sparsity = getValueFromLine(line);
           }
     }
     debug();

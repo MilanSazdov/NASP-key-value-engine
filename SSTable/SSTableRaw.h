@@ -27,8 +27,11 @@ public:
 		const std::string& filterFile,
 		const std::string& summaryFile,
 		const std::string& metaFile,
-		Block_manager* bmp,
-		bool is_single_file);
+		Block_manager* bmp);
+
+    SSTableRaw(
+		const std::string& dataFile,
+		Block_manager* bmp);
 
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
@@ -40,7 +43,7 @@ public:
      *   5) Kreira sparse index (key -> offset) i upisuje u indexFile_
      *   6) Snima BloomFilter u filterFile_
      */
-    void build(std::vector<Record>& records);
+    // void build(std::vector<Record>& records);
 
     /**
      * get(key) - dohvatanje vrednosti iz data.sst
@@ -49,7 +52,9 @@ public:
      *   - ako kaze "mozda ima", binarno pretrazi index, pa cita data fajl
      *     dok ne nadje key ili ga ne predje (data fajl je sortiran)
      */
-    std::vector<Record> get(const std::string& key);
+    std::vector<Record> get(const std::string& key) override;
+
+    std::vector<Record> get(const std::string& key, int n) override {std::vector<Record> r; return r;}
 
     /**
      * (Opciono) range_scan(startKey, endKey):
@@ -61,6 +66,10 @@ public:
 
 	bool validate() override;
 
+  uint64_t findDataOffset(const std::string& key, bool& found) override;
+  
+  Record getNextRecord(uint64_t& offset, bool& error) override;
+
 protected:
     std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) override;
 
@@ -70,16 +79,15 @@ protected:
     // void readIndexFromFile();
 
     // Snima 'bloom_' u filterFile_
-    void writeBloomToFile() const override;
+    void writeBloomToFile() override;
 
     // Ucitava 'bloom_' iz filterFile_ ako vec nije
     void readBloomFromFile() override;
     void readSummaryHeader() override;
 
     void writeSummaryToFile() override;
-    void writeMetaToFile() const override;
+    void writeMetaToFile() override;
     void readMetaFromFile() override;
 
-    uint64_t findDataOffset(const std::string& key, bool& found) const override;
     
 };

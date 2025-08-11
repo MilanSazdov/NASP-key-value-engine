@@ -4,10 +4,13 @@
 #include <vector>
 #include <filesystem>
 #include <memory>
+#include <mutex>
+#include <thread>
+#include <condition_variable>
+#include <atomic>
 
-
-#include "SSTManager.h"
-#include "wal.h"
+#include "../SSTable/SSTManager.h"
+#include "../Wal/wal.h"
 #include "Compaction.h"
 
 // deklaracija unapred da se izbegnu ciklicne zavisnosti

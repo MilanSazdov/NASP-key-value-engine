@@ -8,18 +8,29 @@ SSTableComp::SSTableComp(const std::string& dataFile,
     const std::string& summaryFile,
     const std::string& metaFile,
     Block_manager* bmp,
-    unordered_map<string, uint32_t>& map,
+    unordered_map<string, uint32_t>& key_to_id,
     vector<string>& id_to_key,
-    uint32_t& nextId,
-    bool is_single_file)
-    : SSTable(dataFile, indexFile, filterFile, summaryFile, metaFile, bmp,
-        is_single_file, 
-        true),          // is_compressed je uvek true za ovu klasu
-    key_to_id(map),
+    uint32_t& nextId)
+    : SSTable(dataFile, indexFile, filterFile, summaryFile, metaFile, bmp),
+    key_to_id(key_to_id),
     id_to_key(id_to_key),
     nextID(nextId)
 {
 }
+
+SSTableComp::SSTableComp(const std::string& dataFile,
+    Block_manager* bmp,
+    unordered_map<string, uint32_t>& map,
+    vector<string>& id_to_key,
+    uint32_t& nextId)
+    : SSTable(dataFile, bmp),
+    key_to_id(map),
+    id_to_key(id_to_key),
+    nextID(nextId)
+{
+} // single_file_mode
+
+// SSTableComp::~SSTableComp() { }
 
 bool SSTableComp::validate() {
     std::cout << "[SSTableComp] Pokrecem naprednu validaciju za: " << dataFile_ << std::endl;
@@ -127,87 +138,38 @@ end_of_validation_loop:;
     return false;
 }
 
-void SSTableComp::build(std::vector<Record>& records)
-{
-    if (records.empty()) {
-        std::cerr << "[SSTable] build: Nema zapisa.\n";
-        return;
-    }
-
-    index_ = writeDataMetaFiles(records);
-
-    BloomFilter bf(records.size(), 0.01); // TODO: Config
-    for (const auto& r : records) {
-        bf.add(r.key);
-    }
-    bloom_ = bf;
-
-    // Index u fajl
-    std::vector<IndexEntry> summaryAll = writeIndexToFile();
-
-    // Pravimo summary
-    summary_.summary.reserve(summaryAll.size() / SPARSITY + 1);
-
-    for (size_t i = 0; i < summaryAll.size(); i += SPARSITY) {
-        summary_.summary.push_back(summaryAll[i]);
-    }
-    if (!summaryAll.empty() &&
-        ((summaryAll.size() - 1) % SPARSITY) != 0) {
-        summary_.summary.push_back(summaryAll.back());
-    }
-
-    if (!summaryAll.empty()) {
-        auto minEntry = std::min_element(
-            summaryAll.begin(), summaryAll.end(),
-            [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-        auto maxEntry = std::max_element(
-            summaryAll.begin(), summaryAll.end(),
-            [](const IndexEntry& a, const IndexEntry& b) { return a.key < b.key; });
-
-        summary_.min = minEntry->key;
-        summary_.max = maxEntry->key;
-    }
-
-    // Bloom, meta, summary u fajl
-    writeBloomToFile();
-    writeSummaryToFile();
-    writeMetaToFile();
-
-    std::cout << "[SSTable] build: upisano " << records.size()
-        << " zapisa u " << dataFile_ << ".\n";
-}
 
 // Funkcija NE PROVERAVA bloomfilter, pretpostavlja da je vec provereno
 vector<Record> SSTableComp::get(const std::string& key)
 {
-    readSummaryHeader();
+    prepare(); // Citamo TOC (sparsity, offsete, itd.) i header summary fajla
     vector<Record> matches;
 
-    cout << summary_.min << " " << summary_.max << endl;
-
-    // 3) pretraga -> offset
-    bool found;
-    uint64_t fileOffset = findDataOffset(key, found);
-    if (!found)
+    // pretraga -> offset rekorda
+    bool in_file;
+    uint64_t fileOffset = findDataOffset(key, in_file);
+    if (!in_file)
     {
         return matches;
     }
 
-    size_t header_len = 0;
-
-    // 4) Otvorimo dataFile, idemo od fileOffset redom
     while (true) {
+        // EOF
+        // Ne bi trebalo nikada da se desi zato sto proveravamo
+        // da li je kljuc koji se trazi veci od summary.max_key
+        if (fileOffset >= toc.data_end || fileOffset < toc.data_offset) break;
+
         if(block_size - (fileOffset % block_size) <
             sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t)) {
             fileOffset += block_size - (fileOffset % block_size);
         } // Ako nema mesta za header u najgorem slucaju, paddujemo i to treba da se preskoci.
-          // Lose resenje, trebalo bi da se cita index i preskoci na sledeci offset, ali ubicu se ako jos to treba da napisem
 
         // citamo polja Record-a
         uint crc = 0;
         uint64_t start = fileOffset;
         readNumValue<uint>(crc, fileOffset, dataFile_);
         uint64_t crc_size = fileOffset - start;
+
 
         Wal_record_type flag;
         readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
@@ -283,6 +245,157 @@ vector<Record> SSTableComp::get(const std::string& key)
     return matches;
 }
 
+// Funkcija vraca do `n` rekorda sa razlicitim kljucem, pocinje pretragu od `key`. Vratice manje od `n` ako dodje do kraja SSTabele.
+/*
+vector<Record> SSTableComp::get(const std::string& key, int n)
+{
+    prepare(); // Citamo TOC (sparsity, offsete, itd.) i header summary fajla
+    vector<Record> ret;
+
+    // pretraga -> offset najblizeg levog rekorda
+    bool in_file;
+    uint64_t fileOffset = findDataOffset(key, in_file);
+    if (!in_file)
+    {
+        return ret;
+    }
+
+    size_t header_len = 0;
+
+    uint64_t latest_record_timestamp = 0;
+    Record latest_record;
+
+    string last_seen_key;
+
+    int current_count = 0;
+
+
+    // 4) Otvorimo dataFile, idemo od fileOffset redom
+    while (true) {
+        if(block_size - (fileOffset % block_size) <
+            sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t)) {
+            fileOffset += block_size - (fileOffset % block_size);
+        } // Ako nema mesta za header u najgorem slucaju, paddujemo i to treba da se preskoci.
+          // Lose resenje, trebalo bi da se cita index i preskoci na sledeci offset, ali ubicu se ako jos to treba da napisem
+
+        // citamo polja Record-a
+        uint crc = 0;
+        uint64_t start = fileOffset;
+
+        
+        // Gledamo da li smo dosli do kraja fajla
+        if(!readNumValue<uint>(crc, fileOffset, dataFile_)) break;
+        uint64_t crc_size = fileOffset - start;
+        
+        // Gledamo da li smo izasli iz dela za data
+        if(is_single_file_mode_ && fileOffset > toc.index_offset) {
+            break;
+        }
+
+        Wal_record_type flag;
+        if (!readBytes(&flag, sizeof(flag), fileOffset, dataFile_)) break;
+
+        if((uint8_t)flag == 0) break;
+
+        if(is_single_file_mode_ && fileOffset > toc.index_offset) {
+            break;
+        }
+
+        start = fileOffset;
+        uint64_t ts = 0;
+        readNumValue(ts, fileOffset, dataFile_);
+        uint64_t ts_size = fileOffset - start;
+
+        char tomb;
+        readBytes(&tomb, sizeof(tomb), fileOffset, dataFile_);
+
+        bool isTomb = (bool)tomb;
+
+        uint64_t v_size = 0;
+        if(!isTomb) readBytes(&v_size, sizeof(v_size), fileOffset, dataFile_);
+
+        start = fileOffset;
+        uint32_t r_key_id = 0;
+        readNumValue(r_key_id, fileOffset, dataFile_);
+        uint64_t r_key_size = fileOffset - start;
+
+        string rkey = id_to_key[r_key_id];
+
+        std::string rvalue;
+        rvalue.resize(v_size);
+        readBytes(&rvalue[0], v_size, fileOffset, dataFile_);
+
+        Record r;
+        r.crc = crc;
+        r.timestamp = ts;
+        r.tombstone = static_cast<byte>(tomb);
+        r.key_size = rkey.size();
+        r.value_size = v_size;
+        r.key = rkey;
+        r.value = rvalue;
+
+        if(rkey >= key) {
+
+            // Ucitamo ceo record ako je bio podeljen
+            if (flag == Wal_record_type::FIRST) {
+                while(true) {
+                    fileOffset += crc_size;
+                    
+                    Wal_record_type flag;
+                    readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
+                    
+                    fileOffset += ts_size;
+                    
+                    fileOffset += sizeof(tomb);
+                    
+                    uint64_t vSize = 0;
+                    if(!isTomb) readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
+                    
+                    std::string rvalue;
+                    rvalue.resize(vSize);
+                    readBytes(&rvalue[0], vSize, fileOffset, dataFile_);
+                    
+                    r.value.append(rvalue);
+                    r.value_size += vSize;
+                    
+                    if(flag == Wal_record_type::LAST){
+                        break;
+                    }
+                }
+            }
+
+            // Prelazimo na novi record
+            if (rkey != last_seen_key && !last_seen_key.empty()) {
+                if (!(bool)latest_record.tombstone) {
+                    ret.emplace_back(latest_record);
+                    if (++current_count == n) break;
+                    latest_record_timestamp = 0;
+                }
+            }
+
+            // Ako je noviji record, menjamo ts i latest_record. Inace, odbacujemo
+            if(latest_record_timestamp < ts) {
+                latest_record_timestamp = ts;
+                latest_record = r;
+            }
+
+            last_seen_key = rkey;
+        }
+
+    }
+
+    // Posledji record
+    if ((int)ret.size() < n &&
+        !last_seen_key.empty() &&
+        !(bool)latest_record.tombstone)
+    {
+        ret.emplace_back(latest_record);
+    }
+
+    return ret;
+}
+*/
+
 /*
 std::vector<std::pair<std::string, std::string>>
 SSTable::range_scan(const std::string& startKey, const std::string& endKey)
@@ -333,127 +446,200 @@ SSTable::range_scan(const std::string& startKey, const std::string& endKey)
 */
 
 // Struktura: [crc(varInt), flag(byte), timestamp(varInt), tombstone(byte), val_size(uint64), key_id(varInt), value(string)]
-// Kada se splituje, samo prvi ima key_id
-std::vector<IndexEntry> SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords)
-{
-    std::vector<IndexEntry> index_entries;
+// Kada se splituje, samo FIRST deo ima key_id
+std::vector<IndexEntry>
+SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords) {
+
+    toc.data_offset = (sizeof(toc)/block_size + 1)*block_size; // Mesto za toc
+
+
+    std::vector<IndexEntry> ret;
+    ret.reserve(sortedRecords.size());
+
+
+    ull offset = toc.data_offset;
+
+    int block_id = toc.data_offset/block_size;
+
+    string concat;
+    concat.reserve(block_size);
+
     std::vector<std::string> data_for_merkle;
-    uint64_t logical_offset = 0;
-    int block_id = 0;
-    std::string block_buffer;
-
-    index_entries.reserve(sortedRecords.size());
     data_for_merkle.reserve(sortedRecords.size());
-    block_buffer.reserve(block_size);
+    
+    for (auto& r : sortedRecords) {
 
-    for (const auto& record : sortedRecords) {
-        // --- KORAK 1: Pripremi Index i Merkle podatke ---
-        index_entries.push_back({ record.key, logical_offset });
-        data_for_merkle.push_back(record.key + record.value);
+    {   // Merkle tree listovi
+        data_for_merkle.push_back(r.key + r.value);
+    }
+                
+        IndexEntry ie;
+        ie.key = r.key;
+        ie.offset = offset;
+        ret.emplace_back(ie);
+        
+        Record rec(r);
 
-        // --- KORAK 2: Pripremi enkodirane delove headera ---
-        bool is_tombstone = static_cast<bool>(record.tombstone);
-        std::string crc_varint = varenc::encodeVarint(record.crc);
-        std::string ts_varint = varenc::encodeVarint(record.timestamp);
+        bool tomb = (bool)rec.tombstone;
 
-        // Bezbedno dobij ili kreiraj ID za ključ
-        uint32_t key_id;
-        auto it = key_to_id.find(record.key);
+        // Tomb se ne enkodira zato sto je 1 bajt, val size zbog splitovanja
+        std::string crc = varenc::encodeVarint<uint>(rec.crc);
+        std::string timestamp = varenc::encodeVarint<ull>(rec.timestamp);
+
+        if (tomb) {
+            rec.value_size = 0;
+            rec.value = "";
+        }
+
+        // ---- Menjamo kljuc sa vrednoscu iz mape ---- //
+
+        uint32_t key_val;
+        auto it = key_to_id.find(r.key);
         if (it == key_to_id.end()) {
-            key_id = nextID++;
-            key_to_id[record.key] = key_id;
-            id_to_key.push_back(record.key);
-        }
-        else {
-            key_id = it->second;
-        }
-        std::string key_id_varint = varenc::encodeVarint(key_id);
-
-        const std::string& value_to_write = is_tombstone ? "" : record.value;
-
-        // --- KORAK 3: Serijalizuj i podeli zapis na delove (chunks) ---
-        std::vector<std::string> chunks;
-        size_t value_offset = 0;
-        bool first_chunk = true;
-
-        // Petlja koja deli zapis na delove ako je potrebno
-        while (value_offset < value_to_write.length() || first_chunk) {
-            std::string current_chunk;
-
-            // Izračunaj maksimalnu veličinu payload-a za ovaj deo
-            size_t header_size_approx = 1 + 1 + crc_varint.length() + ts_varint.length() +
-                (first_chunk ? key_id_varint.length() : 0) +
-                (is_tombstone ? 0 : 10); // 10 je max za varint(uint64)
-            size_t max_payload_size = (block_size > header_size_approx) ? block_size - header_size_approx : 0;
-            size_t value_chunk_size = std::min(value_to_write.length() - value_offset, max_payload_size);
-
-            Wal_record_type flag;
-            bool is_last_chunk = (value_offset + value_chunk_size == value_to_write.length());
-            if (first_chunk && is_last_chunk) {
-                flag = Wal_record_type::FULL;
-            }
-            else if (first_chunk) {
-                flag = Wal_record_type::FIRST;
-            }
-            else if (is_last_chunk) {
-                flag = Wal_record_type::LAST;
-            }
-            else {
-                flag = Wal_record_type::MIDDLE;
-            }
-
-            // Sastavljanje jednog dela (chunk-a)
-            current_chunk.append(reinterpret_cast<const char*>(&flag), sizeof(flag));
-            current_chunk.append(reinterpret_cast<const char*>(&record.tombstone), sizeof(record.tombstone));
-            current_chunk.append(crc_varint);
-            current_chunk.append(ts_varint);
-            if (flag == Wal_record_type::FIRST || flag == Wal_record_type::FULL) {
-                current_chunk.append(key_id_varint); // key_id ide samo u prvi chunk
-            }
-            if (!is_tombstone) {
-                std::string val_size_varint = varenc::encodeVarint(value_chunk_size);
-                current_chunk.append(val_size_varint);
-                current_chunk.append(value_to_write, value_offset, value_chunk_size);
-            }
-
-            chunks.push_back(current_chunk);
-            value_offset += value_chunk_size;
-            first_chunk = false;
+            key_to_id[r.key] = nextID++;
+            id_to_key.emplace_back(r.key);
         }
 
-        // --- KORAK 4: Upiši pripremljene delove u blokove ---
-        size_t record_len_on_disk = 0;
-        for (const auto& chunk : chunks) {
-            if (block_buffer.length() + chunk.length() > block_size) {
-                block_buffer.resize(block_size, static_cast<char>(padding_character));
-                bmp->write_block({ block_id++, dataFile_ }, block_buffer);
-                block_buffer.clear();
-            }
-            block_buffer.append(chunk);
-            record_len_on_disk += chunk.length();
+        key_val = key_to_id[r.key];
+
+        string key_str = varenc::encodeVarint<uint32_t>(key_val);
+
+        rec.key = key_str;
+        rec.key_size = key_str.size();
+
+        // -------------------------------------------- //
+
+        size_t header_len =  tomb ? crc.size() + timestamp.size() + 2:
+                                    crc.size() + timestamp.size() + sizeof(rec.value_size) + 2;
+
+        size_t len = header_len + rec.key_size + rec.value_size;
+
+        ull remaining = block_size - (offset % block_size);
+        
+        offset += rec.key_size + rec.value_size; // Dodajemo ceo key size i value size prvo, posle cemo videti koliko headera treba
+        
+        // Ako u bloku nema dovoljno mesta za worst case header (worst case zbog citanja)
+        uint64_t header_max_len = sizeof(r.crc) + sizeof(r.timestamp) +
+                                sizeof(char) + sizeof(r.tombstone) +
+                                sizeof(r.value_size) + /*najduzi kljuc:*/ sizeof(uint32_t);
+        if (remaining < header_max_len)
+        {
+            offset += remaining;
+
+            bmp->write_block({block_id++, dataFile_}, concat);
+            concat.clear();
+            remaining = block_size;
         }
-        logical_offset += record_len_on_disk;
+
+        Wal_record_type flag;
+
+        if (remaining < len) {
+            flag = Wal_record_type::FIRST;
+            concat.append(crc);
+            concat.append(reinterpret_cast<const char*>(&flag), sizeof(flag));
+            concat.append(timestamp);
+            concat.append(reinterpret_cast<const char*>(&rec.tombstone), sizeof(rec.tombstone));
+          
+            remaining -= header_len;
+            remaining -= rec.key_size;
+            
+            ull value_written = min<ull>(remaining, rec.value_size);
+            remaining -= value_written;
+            
+            if(!tomb) concat.append(reinterpret_cast<const char*>(&value_written), sizeof(value_written));
+            
+            offset += header_len;
+            
+            concat.append(rec.key);
+            concat.insert(concat.end(), rec.value.begin(), rec.value.begin() + value_written);
+            
+            rec.value = rec.value.substr(value_written);
+            rec.value_size -= value_written;
+
+            // Flushujemo blok
+            bmp->write_block({block_id++, dataFile_}, concat);
+            concat.clear();
+            concat.reserve(block_size);  
+            
+            remaining = block_size;
+
+            while (flag != Wal_record_type::LAST) {        
+                remaining -= header_len;
+                offset += header_len;
+
+                ull value_written = min<ull>(remaining, rec.value_size);
+                remaining -= value_written;
+
+                if(remaining == 0 && (rec.value_size - value_written != 0)) {
+                    flag = Wal_record_type::MIDDLE;
+                } else flag = Wal_record_type::LAST;
+
+                // L -> ili remaining != 0, tj ima jos mesta, ili nema vise mesta ali smo zapisali ceo zapis
+                // M -> Nema vise mesta i ili nismo ispisali ceo kljuc ili nismo ispisali ceo value
+
+                concat.append(crc);
+                concat.append(reinterpret_cast<const char*>(&flag), sizeof(flag));
+                concat.append(timestamp);
+                concat.append(reinterpret_cast<const char*>(&rec.tombstone), sizeof(rec.tombstone));
+                if(!tomb) concat.append(reinterpret_cast<const char*>(&value_written), sizeof(value_written));
+                
+
+                concat.insert(concat.end(),rec.value.begin(), rec.value.begin() + value_written);
+                
+                if (flag == Wal_record_type::MIDDLE){
+                    // Flushujemo blok
+                    bmp->write_block({block_id++, dataFile_}, concat);
+                    concat.clear();
+                    concat.reserve(block_size);
+
+                    rec.value = string(rec.value.begin() + value_written, rec.value.end());
+
+                    rec.value_size -= value_written;
+
+                    remaining = block_size;
+                }
+            }
+
+        } else {
+            flag = Wal_record_type::FULL;
+            concat.append(crc);
+            concat.append(reinterpret_cast<const char*>(&flag), sizeof(flag));
+            concat.append(timestamp);
+            concat.append(reinterpret_cast<const char*>(&rec.tombstone), sizeof(rec.tombstone));
+            if(!tomb) concat.append(reinterpret_cast<const char*>(&rec.value_size), sizeof(rec.value_size));
+
+            offset += header_len;
+
+            concat.append(rec.key);
+            if(!tomb) concat.append(rec.value);    
+
+        }
     }
 
-    // Upiši poslednji, nepotpuni blok ako postoji
-    if (!block_buffer.empty()) {
-        block_buffer.resize(block_size, static_cast<char>(padding_character));
-        bmp->write_block({ block_id, dataFile_ }, block_buffer);
-    }
+    if (!concat.empty()) 
+        bmp->write_block({block_id, dataFile_}, concat);
+    
+    toc.data_end = block_id*block_size + concat.size();
+    if(is_single_file_mode_) toc.index_offset = (block_id+1)*block_size;
 
-    // Kreiraj Merkle stablo i sačuvaj root hash
     if (!data_for_merkle.empty()) {
         MerkleTree merkle_tree(data_for_merkle);
         this->rootHash_ = merkle_tree.getRootHash();
         this->originalLeafHashes_ = merkle_tree.getLeaves();
     }
 
-    return index_entries;
+    return ret;
 }
 
 // Struktura: count(varInt), [key_id1(varInt), offset1(varInt)...]
 std::vector<IndexEntry> SSTableComp::writeIndexToFile()
 {
+    uint64_t start_offset = 0;
+
+    if(is_single_file_mode_) {
+        start_offset = toc.index_offset; // Set in data writer
+    }
+
     std::vector<IndexEntry> ret;
 
     string payload;
@@ -480,7 +666,7 @@ std::vector<IndexEntry> SSTableComp::writeIndexToFile()
         offset += key_str.size() + offset_str.size();
     }
 
-    int block_id = 0;
+    int block_id = start_offset/block_size;
     size_t total_bytes = payload.size();
     offset = 0;
 
@@ -490,12 +676,23 @@ std::vector<IndexEntry> SSTableComp::writeIndexToFile()
         offset += block_size;
     }
 
+    if (offset < total_bytes) {
+        std::string chunk = payload.substr(offset);
+        bmp->write_block({ block_id++, indexFile_ }, chunk);
+    }
+
+    if(is_single_file_mode_) toc.summary_offset = (block_id+1)*block_size;
+
     return ret;
 }
 
-// Struktura: count(varInt), min_key(varInt), max_key(varInt), [key_id1(varInt), offset1(varInt)...]
 void SSTableComp::writeSummaryToFile()
 {
+    uint64_t start_offset = 0;
+    if(is_single_file_mode_) {
+        start_offset = toc.summary_offset; // Set in index writer
+    }
+
     string payload;
 
     payload.append(varenc::encodeVarint<uint64_t>(summary_.summary.size())); // Count
@@ -520,7 +717,7 @@ void SSTableComp::writeSummaryToFile()
 
     }
 
-    int block_id = 0;
+    int block_id = start_offset/block_size;
     uint64_t total_bytes = payload.size();
     uint64_t offset = 0;
 
@@ -535,6 +732,7 @@ void SSTableComp::writeSummaryToFile()
         bmp->write_block({ block_id++, summaryFile_ }, chunk);
     }
 
+    if(is_single_file_mode_) toc.filter_offset = (block_id+1)*block_size;
 }
 
 void SSTableComp::readMetaFromFile() {
@@ -594,8 +792,13 @@ void SSTableComp::readMetaFromFile() {
         << " bajtova, Broj listova: " << originalLeafHashes_.size() << std::endl;
 }
 
-void SSTableComp::writeBloomToFile() const
+void SSTableComp::writeBloomToFile()
 {
+    uint64_t start_offset = 0;
+    if(is_single_file_mode_) {
+        start_offset = toc.filter_offset; // Set in summary writer
+    }
+
     std::vector<byte> raw = bloom_.serialize();
 
     string len_str = varenc::encodeVarint<size_t>(raw.size());
@@ -609,7 +812,7 @@ void SSTableComp::writeBloomToFile() const
 
     payload.append(reinterpret_cast<const char*>(raw.data()), raw.size());
 
-    int block_id = 0;
+    int block_id = start_offset/block_size;
     size_t total_bytes = payload.size();
     size_t offset = 0;
 
@@ -623,9 +826,17 @@ void SSTableComp::writeBloomToFile() const
         std::string chunk = payload.substr(offset);
         bmp->write_block({ block_id++, filterFile_ }, chunk);
     }
+
+    if(is_single_file_mode_) toc.meta_offset = (block_id+1)*block_size;
 }
 
-void SSTableComp::writeMetaToFile() const {
+void SSTableComp::writeMetaToFile() {
+
+    uint64_t start_offset = 0;
+    if(is_single_file_mode_) {
+        start_offset = toc.meta_offset; // Set in summary writer
+    }
+
     if (rootHash_.empty() || originalLeafHashes_.empty()) {
         std::cout << "[SSTable] No complete Merkle tree data to write for " << metaFile_ << std::endl;
         return;
@@ -637,7 +848,7 @@ void SSTableComp::writeMetaToFile() const {
     }
 
     // upisujemo payload u blokove
-    int block_id = 0;
+    int block_id = start_offset/block_size;
     size_t offset = 0;
     while (offset < payload.length()) {
         size_t chunk_size = std::min((size_t)block_size, payload.length() - offset);
@@ -681,7 +892,7 @@ void SSTableComp::readSummaryHeader()
     summary_.min.clear();
     summary_.max.clear();
 
-    uint64_t offset = 0;
+    uint64_t offset = toc.summary_offset;
     
     if (!readNumValue<uint64_t>(summary_.count, offset, summaryFile_)) {
         std::cerr << "[SSTableComp::readSummaryHeader] Problem reading summary count\n";
@@ -690,7 +901,7 @@ void SSTableComp::readSummaryHeader()
     
     uint32_t min_key_id = 0;
     if (!readNumValue<uint32_t>(min_key_id, offset, summaryFile_)) {
-        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading min_key_len\n";
+        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading min_key\n";
         return;
     }
 
@@ -698,7 +909,7 @@ void SSTableComp::readSummaryHeader()
     
     uint32_t max_key_id = 0;
     if (!readNumValue<uint32_t>(max_key_id, offset, summaryFile_)) {
-        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading max_key_len\n";
+        std::cerr << "[SSTableComp::readSummaryHeader] Problem reading max_key\n";
         return;
     }
 
@@ -708,10 +919,18 @@ void SSTableComp::readSummaryHeader()
     summary_data_start = offset;
 }
 
-uint64_t SSTableComp::findDataOffset(const std::string& key, bool& found) const
+uint64_t SSTableComp::findDataOffset(const std::string& key, bool& in_file)
 {
-    if (key < summary_.min || key > summary_.max) {
-        found = false;
+    prepare();
+
+    in_file = true;
+    if (key > summary_.max) {
+        in_file = false;
+        return std::numeric_limits<uint64_t>::max();
+    }
+
+    if(key < summary_.min) {
+        in_file = false;
         return 0;
     }
 
@@ -727,7 +946,8 @@ uint64_t SSTableComp::findDataOffset(const std::string& key, bool& found) const
         readNumValue<uint32_t>(r_key_id, file_offset, summaryFile_);
 
         r_key = id_to_key[r_key_id];
-
+        
+        
         if(r_key > key) {
             break;
         }
@@ -735,27 +955,167 @@ uint64_t SSTableComp::findDataOffset(const std::string& key, bool& found) const
         readNumValue<uint64_t>(last_offset, file_offset, summaryFile_);
     }
 
-    file_offset = last_offset;
+    file_offset = last_offset + toc.index_offset;
     uint64_t off = 0;
 
     while (true) {
-        readNumValue<uint32_t>(r_key_id, file_offset, indexFile_);
+        if(is_single_file_mode_ && file_offset + sizeof(r_key_id) >= toc.summary_offset) break;
+        if(!readNumValue<uint32_t>(r_key_id, file_offset, indexFile_)) break;
         
         r_key = id_to_key[r_key_id];
 
-        readNumValue<uint64_t>(off, file_offset, indexFile_);
-
-        if (r_key == key) {
-            found = true;
-            return off;
-        }
         if (r_key > key) {
-            found = false;
-            return 0ULL;
+            break;
+        }
+
+        readNumValue<uint64_t>(off, file_offset, indexFile_);
+    }
+
+    uint64_t fileOffset = off;
+    // const uint64_t header =
+    //     sizeof(uint)
+    //   + sizeof(Wal_record_type)
+    //   + sizeof(uint64_t)
+    //   + sizeof(char)
+    //   + sizeof(uint64_t)
+    //   + sizeof(uint32_t);
+
+    const uint64_t header_max_len =  sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t);
+   
+    while (true) {
+        if(fileOffset >= toc.data_end) break; // EOF
+
+        uint64_t rem = block_size - (fileOffset % block_size);
+        if (rem < header_max_len) {
+            fileOffset += rem;
+        }
+
+        uint64_t recordStart = fileOffset;
+
+        uint crc = 0;
+        readNumValue<uint>(crc, fileOffset, dataFile_);
+
+        Wal_record_type flag;
+        readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
+
+        uint64_t ts = 0;
+        readNumValue(ts, fileOffset, dataFile_);
+
+        char tomb;
+        readBytes(&tomb, sizeof(tomb), fileOffset, dataFile_);
+        bool isTomb = static_cast<bool>(tomb);
+
+        uint64_t v_size = 0;
+        if (!isTomb) {
+            readBytes(&v_size, sizeof(v_size), fileOffset, dataFile_);
+        }
+
+        uint32_t r_key_id = 0;
+        readNumValue(r_key_id, fileOffset, dataFile_);
+        std::string rkey = id_to_key[r_key_id];
+
+        fileOffset += v_size; // skip value
+
+        if (rkey == key) {
+            return recordStart;
+        }
+
+        if (rkey > key) {
+            in_file = false;
+            return fileOffset;
         }
     }
-    found = false;
-    return 0ULL;
+
+    in_file = false;
+    return std::numeric_limits<uint64_t>::max();
+}
+
+Record SSTableComp::getNextRecord(uint64_t& offset, bool& error) {
+    prepare();
+    
+    const uint64_t header_max_len =  sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t);
+
+    if(offset >= toc.data_end || offset < toc.data_offset) {
+        error = true;
+        Record r;
+        return r;
+    }
+
+    uint64_t rem = block_size - (offset % block_size);
+    if (rem < header_max_len) {
+        offset += rem;
+    }
+
+    uint crc = 0;
+    uint64_t start = offset;
+    readNumValue<uint>(crc, offset, dataFile_);
+    uint64_t crc_size = offset - start;
+
+
+    Wal_record_type flag;
+    readBytes(&flag, sizeof(flag), offset, dataFile_);
+
+    start = offset;
+    uint64_t ts = 0;
+    readNumValue(ts, offset, dataFile_);
+    uint64_t ts_size = offset - start;
+
+    char tomb;
+    readBytes(&tomb, sizeof(tomb), offset, dataFile_);
+
+    bool isTomb = (bool)tomb;
+
+    uint64_t v_size = 0;
+    if(!isTomb) readBytes(&v_size, sizeof(v_size), offset, dataFile_);
+
+    start = offset;
+    uint32_t r_key_id = 0;
+    readNumValue(r_key_id, offset, dataFile_);
+    uint64_t r_key_size = offset - start;
+
+    string rkey = id_to_key[r_key_id];
+
+    std::string rvalue;
+    rvalue.resize(v_size);
+    readBytes(&rvalue[0], v_size, offset, dataFile_);
+
+    Record r;
+    r.crc = crc;
+    r.timestamp = ts;
+    r.tombstone = static_cast<byte>(tomb);
+    r.key_size = rkey.size();
+    r.value_size = v_size;
+    r.key = rkey;
+    r.value = rvalue;
+
+    if (flag == Wal_record_type::FIRST) {
+        while(true) {
+            offset += crc_size;
+            
+            Wal_record_type flag;
+            readBytes(&flag, sizeof(flag), offset, dataFile_);
+            
+            offset += ts_size;
+            
+            offset += sizeof(tomb);
+            
+            uint64_t vSize = 0;
+            if(!isTomb) readBytes(&vSize, sizeof(vSize), offset, dataFile_);
+            
+            std::string rvalue;
+            rvalue.resize(vSize);
+            readBytes(&rvalue[0], vSize, offset, dataFile_);
+            
+            r.value.append(rvalue);
+            r.value_size += vSize;
+            
+            if(flag == Wal_record_type::LAST){
+                break;
+            }
+        }
+    }
+
+    return r;
 }
 
 template<typename UInt>
