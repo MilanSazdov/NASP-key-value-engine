@@ -147,7 +147,7 @@ vector<Record> SSTableComp::get(const std::string& key)
 
     // pretraga -> offset rekorda
     bool in_file;
-    uint64_t fileOffset = findDataOffset(key, in_file);
+    uint64_t fileOffset = findRecordOffset(key, in_file);
     if (!in_file)
     {
         return matches;
@@ -254,7 +254,7 @@ vector<Record> SSTableComp::get(const std::string& key, int n)
 
     // pretraga -> offset najblizeg levog rekorda
     bool in_file;
-    uint64_t fileOffset = findDataOffset(key, in_file);
+    uint64_t fileOffset = findRecordOffset(key, in_file);
     if (!in_file)
     {
         return ret;
@@ -406,7 +406,7 @@ SSTable::range_scan(const std::string& startKey, const std::string& endKey)
     readIndexFromFile();
 
     // pocetni offset
-    uint64_t offset = findDataOffset(startKey);
+    uint64_t offset = findRecordOffset(startKey);
 
     std::ifstream in(dataFile_, std::ios::binary);
     if (!in.is_open()) {
@@ -919,7 +919,7 @@ void SSTableComp::readSummaryHeader()
     summary_data_start = offset;
 }
 
-uint64_t SSTableComp::findDataOffset(const std::string& key, bool& in_file)
+uint64_t SSTableComp::findRecordOffset(const std::string& key, bool& in_file)
 {
     prepare();
 

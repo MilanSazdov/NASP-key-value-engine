@@ -105,7 +105,7 @@ vector<Record> SSTableRaw::get(const std::string& key) {
 
     // 3) binarna pretraga -> offset
     bool found;
-    uint64_t fileOffset = findDataOffset(key, found);
+    uint64_t fileOffset = findRecordOffset(key, found);
     if (!found)
     {
         return matches;
@@ -686,7 +686,7 @@ void SSTableRaw::readSummaryHeader()
     summary_.count = count;
 }
 
-uint64_t SSTableRaw::findDataOffset(const std::string& key, bool& found)
+uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
 {
     prepare();
 

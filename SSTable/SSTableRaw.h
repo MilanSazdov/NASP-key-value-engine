@@ -66,7 +66,7 @@ public:
 
 	bool validate() override;
 
-  uint64_t findDataOffset(const std::string& key, bool& found) override;
+  uint64_t findRecordOffset(const std::string& key, bool& found) override;
   
   Record getNextRecord(uint64_t& offset, bool& error) override;
 

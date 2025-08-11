@@ -69,7 +69,7 @@ public:
     
     bool validate() override;
     
-    uint64_t findDataOffset(const std::string& key, bool& in_file) override;
+    uint64_t findRecordOffset(const std::string& key, bool& in_file) override;
 
 protected:
     std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) override;

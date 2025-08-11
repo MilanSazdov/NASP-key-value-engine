@@ -107,19 +107,23 @@ public:
     // virtual std::vector<Record> get(const std::string& key, int n) = 0; 
 
     /**
-     * getNextRecord(&offset, &error) - Čita jedan Record desno od offset.
+     * getNextRecord(&offset, &error) - Čita jedan rekord desno od offset i menja offset.
+     *    error ce biti postavljen na true ukoliko dodje do kraja fajla.
      */
     virtual Record getNextRecord(uint64_t& offset, bool& error) = 0;
     
 	virtual bool validate() = 0;
 
     /**
-     * findDataOffset(key, bool& in_file) - vraca offset u bajtovima gde se prvi Record sa kljucem nalazi u data fajlu.
+     * findRecordOffset(key, bool& in_file) - vraća offset u bajtovima gde se prvi Record sa kljucem nalazi u data fajlu.
      *    - Ukoliko sstabela ne sadrzi kljuc, funkcija vraca offset najblizeg desnog elementa i stavlja in_file = false
      *    - Ukoliko sstabela ne sadrzi kljuc i kljuc je veci od najveceg u tabeli, funckija vraca numeric_limits<uint64_t>::max();
      */
-    virtual uint64_t findDataOffset(const std::string& key, bool& in_file) = 0;
+    virtual uint64_t findRecordOffset(const std::string& key, bool& in_file) = 0;
 
+    /**
+     * getDataStartOffset() - vraća offset u bajtovima gde počinje data segment u data fajlu.
+     */
     virtual uint64_t getDataStartOffset() { return toc.data_offset; }
 
 protected:
