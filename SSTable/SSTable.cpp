@@ -1,8 +1,6 @@
-﻿#include "SSTable.h"
+﻿﻿#include "SSTable.h"
 
-namespace fs = std::filesystem;
-
-void SSTable::build(std::vector<Record>& records)
+void SSTable::build(std::vector<Record>&records)
 {
     std::sort(records.begin(), records.end(),
         [](auto const& a, auto const& b) {
@@ -65,19 +63,23 @@ void SSTable::build(std::vector<Record>& records)
 
 
     // Pisemo toc
+    // Moze da se zameni memcpy(&payload[0], ...) ali ce padovati 
     string payload;
-    payload.reserve(sizeof(toc));
-    payload.append(reinterpret_cast<char*>(&toc.saved_block_size), sizeof(toc.saved_block_size));
-    payload.append(reinterpret_cast<char*>(&toc.saved_idx_sparsity), sizeof(toc.saved_idx_sparsity));
-    payload.append(reinterpret_cast<char*>(&toc.saved_summ_sparsity), sizeof(toc.saved_summ_sparsity));
-    payload.append(reinterpret_cast<char*>(&toc.flags), sizeof(toc.flags));
-    payload.append(reinterpret_cast<char*>(&toc.version), sizeof(toc.version));
+    payload.resize(sizeof(toc));
+    std::memcpy(&payload[0], &toc, sizeof(toc));
+    // payload.append(reinterpret_cast<char*>(&toc.saved_block_size), sizeof(toc.saved_block_size));
+    // payload.append(reinterpret_cast<char*>(&toc.saved_idx_sparsity), sizeof(toc.saved_idx_sparsity));
+    // payload.append(reinterpret_cast<char*>(&toc.saved_summ_sparsity), sizeof(toc.saved_summ_sparsity));
+    // payload.append(reinterpret_cast<char*>(&toc.flags), sizeof(toc.flags));
+    // payload.append(reinterpret_cast<char*>(&toc.version), sizeof(toc.version));
 
-    payload.append(reinterpret_cast<char*>(&toc.data_offset), sizeof(toc.data_offset));
-    payload.append(reinterpret_cast<char*>(&toc.index_offset), sizeof(toc.index_offset));
-    payload.append(reinterpret_cast<char*>(&toc.summary_offset), sizeof(toc.summary_offset));
-    payload.append(reinterpret_cast<char*>(&toc.filter_offset), sizeof(toc.filter_offset));
-    payload.append(reinterpret_cast<char*>(&toc.meta_offset), sizeof(toc.meta_offset));
+    // payload.append(reinterpret_cast<char*>(&toc.data_offset), sizeof(toc.data_offset));
+    // payload.append(reinterpret_cast<char*>(&toc.data_end), sizeof(toc.data_end));
+
+    // payload.append(reinterpret_cast<char*>(&toc.index_offset), sizeof(toc.index_offset));
+    // payload.append(reinterpret_cast<char*>(&toc.summary_offset), sizeof(toc.summary_offset));
+    // payload.append(reinterpret_cast<char*>(&toc.filter_offset), sizeof(toc.filter_offset));
+    // payload.append(reinterpret_cast<char*>(&toc.meta_offset), sizeof(toc.meta_offset));
 
 
     int block_id = 0;
@@ -101,36 +103,54 @@ void SSTable::build(std::vector<Record>& records)
 }
 
 void SSTable::prepare() {
+    // if(toc.data_offset != 0) return; // Gledamo da li smo vec inicijalizovali.
+                                      // TODO: toc.data_offset je setovan u write pathu ali nije u read pathu van ove funkcije.
+                                      // To ne bi trebalo da bude problem, ali proveri svakako.
+
     uint64_t offset = 0;
 
-    if (!readBytes(&block_size, sizeof(uint64_t), offset, dataFile_)) {
-        return;
-    }
-    if (!readBytes(&index_sparsity, sizeof(uint64_t), offset, dataFile_)) {
-        return;
-    }
-    if (!readBytes(&summary_sparsity, sizeof(uint64_t), offset, dataFile_)) {
+    if (!readBytes(&toc, sizeof(toc), offset, dataFile_)) {
         return;
     }
 
-    offset += sizeof(uint8_t); // Preskacemo flags zato sto vec znamo da li smo kompresovani i single file
+    /*
+        if (!readBytes(&block_size, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
+        if (!readBytes(&index_sparsity, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
+        if (!readBytes(&summary_sparsity, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
 
-    uint64_t version;
-    if (!readBytes(&toc.data_offset, sizeof(uint64_t), offset, dataFile_)) {
-        return;
-    }
-    if (!readBytes(&toc.index_offset, sizeof(uint64_t), offset, dataFile_)) {
-        return;
-    }
-    if (!readBytes(&toc.summary_offset, sizeof(uint64_t), offset, dataFile_)) {
-        return;
-    }
-    if (!readBytes(&toc.filter_offset, sizeof(uint64_t), offset, dataFile_)) {
-        return;
-    }
-    if (!readBytes(&toc.meta_offset, sizeof(uint64_t), offset, dataFile_)) {
-        return;
-    }
+        offset += sizeof(uint8_t); // Preskacemo flags bajt zato sto vec znamo da li smo kompresovani i single file
+
+        if (!readBytes(&toc.version, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
+
+        if (!readBytes(&toc.data_offset, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
+
+        if (!readBytes(&toc.data_end, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
+
+        if (!readBytes(&toc.index_offset, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
+        if (!readBytes(&toc.summary_offset, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
+        if (!readBytes(&toc.filter_offset, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
+        if (!readBytes(&toc.meta_offset, sizeof(uint64_t), offset, dataFile_)) {
+            return;
+        }
+            */
 
     readSummaryHeader();
 }

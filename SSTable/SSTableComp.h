@@ -34,6 +34,7 @@ public:
         vector<string>& id_to_key,
         uint32_t& nextId);
 
+
     SSTableComp(const std::string& dataFile,
         Block_manager* bmp,
         unordered_map<string, uint32_t>& map,
@@ -50,28 +51,25 @@ public:
      *   5) Kreira sparse index (key -> offset) i upisuje u indexFile_
      *   6) Snima BloomFilter u filterFile_
      */
-    void build(std::vector<Record>& records) override;
+     // void build(std::vector<Record>& records) override;
 
-    /**
-     * get(key) - dohvatanje vrednosti iz data.sst
-     *   - proverava BloomFilter da li kljuc "mozda postoji"
-     *   - ako kaze "nema", vraca ""
-     *   - ako kaze "mozda ima", binarno pretrazi index, pa cita data fajl
-     *     dok ne nadje key ili ga ne predje (data fajl je sortiran)
-     */
+     /**
+      * get(key) - dohvatanje vrednosti iz data.sst
+      *   - proverava BloomFilter da li kljuc "mozda postoji"
+      *   - ako kaze "nema", vraca ""
+      *   - ako kaze "mozda ima", binarno pretrazi index, pa cita data fajl
+      *     dok ne nadje key ili ga ne predje (data fajl je sortiran)
+      */
     std::vector<Record> get(const std::string& key) override;
 
-    std::vector<Record> get(const std::string& key, int n) override;
+    // Funkcija vraca do `n` rekorda, pocinje pretragu od `key`. Vratice manje od `n` ako dodje do kraja SSTabele.
+    // std::vector<Record> get(const std::string& key, int n) override;
 
-    /**
-     * (Opciono) range_scan(startKey, endKey):
-     *    vraca sve (key,value) koji su izmedju startKey i endKey
-
-    std::vector<std::pair<std::string, std::string>>
-        range_scan(const std::string& startKey, const std::string& endKey);
-     */
+    Record getNextRecord(uint64_t& offset, bool& error) override;
 
     bool validate() override;
+
+    uint64_t findRecordOffset(const std::string& key, bool& in_file) override;
 
 protected:
     std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) override;
@@ -92,7 +90,6 @@ protected:
     void writeMetaToFile() override;
     void readMetaFromFile() override;
 
-    uint64_t findDataOffset(const std::string& key, bool& found) const override;
 
     template<typename UInt>
     bool readNumValue(UInt& dst, uint64_t& fileOffset, string fileName) const;

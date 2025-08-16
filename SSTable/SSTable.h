@@ -24,12 +24,12 @@ struct Summary {
 
 struct TOC
 {
-    uint64_t saved_block_size;
-    uint64_t saved_idx_sparsity;
-    uint64_t saved_summ_sparsity;
+    // uint64_t saved_block_size;
+    // uint64_t saved_idx_sparsity;
+    // uint64_t saved_summ_sparsity; Valjda ne
     uint8_t flags; // Bit 0: Najmanji bit kompresija, sledeci single_file_mode
     uint64_t version = 1; // za upuduce ako se updejtuje TOC
-    uint64_t data_offset;
+    uint64_t data_offset, data_end;
     uint64_t index_offset;
     uint64_t summary_offset;
     uint64_t filter_offset;
@@ -50,6 +50,7 @@ public:
         const std::string& summaryFile,
         const std::string& metaFile,
         Block_manager* bmp) :
+
         dataFile_(dataFile),
         indexFile_(indexFile),
         filterFile_(filterFile),
@@ -66,6 +67,7 @@ public:
 
     SSTable(const std::string& dataFile,
         Block_manager* bmp) :
+
         dataFile_(dataFile),
         indexFile_(dataFile),
         filterFile_(dataFile),
@@ -79,14 +81,6 @@ public:
         toc()
     {
     };
-
-    virtual std::string getMinKey() const {
-        return summary_.min;
-    }
-
-    virtual std::string getMaxKey() const {
-        return summary_.max;
-    }
 
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
@@ -110,9 +104,27 @@ public:
      *    Pocinje od `key`, skuplja elemente dok ih nema `n`
      *    ili dok ne dodje do kraja data fajla.
      */
-    virtual std::vector<Record> get(const std::string& key, int n) = 0;
+     // virtual std::vector<Record> get(const std::string& key, int n) = 0; 
+
+     /**
+      * getNextRecord(&offset, &error) - Čita jedan rekord desno od offset i menja offset.
+      *    error ce biti postavljen na true ukoliko dodje do kraja fajla.
+      */
+    virtual Record getNextRecord(uint64_t& offset, bool& error) = 0;
 
     virtual bool validate() = 0;
+
+    /**
+     * findRecordOffset(key, bool& in_file) - vraća offset u bajtovima gde se prvi Record sa kljucem nalazi u data fajlu.
+     *    - Ukoliko sstabela ne sadrzi kljuc, funkcija vraca offset najblizeg desnog elementa i stavlja in_file = false
+     *    - Ukoliko sstabela ne sadrzi kljuc i kljuc je veci od najveceg u tabeli, funckija vraca numeric_limits<uint64_t>::max();
+     */
+    virtual uint64_t findRecordOffset(const std::string& key, bool& in_file) = 0;
+
+    /**
+     * getDataStartOffset() - vraća offset u bajtovima gde počinje data segment u data fajlu.
+     */
+    virtual uint64_t getDataStartOffset() { return toc.data_offset; }
 
 protected:
     // putanje do fajlova
@@ -162,7 +174,6 @@ protected:
     virtual void writeMetaToFile() = 0;
     virtual void readMetaFromFile() = 0;
 
-    virtual uint64_t findDataOffset(const std::string& key, bool& found) const = 0;
 
 
     bool readBytes(void* dst, size_t n, uint64_t& offset, string fileName) const;

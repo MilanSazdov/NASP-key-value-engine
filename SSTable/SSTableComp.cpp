@@ -1,18 +1,18 @@
-﻿#include "SSTableComp.h"
+﻿﻿#include "SSTableComp.h"
 #include <filesystem>
 #include "../Utils/VarEncoding.h"
 
-SSTableComp::SSTableComp(const std::string& dataFile,
-    const std::string& indexFile,
-    const std::string& filterFile,
-    const std::string& summaryFile,
-    const std::string& metaFile,
-    Block_manager* bmp,
-    unordered_map<string, uint32_t>& map,
-    vector<string>& id_to_key,
-    uint32_t& nextId)
+SSTableComp::SSTableComp(const std::string & dataFile,
+    const std::string & indexFile,
+    const std::string & filterFile,
+    const std::string & summaryFile,
+    const std::string & metaFile,
+    Block_manager * bmp,
+    unordered_map<string, uint32_t>&key_to_id,
+    vector<string>&id_to_key,
+    uint32_t & nextId)
     : SSTable(dataFile, indexFile, filterFile, summaryFile, metaFile, bmp),
-    key_to_id(map),
+    key_to_id(key_to_id),
     id_to_key(id_to_key),
     nextID(nextId)
 {
@@ -29,6 +29,8 @@ SSTableComp::SSTableComp(const std::string& dataFile,
     nextID(nextId)
 {
 } // single_file_mode
+
+// SSTableComp::~SSTableComp() { }
 
 bool SSTableComp::validate() {
     std::cout << "[SSTableComp] Pokrecem naprednu validaciju za: " << dataFile_ << std::endl;
@@ -143,29 +145,31 @@ vector<Record> SSTableComp::get(const std::string& key)
     prepare(); // Citamo TOC (sparsity, offsete, itd.) i header summary fajla
     vector<Record> matches;
 
-    // pretraga -> offset najblizeg levog rekorda
-    bool maybe_in_file;
-    uint64_t fileOffset = findDataOffset(key, maybe_in_file);
-    if (!maybe_in_file)
+    // pretraga -> offset rekorda
+    bool in_file;
+    uint64_t fileOffset = findRecordOffset(key, in_file);
+    if (!in_file)
     {
         return matches;
     }
 
-    size_t header_len = 0;
-
-    // 4) Otvorimo dataFile, idemo od fileOffset redom
     while (true) {
+        // EOF
+        // Ne bi trebalo nikada da se desi zato sto proveravamo
+        // da li je kljuc koji se trazi veci od summary.max_key
+        if (fileOffset >= toc.data_end || fileOffset < toc.data_offset) break;
+
         if (block_size - (fileOffset % block_size) <
             sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t)) {
             fileOffset += block_size - (fileOffset % block_size);
         } // Ako nema mesta za header u najgorem slucaju, paddujemo i to treba da se preskoci.
-          // Lose resenje, trebalo bi da se cita index i preskoci na sledeci offset, ali ubicu se ako jos to treba da napisem
 
         // citamo polja Record-a
         uint crc = 0;
         uint64_t start = fileOffset;
         readNumValue<uint>(crc, fileOffset, dataFile_);
         uint64_t crc_size = fileOffset - start;
+
 
         Wal_record_type flag;
         readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
@@ -242,15 +246,16 @@ vector<Record> SSTableComp::get(const std::string& key)
 }
 
 // Funkcija vraca do `n` rekorda sa razlicitim kljucem, pocinje pretragu od `key`. Vratice manje od `n` ako dodje do kraja SSTabele.
+/*
 vector<Record> SSTableComp::get(const std::string& key, int n)
 {
     prepare(); // Citamo TOC (sparsity, offsete, itd.) i header summary fajla
     vector<Record> ret;
 
     // pretraga -> offset najblizeg levog rekorda
-    bool maybe_in_file;
-    uint64_t fileOffset = findDataOffset(key, maybe_in_file);
-    if (!maybe_in_file)
+    bool in_file;
+    uint64_t fileOffset = findRecordOffset(key, in_file);
+    if (!in_file)
     {
         return ret;
     }
@@ -267,7 +272,7 @@ vector<Record> SSTableComp::get(const std::string& key, int n)
 
     // 4) Otvorimo dataFile, idemo od fileOffset redom
     while (true) {
-        if (block_size - (fileOffset % block_size) <
+        if(block_size - (fileOffset % block_size) <
             sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t)) {
             fileOffset += block_size - (fileOffset % block_size);
         } // Ako nema mesta za header u najgorem slucaju, paddujemo i to treba da se preskoci.
@@ -277,17 +282,24 @@ vector<Record> SSTableComp::get(const std::string& key, int n)
         uint crc = 0;
         uint64_t start = fileOffset;
 
+
+        // Gledamo da li smo dosli do kraja fajla
+        if(!readNumValue<uint>(crc, fileOffset, dataFile_)) break;
+        uint64_t crc_size = fileOffset - start;
+
         // Gledamo da li smo izasli iz dela za data
-        if (is_single_file_mode_ && fileOffset + sizeof(uint) > toc.index_offset) {
+        if(is_single_file_mode_ && fileOffset > toc.index_offset) {
             break;
         }
 
-        // Gledamo da li smo dosli do kraja fajla
-        if (!readNumValue<uint>(crc, fileOffset, dataFile_)) break;
-        uint64_t crc_size = fileOffset - start;
-
         Wal_record_type flag;
-        readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
+        if (!readBytes(&flag, sizeof(flag), fileOffset, dataFile_)) break;
+
+        if((uint8_t)flag == 0) break;
+
+        if(is_single_file_mode_ && fileOffset > toc.index_offset) {
+            break;
+        }
 
         start = fileOffset;
         uint64_t ts = 0;
@@ -300,7 +312,7 @@ vector<Record> SSTableComp::get(const std::string& key, int n)
         bool isTomb = (bool)tomb;
 
         uint64_t v_size = 0;
-        if (!isTomb) readBytes(&v_size, sizeof(v_size), fileOffset, dataFile_);
+        if(!isTomb) readBytes(&v_size, sizeof(v_size), fileOffset, dataFile_);
 
         start = fileOffset;
         uint32_t r_key_id = 0;
@@ -322,11 +334,11 @@ vector<Record> SSTableComp::get(const std::string& key, int n)
         r.key = rkey;
         r.value = rvalue;
 
-        if (rkey >= key) {
+        if(rkey >= key) {
 
             // Ucitamo ceo record ako je bio podeljen
             if (flag == Wal_record_type::FIRST) {
-                while (true) {
+                while(true) {
                     fileOffset += crc_size;
 
                     Wal_record_type flag;
@@ -337,7 +349,7 @@ vector<Record> SSTableComp::get(const std::string& key, int n)
                     fileOffset += sizeof(tomb);
 
                     uint64_t vSize = 0;
-                    if (!isTomb) readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
+                    if(!isTomb) readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
 
                     std::string rvalue;
                     rvalue.resize(vSize);
@@ -346,7 +358,7 @@ vector<Record> SSTableComp::get(const std::string& key, int n)
                     r.value.append(rvalue);
                     r.value_size += vSize;
 
-                    if (flag == Wal_record_type::LAST) {
+                    if(flag == Wal_record_type::LAST){
                         break;
                     }
                 }
@@ -362,7 +374,7 @@ vector<Record> SSTableComp::get(const std::string& key, int n)
             }
 
             // Ako je noviji record, menjamo ts i latest_record. Inace, odbacujemo
-            if (latest_record_timestamp < ts) {
+            if(latest_record_timestamp < ts) {
                 latest_record_timestamp = ts;
                 latest_record = r;
             }
@@ -382,6 +394,7 @@ vector<Record> SSTableComp::get(const std::string& key, int n)
 
     return ret;
 }
+*/
 
 /*
 std::vector<std::pair<std::string, std::string>>
@@ -393,7 +406,7 @@ SSTable::range_scan(const std::string& startKey, const std::string& endKey)
     readIndexFromFile();
 
     // pocetni offset
-    uint64_t offset = findDataOffset(startKey);
+    uint64_t offset = findRecordOffset(startKey);
 
     std::ifstream in(dataFile_, std::ios::binary);
     if (!in.is_open()) {
@@ -433,7 +446,7 @@ SSTable::range_scan(const std::string& startKey, const std::string& endKey)
 */
 
 // Struktura: [crc(varInt), flag(byte), timestamp(varInt), tombstone(byte), val_size(uint64), key_id(varInt), value(string)]
-// Kada se splituje, samo prvi ima key_id
+// Kada se splituje, samo FIRST deo ima key_id
 std::vector<IndexEntry>
 SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords) {
 
@@ -506,7 +519,10 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords) {
         offset += rec.key_size + rec.value_size; // Dodajemo ceo key size i value size prvo, posle cemo videti koliko headera treba
 
         // Ako u bloku nema dovoljno mesta za worst case header (worst case zbog citanja)
-        if (remaining < sizeof(r.crc) + sizeof(r.timestamp) + sizeof(char) + sizeof(r.tombstone) + sizeof(r.value_size) + sizeof(uint32_t))
+        uint64_t header_max_len = sizeof(r.crc) + sizeof(r.timestamp) +
+            sizeof(char) + sizeof(r.tombstone) +
+            sizeof(r.value_size) + /*najduzi kljuc:*/ sizeof(uint32_t);
+        if (remaining < header_max_len)
         {
             offset += remaining;
 
@@ -605,7 +621,8 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords) {
     if (!concat.empty())
         bmp->write_block({ block_id, dataFile_ }, concat);
 
-    toc.index_offset = (block_id + 1) * block_size; //TODO: proveri, trebalo bi da radi
+    toc.data_end = block_id * block_size + concat.size();
+    if (is_single_file_mode_) toc.index_offset = (block_id + 1) * block_size;
 
     if (!data_for_merkle.empty()) {
         MerkleTree merkle_tree(data_for_merkle);
@@ -666,7 +683,7 @@ std::vector<IndexEntry> SSTableComp::writeIndexToFile()
         bmp->write_block({ block_id++, indexFile_ }, chunk);
     }
 
-    toc.summary_offset = (block_id + 1) * block_size;
+    if (is_single_file_mode_) toc.summary_offset = (block_id + 1) * block_size;
 
     return ret;
 }
@@ -717,7 +734,7 @@ void SSTableComp::writeSummaryToFile()
         bmp->write_block({ block_id++, summaryFile_ }, chunk);
     }
 
-    toc.filter_offset = (block_id + 1) * block_size;
+    if (is_single_file_mode_) toc.filter_offset = (block_id + 1) * block_size;
 }
 
 void SSTableComp::readMetaFromFile() {
@@ -812,7 +829,7 @@ void SSTableComp::writeBloomToFile()
         bmp->write_block({ block_id++, filterFile_ }, chunk);
     }
 
-    toc.meta_offset = (block_id + 1) * block_size;
+    if (is_single_file_mode_) toc.meta_offset = (block_id + 1) * block_size;
 }
 
 void SSTableComp::writeMetaToFile() {
@@ -904,12 +921,18 @@ void SSTableComp::readSummaryHeader()
     summary_data_start = offset;
 }
 
-
-uint64_t SSTableComp::findDataOffset(const std::string& key, bool& maybe_in_file) const
+uint64_t SSTableComp::findRecordOffset(const std::string& key, bool& in_file)
 {
-    maybe_in_file = true;
-    if (key < summary_.min || key > summary_.max) {
-        maybe_in_file = false;
+    prepare();
+
+    in_file = true;
+    if (key > summary_.max) {
+        in_file = false;
+        return std::numeric_limits<uint64_t>::max();
+    }
+
+    if (key < summary_.min) {
+        in_file = false;
         return 0;
     }
 
@@ -925,6 +948,7 @@ uint64_t SSTableComp::findDataOffset(const std::string& key, bool& maybe_in_file
         readNumValue<uint32_t>(r_key_id, file_offset, summaryFile_);
 
         r_key = id_to_key[r_key_id];
+
 
         if (r_key > key) {
             break;
@@ -942,16 +966,158 @@ uint64_t SSTableComp::findDataOffset(const std::string& key, bool& maybe_in_file
 
         r_key = id_to_key[r_key_id];
 
-        readNumValue<uint64_t>(off, file_offset, indexFile_);
-
-        if (r_key >= key) {
-            return off;
-        }
         if (r_key > key) {
-            return off;
+            break;
+        }
+
+        readNumValue<uint64_t>(off, file_offset, indexFile_);
+    }
+
+    uint64_t fileOffset = off;
+    // const uint64_t header =
+    //     sizeof(uint)
+    //   + sizeof(Wal_record_type)
+    //   + sizeof(uint64_t)
+    //   + sizeof(char)
+    //   + sizeof(uint64_t)
+    //   + sizeof(uint32_t);
+
+    const uint64_t header_max_len = sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t);
+
+    while (true) {
+        if (fileOffset >= toc.data_end) break; // EOF
+
+        uint64_t rem = block_size - (fileOffset % block_size);
+        if (rem < header_max_len) {
+            fileOffset += rem;
+        }
+
+        uint64_t recordStart = fileOffset;
+
+        uint crc = 0;
+        readNumValue<uint>(crc, fileOffset, dataFile_);
+
+        Wal_record_type flag;
+        readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
+
+        uint64_t ts = 0;
+        readNumValue(ts, fileOffset, dataFile_);
+
+        char tomb;
+        readBytes(&tomb, sizeof(tomb), fileOffset, dataFile_);
+        bool isTomb = static_cast<bool>(tomb);
+
+        uint64_t v_size = 0;
+        if (!isTomb) {
+            readBytes(&v_size, sizeof(v_size), fileOffset, dataFile_);
+        }
+
+        uint32_t r_key_id = 0;
+        readNumValue(r_key_id, fileOffset, dataFile_);
+        std::string rkey = id_to_key[r_key_id];
+
+        fileOffset += v_size; // skip value
+
+        if (rkey == key) {
+            return recordStart;
+        }
+
+        if (rkey > key) {
+            in_file = false;
+            return fileOffset;
         }
     }
-    return off;
+
+    in_file = false;
+    return std::numeric_limits<uint64_t>::max();
+}
+
+Record SSTableComp::getNextRecord(uint64_t& offset, bool& error) {
+    prepare();
+
+    const uint64_t header_max_len = sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t);
+
+    if (offset >= toc.data_end || offset < toc.data_offset) {
+        error = true;
+        Record r;
+        return r;
+    }
+
+    uint64_t rem = block_size - (offset % block_size);
+    if (rem < header_max_len) {
+        offset += rem;
+    }
+
+    uint crc = 0;
+    uint64_t start = offset;
+    readNumValue<uint>(crc, offset, dataFile_);
+    uint64_t crc_size = offset - start;
+
+
+    Wal_record_type flag;
+    readBytes(&flag, sizeof(flag), offset, dataFile_);
+
+    start = offset;
+    uint64_t ts = 0;
+    readNumValue(ts, offset, dataFile_);
+    uint64_t ts_size = offset - start;
+
+    char tomb;
+    readBytes(&tomb, sizeof(tomb), offset, dataFile_);
+
+    bool isTomb = (bool)tomb;
+
+    uint64_t v_size = 0;
+    if (!isTomb) readBytes(&v_size, sizeof(v_size), offset, dataFile_);
+
+    start = offset;
+    uint32_t r_key_id = 0;
+    readNumValue(r_key_id, offset, dataFile_);
+    uint64_t r_key_size = offset - start;
+
+    string rkey = id_to_key[r_key_id];
+
+    std::string rvalue;
+    rvalue.resize(v_size);
+    readBytes(&rvalue[0], v_size, offset, dataFile_);
+
+    Record r;
+    r.crc = crc;
+    r.timestamp = ts;
+    r.tombstone = static_cast<byte>(tomb);
+    r.key_size = rkey.size();
+    r.value_size = v_size;
+    r.key = rkey;
+    r.value = rvalue;
+
+    if (flag == Wal_record_type::FIRST) {
+        while (true) {
+            offset += crc_size;
+
+            Wal_record_type flag;
+            readBytes(&flag, sizeof(flag), offset, dataFile_);
+
+            offset += ts_size;
+
+            offset += sizeof(tomb);
+
+            uint64_t vSize = 0;
+            if (!isTomb) readBytes(&vSize, sizeof(vSize), offset, dataFile_);
+
+            std::string rvalue;
+            rvalue.resize(vSize);
+            readBytes(&rvalue[0], vSize, offset, dataFile_);
+
+            r.value.append(rvalue);
+            r.value_size += vSize;
+
+            if (flag == Wal_record_type::LAST) {
+                break;
+            }
+        }
+    }
+
+    return r;
 }
 
 template<typename UInt>

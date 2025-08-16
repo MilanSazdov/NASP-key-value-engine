@@ -1,14 +1,15 @@
-﻿#include "SSTableRaw.h"
+﻿﻿
+#include "SSTableRaw.h"
 #include "../Utils/VarEncoding.h"
 #include "../LSM/SSTableIterator.h"
 #include <filesystem>
 
-SSTableRaw::SSTableRaw(const std::string& dataFile,
-    const std::string& indexFile,
-    const std::string& filterFile,
-    const std::string& summaryFile,
-    const std::string& metaFile,
-    Block_manager* bmp)
+SSTableRaw::SSTableRaw(const std::string & dataFile,
+    const std::string & indexFile,
+    const std::string & filterFile,
+    const std::string & summaryFile,
+    const std::string & metaFile,
+    Block_manager * bmp)
     : SSTable(dataFile, indexFile, filterFile, summaryFile, metaFile, bmp)
 {
 }
@@ -98,24 +99,26 @@ bool SSTableRaw::validate() {
     return false;
 }
 
-
 // Funkcija NE PROVERAVA bloomfilter, pretpostavlja da je vec provereno
-vector<Record> SSTableRaw::get(const std::string& key)
-{
-    readSummaryHeader();
+vector<Record> SSTableRaw::get(const std::string& key) {
+    prepare();
     vector<Record> matches;
 
     // 3) binarna pretraga -> offset
     bool found;
-    uint64_t fileOffset = findDataOffset(key, found);
+    uint64_t fileOffset = findRecordOffset(key, found);
     if (!found)
     {
         return matches;
     }
 
+    const uint64_t header_len = sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(ull) + sizeof(ull);
+
     // 4) Otvorimo dataFile, idemo od fileOffset redom
     while (true) {
-        if (block_size - (fileOffset % block_size) < 30) {
+        if (fileOffset >= toc.data_end || fileOffset < toc.data_offset) break;
+
+        if (block_size - (fileOffset % block_size) < header_len) {
             fileOffset += block_size - (fileOffset % block_size);
         } // Ako u bloku posle recorda nema mesta za header, znaci da smo padovali i sledeci record pocinje u sledecem bloku
 
@@ -123,7 +126,7 @@ vector<Record> SSTableRaw::get(const std::string& key)
         uint32_t crc = 0;
         readBytes(&crc, sizeof(crc), fileOffset, dataFile_);
 
-        char flag;
+        Wal_record_type flag;
         readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
 
         uint64_t ts = 0;
@@ -156,11 +159,11 @@ vector<Record> SSTableRaw::get(const std::string& key)
         r.value = rvalue;
 
 
-        if (flag == 'F') {
+        if (flag == Wal_record_type::FIRST) {
             while (true) {
                 fileOffset += sizeof(crc);
 
-                char flag;
+                Wal_record_type flag;
                 readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
 
                 fileOffset += sizeof(ts);
@@ -186,7 +189,7 @@ vector<Record> SSTableRaw::get(const std::string& key)
                 r.key_size += kSize;
                 r.value_size += vSize;
 
-                if (flag == 'L') {
+                if (flag == Wal_record_type::LAST) {
                     break;
                 }
             }
@@ -203,8 +206,6 @@ vector<Record> SSTableRaw::get(const std::string& key)
     }
     return matches;
 }
-
-
 
 std::vector<IndexEntry>
 SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
@@ -235,7 +236,10 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
         data_for_merkle.push_back(r.key + r.value);
 
-        ret.emplace_back(r.key, offset);
+        IndexEntry ie;
+        ie.key = r.key;
+        ie.offset = offset;
+        ret.push_back(ie);
 
 
         size_t len = header_len + r.key_size + r.value_size;
@@ -377,6 +381,8 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
         bmp->write_block({ block_id, dataFile_ }, concat);
 
     toc.index_offset = (block_id + 1) * block_size;
+    toc.data_end = block_id * block_size + concat.size();
+
 
     if (!data_for_merkle.empty()) {
         try {
@@ -396,7 +402,6 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
 std::vector<IndexEntry> SSTableRaw::writeIndexToFile()
 {
-
     uint64_t start_offset = 0;
 
     if (is_single_file_mode_) {
@@ -423,7 +428,7 @@ std::vector<IndexEntry> SSTableRaw::writeIndexToFile()
         payload.append(ie.key.data(), kSize);
         payload.append(reinterpret_cast<char*>(&ie.offset), sizeof(ie.offset));
 
-        offset += 8 + kSize + 8;
+        offset += sizeof(kSize) + kSize + sizeof(ie.offset);
     }
 
     int block_id = start_offset / block_size;
@@ -433,7 +438,16 @@ std::vector<IndexEntry> SSTableRaw::writeIndexToFile()
     while (offset + block_size <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
         bmp->write_block({ block_id++, indexFile_ }, chunk);
+
+        const uint64_t* val = reinterpret_cast<const uint64_t*>(chunk.data());
+        std::cout << *val << "\n";
+
         offset += block_size;
+    }
+
+    if (offset < total_bytes) {
+        std::string chunk = payload.substr(offset);
+        bmp->write_block({ block_id++, indexFile_ }, chunk);
     }
 
     toc.summary_offset = (block_id + 1) * block_size;
@@ -562,7 +576,7 @@ void SSTableRaw::writeBloomToFile()
     payload.append(reinterpret_cast<const char*>(&len), sizeof(len));
 
     for (const auto& i : raw) {
-        payload.append(reinterpret_cast<const char*>(i), sizeof(i));
+        payload.append(reinterpret_cast<const char*>(&i), sizeof(i));
     }
 
     int block_id = start_offset / block_size;
@@ -659,25 +673,37 @@ void SSTableRaw::readSummaryHeader()
         return;
     }
 
-    if (!readBytes(&summary_.min, min_len, offset, summaryFile_)) {
+    summary_.min.resize(min_len);
+    summary_.max.resize(max_len);
+
+    if (!readBytes(&summary_.min[0], min_len, offset, summaryFile_)) {
         std::cerr << "[SSTableComp::readSummaryHeader] Problem reading min key\n";
         return;
     }
 
-    if (!readBytes(&summary_.max, max_len, offset, summaryFile_)) {
+    if (!readBytes(&summary_.max[0], max_len, offset, summaryFile_)) {
         std::cerr << "[SSTableComp::readSummaryHeader] Problem reading max key\n";
         return;
     }
+
+    summary_.count = count;
 }
 
-uint64_t SSTableRaw::findDataOffset(const std::string& key, bool& found) const
+uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
 {
-    if (key < summary_.min || key > summary_.max) {
+    prepare();
+
+    if (key > summary_.max) {
+        found = false;
+        return std::numeric_limits<uint64_t>::max();
+    }
+
+    if (key < summary_.min) {
         found = false;
         return 0;
     }
 
-    size_t fileOffset = summary_.min.size() + summary_.max.size() + 3 * sizeof(uint64_t);
+    size_t fileOffset = toc.summary_offset + summary_.min.size() + summary_.max.size() + 3 * sizeof(uint64_t);
 
     uint64_t kSize;
     bool error;
@@ -698,8 +724,7 @@ uint64_t SSTableRaw::findDataOffset(const std::string& key, bool& found) const
         readBytes(&lastOffset, sizeof(lastOffset), fileOffset, summaryFile_);
     }
 
-    // works up until this point
-    fileOffset = lastOffset;
+    fileOffset = lastOffset + toc.index_offset;
     uint64_t off;
 
     while (true) {
@@ -710,15 +735,197 @@ uint64_t SSTableRaw::findDataOffset(const std::string& key, bool& found) const
 
         readBytes(&off, sizeof(off), fileOffset, indexFile_);
 
-        if (rKey == key) {
-            found = true;
-            return off;
-        }
-        if (rKey > key) {
-            found = false;
-            return 0ULL;
+        if (rKey >= key) {
+            break;
         }
     }
+
+    fileOffset = off;
+
+    const uint64_t header_len = sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(ull) + sizeof(ull);
+
+
+    while (true) {
+        if (block_size - (fileOffset % block_size) < header_len) {
+            fileOffset += block_size - (fileOffset % block_size);
+        } // Ako u bloku posle recorda nema mesta za header, znaci da smo padovali i sledeci record pocinje u sledecem bloku
+
+        // citamo polja Record-a
+        uint32_t crc = 0;
+        fileOffset += sizeof(crc);
+
+        Wal_record_type flag;
+        readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
+
+        uint64_t ts = 0;
+        fileOffset += sizeof(ts);
+
+        char tomb;
+        fileOffset += sizeof(tomb);
+
+        uint64_t kSize = 0;
+        readBytes(&kSize, sizeof(kSize), fileOffset, dataFile_);
+
+        uint64_t vSize = 0;
+        readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
+
+        std::string rkey;
+        rkey.resize(kSize);
+        readBytes(&rkey[0], kSize, fileOffset, dataFile_);
+
+        std::string rvalue;
+        rvalue.resize(vSize);
+        readBytes(&rvalue[0], vSize, fileOffset, dataFile_);
+
+        Record r;
+        r.crc = crc;
+        r.timestamp = ts;
+        r.tombstone = static_cast<byte>(tomb);
+        r.key_size = kSize;
+        r.value_size = vSize;
+        r.key = rkey;
+        r.value = rvalue;
+
+
+        if (flag == Wal_record_type::FIRST) {
+            while (true) {
+                fileOffset += sizeof(crc);
+
+                Wal_record_type flag;
+                readBytes(&flag, sizeof(flag), fileOffset, dataFile_);
+
+                fileOffset += sizeof(ts);
+
+                fileOffset += sizeof(tomb);
+
+                uint64_t kSize = 0;
+                readBytes(&kSize, sizeof(kSize), fileOffset, dataFile_);
+
+                uint64_t vSize = 0;
+                readBytes(&vSize, sizeof(vSize), fileOffset, dataFile_);
+
+                std::string rkey;
+                rkey.resize(kSize);
+                readBytes(&rkey[0], kSize, fileOffset, dataFile_);
+
+                std::string rvalue;
+                rvalue.resize(vSize);
+                readBytes(&rvalue[0], vSize, fileOffset, dataFile_);
+
+                r.value.append(rvalue);
+                r.key.append(rkey);
+                r.key_size += kSize;
+                r.value_size += vSize;
+
+                if (flag == Wal_record_type::LAST) {
+                    break;
+                }
+            }
+        }
+
+        if (r.key == key) {
+            found = true;
+            return fileOffset;
+        }
+
+        if (r.key > key) {
+            // nema smisla ici dalje, data fajl je sortiran
+            found = false;
+            return std::numeric_limits<uint64_t>::max();
+        }
+    }
+
+
     found = false;
-    return 0ULL;
+    return std::numeric_limits<uint64_t>::max();
+}
+
+Record SSTableRaw::getNextRecord(uint64_t& offset, bool& error) {
+
+    const uint64_t header_len = sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(ull) + sizeof(ull);
+
+    if (offset >= toc.data_end || offset < toc.data_offset) {
+        error = true;
+        Record r;
+        return r;
+    };
+
+    if (block_size - (offset % block_size) < header_len) {
+        offset += block_size - (offset % block_size);
+    } // Ako u bloku posle recorda nema mesta za header, znaci da smo padovali i sledeci record pocinje u sledecem bloku
+
+    // citamo polja Record-a
+    uint32_t crc = 0;
+    readBytes(&crc, sizeof(crc), offset, dataFile_);
+
+    Wal_record_type flag;
+    readBytes(&flag, sizeof(flag), offset, dataFile_);
+
+    uint64_t ts = 0;
+    readBytes(&ts, sizeof(ts), offset, dataFile_);
+
+    char tomb;
+    readBytes(&tomb, sizeof(tomb), offset, dataFile_);
+
+    uint64_t kSize = 0;
+    readBytes(&kSize, sizeof(kSize), offset, dataFile_);
+
+    uint64_t vSize = 0;
+    readBytes(&vSize, sizeof(vSize), offset, dataFile_);
+
+    std::string rkey;
+    rkey.resize(kSize);
+    readBytes(&rkey[0], kSize, offset, dataFile_);
+
+    std::string rvalue;
+    rvalue.resize(vSize);
+    readBytes(&rvalue[0], vSize, offset, dataFile_);
+
+    Record r;
+    r.crc = crc;
+    r.timestamp = ts;
+    r.tombstone = static_cast<byte>(tomb);
+    r.key_size = kSize;
+    r.value_size = vSize;
+    r.key = rkey;
+    r.value = rvalue;
+
+
+    if (flag == Wal_record_type::FIRST) {
+        while (true) {
+            offset += sizeof(crc);
+
+            Wal_record_type flag;
+            readBytes(&flag, sizeof(flag), offset, dataFile_);
+
+            offset += sizeof(ts);
+
+            offset += sizeof(tomb);
+
+            uint64_t kSize = 0;
+            readBytes(&kSize, sizeof(kSize), offset, dataFile_);
+
+            uint64_t vSize = 0;
+            readBytes(&vSize, sizeof(vSize), offset, dataFile_);
+
+            std::string rkey;
+            rkey.resize(kSize);
+            readBytes(&rkey[0], kSize, offset, dataFile_);
+
+            std::string rvalue;
+            rvalue.resize(vSize);
+            readBytes(&rvalue[0], vSize, offset, dataFile_);
+
+            r.value.append(rvalue);
+            r.key.append(rkey);
+            r.key_size += kSize;
+            r.value_size += vSize;
+
+            if (flag == Wal_record_type::LAST) {
+                break;
+            }
+        }
+    }
+
+    return r;
 }

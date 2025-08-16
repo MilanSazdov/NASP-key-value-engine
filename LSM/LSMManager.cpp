@@ -125,156 +125,18 @@ void LSMManager::checkIfCompactionIsNeeded() {
 }
 
 bool LSMManager::runSizeTieredCompaction() {
-	bool compaction_was_performed_overall = false;
-
-	while (true) {
-
-		bool compaction_happened_in_this_cycle = false;
-		for (int i = 0; i < max_levels_ - 1; ++i) {
-
-			int table_count = current_sstable_on_level_[i];
-
-			if (table_count >= max_sstable_levels_) {
-
-				std::cout << "[LSMManager] Size-Tiered uslov ispunjen na nivou " << i
-					<< ". Broj tabela: " << table_count << " (prag: " << max_sstable_levels_ << ")" << std::endl;
-
-				auto tables_to_merge = findSSTablesOnLevel(i);
-
-				CompactionPlan plan;
-				plan.inputs_level_1 = tables_to_merge;
-				plan.output_level = i + 1;
-
-				do_compaction(plan);
-				compaction_happened_in_this_cycle = true;
-				break;
-
-			}
-		}
-		
-		if (!compaction_happened_in_this_cycle) {
-			break;
+	std::cout << "[LSMManager] Pokrećem Size-Tiered kompakciju." << std::endl;
+	loadCurrentLevels();
+	// Proveri da li je potrebno pokrenuti kompakciju
+	for (int level = 0; level < max_levels_; level++) {
+		if (current_sstable_on_level_[level] >= max_sstable_on_level_[level]) {
+			std::cout << "[LSMManager] Nivo " << level << " ima " << current_sstable_on_level_[level]
+				<< " SSTable-ova, što je više od maksimalnog dozvoljenog broja: "
+					<< max_sstable_on_level_[level] << ". Pokrećem kompakciju." << std::endl;
+				return true;
 		}
 	}
-
-	if (compaction_was_performed_overall) {
-		std::cout << "[LSMManager] Size-Tiered ciklus kompakcija završen." << std::endl;
-	}
-	else {
-		std::cout << "[LSMManager] Size-Tiered kompakcija nije bila potrebna." << std::endl;
-	}
-
-	return compaction_was_performed_overall;
+	std::cout << "[LSMManager] Nema potrebe za Size-Tiered kompakcijom." << std::endl;
+	return false;
 	
-}
-
-void LSMManager::do_compaction(const CompactionPlan& plan) {
-	if (plan.inputs_level_1.empty()) return;
-
-	std::cout << "  -> Započinjem spajanje " << plan.inputs_level_1.size() << " fajlova na nivo " << plan.output_level << std::endl;
-
-	std::vector<std::unique_ptr<SSTableIterator>> iterators;
-	for (const auto& meta : plan.inputs_level_1) {
-		iterators.push_back(std::make_unique<SSTableIterator>(meta, Config::block_size, &sstManager_.get_block_manager()));
-	}
-
-	MergeIterator merge_iterator(std::move(iterators));
-
-	
-	std::vector<Record> compacted_records;
-	while (merge_iterator.hasNext()) {
-		compacted_records.push_back(merge_iterator.next());
-	}
-
-	if (!compacted_records.empty()) {
-		sstManager_.write(compacted_records, plan.output_level);
-	}
-
-	for (const auto& meta : plan.inputs_level_1) {
-		// ... logika za brisanje svih fajlova vezanih za meta ...
-	}
-
-	std::cout << "  -> Spajanje uspesno zavrseno." << std::endl;
-}
-
-std::vector<SSTableMetadata> LSMManager::findSSTablesOnLevel(int level) const {
-	std::vector<SSTableMetadata> found_tables;
-	std::string level_path = getLevelPath(level);
-
-	if (!fs::exists(level_path) || !fs::is_directory(level_path)) {
-		return found_tables;
-	}
-
-	const std::regex file_pattern("([a-z]+)_(raw|comp)_(multi|single)_(\\d+)\\.(db|dat)");
-
-	for (const auto& entry : fs::directory_iterator(level_path)) {
-		if (!entry.is_regular_file()) continue;
-
-		std::string filename = entry.path().filename().string();
-		std::smatch matches;
-
-		if (std::regex_match(filename, matches, file_pattern) &&
-			(matches[1].str() == "data" || matches[1].str() == "sstable")) {
-
-			try {
-				SSTableMetadata meta;
-				meta.level = level;
-
-				std::string type_prefix = matches[1].str();
-				std::string compression_str = matches[2].str();
-				std::string format_str = matches[3].str();
-				std::string id_str = matches[4].str();
-
-				meta.file_id = std::stoi(id_str);
-				bool is_comp = (compression_str == "comp");
-				bool is_single = (format_str == "single");
-
-				std::unique_ptr<SSTable> sst_reader;
-
-				if (is_single) {
-					std::string path = entry.path().string();
-					meta.data_path = meta.index_path = meta.summary_path = meta.filter_path = meta.meta_path = path;
-				}
-				else {
-					std::string base_name = compression_str + "_" + format_str + "_" + id_str;
-					meta.data_path = level_path + "/data_" + base_name + ".db";
-					meta.index_path = level_path + "/index_" + base_name + ".db";
-					meta.summary_path = level_path + "/summary_" + base_name + ".db";
-					meta.filter_path = level_path + "/filter_" + base_name + ".db";
-					meta.meta_path = level_path + "/meta_" + base_name + ".db";
-
-					if (is_comp) {
-						sst_reader = std::make_unique<SSTableComp>(
-							meta.data_path, meta.index_path, meta.filter_path, meta.summary_path, meta.meta_path,
-							&sstManager_.get_block_manager(),
-							sstManager_.get_key_to_id_map(),
-							sstManager_.get_id_to_key_map(),
-							sstManager_.get_next_id()
-						);
-					}
-					else {
-						sst_reader = std::make_unique<SSTableRaw>(
-							meta.data_path, meta.index_path, meta.filter_path, meta.summary_path, meta.meta_path,
-							&sstManager_.get_block_manager()
-						);
-					}
-				}
-
-				sst_reader->readSummaryHeader();
-
-				meta.min_key = sst_reader->getMinKey();
-				meta.max_key = sst_reader->getMaxKey();
-				meta.file_size = sst_reader->getTotalSize();
-
-				found_tables.push_back(meta);
-
-			}
-			catch (const std::exception& e) {
-				std::cerr << "Greska pri parsiranju ili citanju metapodataka za fajl "
-					<< filename << ": " << e.what() << std::endl;
-			}
-		}
-	}
-
-	return found_tables;
 }
