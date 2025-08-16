@@ -5,6 +5,27 @@
 #include <filesystem>
 #include "../Wal/wal.h"
 
+struct SSTableMetadata {
+    int level;
+    int file_id;
+    uint64_t file_size; // Ukupna veličina svih fajlova za ovaj SSTable
+    std::string min_key;
+    std::string max_key;
+
+    bool is_compressed;
+    bool is_single_file;
+
+    std::string data_path;
+    std::string index_path;
+    std::string summary_path;
+    std::string filter_path;
+    std::string meta_path;
+
+    bool operator==(const SSTableMetadata& other) const {
+        return file_id == other.file_id && level == other.level;
+    }
+};
+
 class SSTManager
 {
 private:
