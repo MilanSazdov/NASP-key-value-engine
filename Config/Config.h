@@ -28,12 +28,10 @@ public:
 
 	// Leveled Compaction
 	static int l0_compaction_trigger;
-	static uint64_t target_file_size_base;
 	static int level_size_multiplier;
 
 	// Size-Tiered Compaction
-	static int min_threshold;
-	static int max_threshold;
+	static int max_number_of_sstable_on_level;
 
 	// Data folder for: sstable/lsm , memtable, and Wal directory
 	static std::string data_directory;

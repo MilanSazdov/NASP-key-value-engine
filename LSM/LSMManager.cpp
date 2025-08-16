@@ -1,142 +1,122 @@
-﻿#include <regex>
+﻿#include "LSMManager.h"
+#include <iostream>
+#include <algorithm>
+#include <cmath>
 
-#include "LSMManager.h"
-
-namespace fs = std::filesystem;
-
-LSMManager::LSMManager(const std::string& base_directory,
-	std::string strategy,
-	int max_sstable_levels,
-	int max_levels,
-	int multiplier_level,
-	SSTManager& sstm)
-	: base_directory_(base_directory),
-	compaction_strategy_(strategy),
-	max_levels_(max_levels),
-	max_sstable_levels_(max_sstable_levels),
-	level_size_multiplier_(multiplier_level),
-	sstManager_(sstm)
-{
-	std::cout << "[LSMManager] Kreiran sa " << compaction_strategy_ << " strategijom." << std::endl;
+LSMManager::LSMManager(SSTManager* sstManager, Config* config)
+    : sstManager(sstManager), config(config) {
+    std::cout << "[LSM] Stateless LSM Manager initialized." << std::endl;
 }
 
-int LSMManager::countSSTablesOnLevel(int level) const {
-	int sstable_count = 0;
-	std::string level_path = getLevelPath(level);
-	if (!fs::exists(level_path)) return 0;
+LSMManager::~LSMManager() {}
 
-	const std::regex file_pattern("data_.*_(\\d+)\\.db|sstable_.*_(\\d+)\\.dat");
+void LSMManager::triggerCompactionCheck() {
+    std::cout << "[LSM] Compaction check triggered." << std::endl;
+    // Petlja ide od najnižeg ka najvišem nivou.
+    for (int level = 0; level < config->max_levels - 1; ++level) {
+        // 1. UVEK ČITAJ TRENUTNO STANJE SA DISKA
+        std::vector<SSTableMetadata> tablesOnLevel = sstManager->findTablesForLevel(level);
 
-	for (const auto& entry : fs::directory_iterator(level_path)) {
-		if (entry.is_regular_file()) {
-			if (std::regex_search(entry.path().filename().string(), file_pattern)) {
-				sstable_count++;
-			}
-		}
-	}
-	return sstable_count;
+        bool needsCompaction = false;
+        long long threshold = 0;
+
+        if (config->compaction_strategy == "SizeTiered") {
+            threshold = config->max_number_of_sstable_on_level;
+            if (tablesOnLevel.size() >= threshold) {
+                needsCompaction = true;
+            }
+        }
+        else if (config->compaction_strategy == "Leveled") {
+            if (level == 0) {
+                threshold = config->l0_compaction_trigger;
+            }
+            else {
+                // Izračunaj prag za trenutni nivo
+                threshold = config->l0_compaction_trigger;
+                for (int i = 1; i <= level; ++i) {
+                    threshold *= config->level_size_multiplier;
+                }
+            }
+            if (tablesOnLevel.size() >= threshold) {
+                needsCompaction = true;
+            }
+        }
+
+        if (needsCompaction) {
+            std::cout << "[LSM] Compaction needed on level " << level
+                << ". Current tables: " << tablesOnLevel.size()
+                << ", Threshold: " << threshold << std::endl;
+
+            // Pokreni kompakciju za ovaj nivo
+            if (config->compaction_strategy == "SizeTiered") {
+                sizeTieredCompaction(level, tablesOnLevel);
+            }
+            else {
+                leveledCompaction(level, tablesOnLevel);
+            }
+            // Petlja se prirodno nastavlja na sledeći nivo, koji će sada imati nove tabele.
+            // Ovo rešava problem lančane kompakcije.
+        }
+        else {
+            // Ako na nekom nivou nema potrebe za kompakcijom, možemo prekinuti proveru
+            // jer ni viši nivoi sigurno neće biti promenjeni.
+            // std::cout << "[LSM] No compaction needed on level " << level << ". Stopping check." << std::endl;
+            // break;  // Opciono: za malu optimizaciju.
+        }
+    }
 }
 
-/*
-int LSMManager::countSSTablesOnLevel(int level) {
-	
-	int sstable_count = 0;
-	std::string level_path = getLevelPath(level);
+void LSMManager::sizeTieredCompaction(int level, const std::vector<SSTableMetadata>& tablesOnLevel) {
+    std::cout << "[LSM] Starting Size-Tiered compaction for " << tablesOnLevel.size()
+        << " tables from level " << level << " to level " << level + 1 << "." << std::endl;
 
-	if (!fs::exists(level_path) || !fs::is_directory(level_path)) {
-		return 0;
-	}
-	
-	const std::regex file_pattern("([a-z]+)_(raw|comp)_(multi|single)_(\\d+)\\.(db|dat)");
-	
-	for (const auto& entry : fs::directory_iterator(level_path)) {
-		if (!entry.is_regular_file()) {
-			continue;
-		}
+    // Spajamo SVE tabele sa ovog nivoa
+    auto newMetas = sstManager->compactTables(tablesOnLevel, level + 1);
 
-		std::string filename = entry.path().filename().string();
-		std::smatch matches;
-
-		if (std::regex_match(filename, matches, file_pattern)) {
-
-			std::string component_type = matches[1].str();
-			std::string format_type = matches[3].str();
-
-			if (format_type == "single" && component_type == "sstable") {
-				sstable_count++;
-			}
-			else if (format_type == "multi" && component_type == "data") {
-				sstable_count++;
-			}
-		}
-	}
-
-	return sstable_count;
-
-}
-*/
-void LSMManager::loadCurrentLevels() {
-
-	current_sstable_on_level_.clear();
-	current_sstable_on_level_.resize(max_levels_);
-
-	for (int level = 0; level < max_levels_; level++) {
-		current_sstable_on_level_[level] = countSSTablesOnLevel(level);
-	}
-
-	if (compaction_strategy_ == "size_tiered") {
-		std::cout << "  -> Konfigurišem limite za Size-Tiered strategiju." << std::endl;
-		for (int level = 0; level < max_levels_ - 1; level++) {
-			max_sstable_on_level_[level] = max_sstable_levels_;
-		}
-
-		max_sstable_on_level_[max_levels_ - 1] = std::numeric_limits<int>::max();
-
-	}
-	else if (compaction_strategy_ == "leveled") {
-		
-		std::cout << "  -> Konfigurišem limite za Leveled strategiju." << std::endl;
-
-		max_sstable_on_level_[0] = Config::l0_compaction_trigger;
-
-		max_sstable_on_level_[1] = 2;
-		for (int level = 2; level < max_levels_ - 1; level++) {
-			max_sstable_on_level_[level] = max_sstable_on_level_[level - 1] * level_size_multiplier_;
-		}
-		
-		max_sstable_on_level_[max_levels_ - 1] = std::numeric_limits<int>::max();
-	}
-
-	std::cout << "[LSMManager] Stanje nivoa uspešno učitano." << std::endl;
+    if (!newMetas.empty()) {
+        // Brišemo sve stare tabele koje su upravo spojene
+        for (const auto& oldMeta : tablesOnLevel) {
+            sstManager->deleteSSTable(oldMeta);
+        }
+        std::cout << "[LSM] Size-Tiered compaction finished for level " << level << "." << std::endl;
+    }
+    else {
+        std::cerr << "[LSM] ERROR: Size-Tiered compaction failed on level " << level << std::endl;
+    }
 }
 
-void LSMManager::checkIfCompactionIsNeeded() {
+void LSMManager::leveledCompaction(int level, const std::vector<SSTableMetadata>& tablesOnLevel) {
+    std::cout << "[LSM] Starting Leveled compaction for level " << level << "." << std::endl;
 
-	if (compaction_strategy_ == "size_tiered") {
-		
-		runSizeTieredCompaction();
-	}
-	else if (compaction_strategy_ == "leveled") {
-		runLeveledCompaction();
-	}
-	else {
-		throw std::runtime_error("Unknown compaction strategy: " + compaction_strategy_);
-	}
-}
+    // 1. Izaberi najstariju tabelu sa nivoa L za spajanje
+    SSTableMetadata sourceTable = tablesOnLevel.front(); // Pretpostavljamo da su sortirane po starosti
 
-bool LSMManager::runSizeTieredCompaction() {
-	std::cout << "[LSMManager] Pokrećem Size-Tiered kompakciju." << std::endl;
-	loadCurrentLevels();
-	// Proveri da li je potrebno pokrenuti kompakciju
-	for (int level = 0; level < max_levels_; level++) {
-		if (current_sstable_on_level_[level] >= max_sstable_on_level_[level]) {
-			std::cout << "[LSMManager] Nivo " << level << " ima " << current_sstable_on_level_[level]
-				<< " SSTable-ova, što je više od maksimalnog dozvoljenog broja: "
-					<< max_sstable_on_level_[level] << ". Pokrećem kompakciju." << std::endl;
-				return true;
-		}
-	}
-	std::cout << "[LSMManager] Nema potrebe za Size-Tiered kompakcijom." << std::endl;
-	return false;
-	
+    // 2. Pronađi sve tabele na sledećem nivou (L+1) koje se preklapaju sa njom
+    std::vector<SSTableMetadata> nextLevelTables = sstManager->findTablesForLevel(level + 1);
+    std::vector<SSTableMetadata> tablesToCompact;
+    tablesToCompact.push_back(sourceTable); // Uvek uključujemo izvornu tabelu
+
+    for (const auto& nextLevelTable : nextLevelTables) {
+        bool overlaps = (sourceTable.minKey <= nextLevelTable.maxKey) && (sourceTable.maxKey >= nextLevelTable.minKey);
+        if (overlaps) {
+            tablesToCompact.push_back(nextLevelTable);
+        }
+    }
+
+    std::cout << "[LSM] Compacting 1 table from L" << level << " with "
+        << tablesToCompact.size() - 1 << " overlapping tables from L" << level + 1 << std::endl;
+
+    // 3. Pozovi sstManager da spoji izabrane tabele
+    auto newMetas = sstManager->compactTables(tablesToCompact, level + 1);
+
+    if (!newMetas.empty()) {
+        // 4. Obriši sve stare tabele koje su učestvovale u kompakciji
+        for (const auto& meta : tablesToCompact) {
+            sstManager->deleteSSTable(meta);
+        }
+        std::cout << "[LSM] Leveled compaction finished for level " << level << "." << std::endl;
+    }
+    else {
+        std::cerr << "[LSM] ERROR: Leveled compaction failed on level " << level << std::endl;
+    }
 }

@@ -1,4 +1,4 @@
-﻿﻿#include "SSTableComp.h"
+﻿#include "SSTableComp.h"
 #include <filesystem>
 #include "../Utils/VarEncoding.h"
 

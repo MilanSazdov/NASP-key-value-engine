@@ -4,7 +4,6 @@
 #include <vector>
 #include <filesystem>
 #include "../Wal/wal.h"
-#include "../LSM/Compaction.h"
 
 class SSTManager
 {
@@ -44,5 +43,6 @@ public:
 
     SSTableMetadata write(std::vector<Record> sortedRecords, int level);
     
+    // TODO: vector<SSTableMetadata> findTablesForLevel(int level) - skenira direktorijum za dati nivo, pronalazi sve SSTABLE
 
 };
