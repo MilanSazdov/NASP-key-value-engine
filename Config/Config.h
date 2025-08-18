@@ -33,10 +33,6 @@ public:
 	// Size-Tiered Compaction
 	static int max_number_of_sstable_on_level;
 
-	// Data folder for: sstable/lsm , memtable, and Wal directory
-	static std::string data_directory;
-	static std::string wal_directory;
-
 	// SSTable
 	static int index_sparsity;
 	static int summary_sparsity;
