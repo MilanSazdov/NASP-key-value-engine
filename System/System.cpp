@@ -25,10 +25,16 @@ void ensureDirectory(const std::string& path) {
 
 //TODO: sstable is uninitialized. fix?
 System::System() : requestCounter(0) {
+	
+
     std::cout << "[SYSTEM] Starting initialization... \n";
 
     std::cout << "Reading Config file ... \n";
 	Config::load_init_configuration();
+
+    resetSystem(Config::data_directory);
+	resetSystem(Config::wal_directory);
+
     sharedInstanceBM = new Block_manager();
 
     // --- Folder checks ---
@@ -287,4 +293,20 @@ void System::debugWal() const {
 
 void System::debugMemtable() const {
     memtable->printAllData();
+}
+
+void System::resetSystem(std::string dataFolder) {
+    try {
+        // Proveri da li folder postoji
+        if (fs::exists(dataFolder) && fs::is_directory(dataFolder)) {
+            // Brisanje svih fajlova i podfoldera
+            fs::remove_all(dataFolder);
+            // Ponovo kreiraj prazan folder
+            fs::create_directory(dataFolder);
+        }
+        std::cout << "Folder 'data' je sada prazan." << std::endl;
+    }
+    catch (const fs::filesystem_error& e) {
+        std::cerr << "Greška: " << e.what() << std::endl;
+    }
 }

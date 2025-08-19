@@ -32,6 +32,8 @@ public:
 	void debugWal() const;
 	void debugMemtable() const;
 
+	void resetSystem(string folder);
+
 private:
 
 	// Onemogucavamo kopiranje da bismo izbegli probleme sa vlasnistvom pokazivaca
