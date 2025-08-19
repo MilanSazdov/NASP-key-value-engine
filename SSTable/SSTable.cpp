@@ -1,4 +1,4 @@
-﻿﻿#include "SSTable.h"
+﻿#include "SSTable.h"
 
 void SSTable::build(std::vector<Record>&records)
 {

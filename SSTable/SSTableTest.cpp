@@ -10,5 +10,6 @@ int main() {
 	bool deleted = 1;
 
 
+
 	return 0;
 }

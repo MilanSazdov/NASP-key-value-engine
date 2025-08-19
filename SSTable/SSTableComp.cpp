@@ -1,6 +1,7 @@
 ﻿#include "SSTableComp.h"
 #include <filesystem>
 #include "../Utils/VarEncoding.h"
+#include "SSTable.h"
 
 SSTableComp::SSTableComp(const std::string & dataFile,
     const std::string & indexFile,
@@ -1007,14 +1008,18 @@ uint64_t SSTableComp::findRecordOffset(const std::string& key, bool& in_file)
         readBytes(&tomb, sizeof(tomb), fileOffset, dataFile_);
         bool isTomb = static_cast<bool>(tomb);
 
-        uint64_t v_size = 0;
-        if (!isTomb) {
-            readBytes(&v_size, sizeof(v_size), fileOffset, dataFile_);
-        }
 
         uint32_t r_key_id = 0;
         readNumValue(r_key_id, fileOffset, dataFile_);
         std::string rkey = id_to_key[r_key_id];
+
+        
+        // record nije obrisan! Citam value size i value. AKO JE OBRISAN, OVO SE NE RADI
+        uint64_t v_size = 0;
+        if (!isTomb) {
+			// citam value size
+            readNumValue(v_size, fileOffset, dataFile_);
+        }
 
         fileOffset += v_size; // skip value
 
@@ -1118,21 +1123,4 @@ Record SSTableComp::getNextRecord(uint64_t& offset, bool& error) {
     }
 
     return r;
-}
-
-template<typename UInt>
-bool SSTableComp::readNumValue(UInt& dst, uint64_t& fileOffset, string fileName) const {
-    char chunk;
-    bool finished = false;
-    size_t val_offset = 0;
-
-    dst = 0;
-
-    do {
-        if (!readBytes(&chunk, 1, fileOffset, fileName)) {
-            return false;
-        };
-        finished = varenc::decodeVarint<UInt>(chunk, dst, val_offset);
-    } while (finished != true);
-    return true;
 }

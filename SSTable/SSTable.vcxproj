@@ -118,7 +118,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\merkle.obj;$(SolutionDir)..\Config\x64\Debug\Config.obj;$(SolutiontDir)..\MerkleTree\libcrypto.lib;$(SolutionDir)..\LSM\x64\Debug\SSTableIterator.obj</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\merkle.obj;$(SolutiontDir)..\MerkleTree\libcrypto.lib;$(SolutionDir)..\Config\x64\Debug\Config.obj</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -143,7 +143,6 @@
     <ClInclude Include="SSTable.h" />
     <ClInclude Include="SSTableComp.h" />
     <ClInclude Include="SSTableRaw.h" />
-    <ClInclude Include="SSTableSingleFile.h" />
     <ClInclude Include="SSTManager.h" />
   </ItemGroup>
   <ItemGroup>
@@ -170,7 +169,6 @@
     <ClCompile Include="SSTable.cpp" />
     <ClCompile Include="SSTableComp.cpp" />
     <ClCompile Include="SSTableRaw.cpp" />
-    <ClCompile Include="SSTableSingleFile.cpp" />
     <ClCompile Include="SSTableTest.cpp" />
     <ClCompile Include="SSTManager.cpp" />
   </ItemGroup>

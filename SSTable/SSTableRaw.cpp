@@ -1,8 +1,7 @@
-﻿﻿
-#include "SSTableRaw.h"
+﻿#include "SSTableRaw.h"
 #include "../Utils/VarEncoding.h"
-#include "../LSM/SSTableIterator.h"
 #include <filesystem>
+#include "SSTManager.h"
 
 SSTableRaw::SSTableRaw(const std::string & dataFile,
     const std::string & indexFile,
@@ -14,12 +13,12 @@ SSTableRaw::SSTableRaw(const std::string & dataFile,
 {
 }
 
-SSTableRaw::SSTableRaw(const std::string& dataFile,
-    Block_manager* bmp)
+SSTableRaw::SSTableRaw(const std::string& dataFile, Block_manager* bmp)
     : SSTable(dataFile, bmp)
 {
 }
 
+// TODO: SSTableIterator u try blocku
 bool SSTableRaw::validate() {
     std::cout << "[SSTable] Pokrecem validaciju integriteta za: " << dataFile_ << std::endl;
 
@@ -46,12 +45,17 @@ bool SSTableRaw::validate() {
     try {
         SSTableMetadata temp_meta;
         temp_meta.data_path = dataFile_;
+        
+        /// KOJI JE OVO KURAC
+        
+        /*
         SSTableIterator iter(temp_meta, this->block_size);
 
         while (iter.hasNext()) {
             Record r = iter.next();
             data_for_merkle.push_back(r.key + r.value);
         }
+        */
     }
     catch (const std::exception& e) {
         std::cerr << "Greska prilikom citanja data fajla tokom validacije: " << e.what() << std::endl;
@@ -750,6 +754,7 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
             fileOffset += block_size - (fileOffset % block_size);
         } // Ako u bloku posle recorda nema mesta za header, znaci da smo padovali i sledeci record pocinje u sledecem bloku
 
+
         // citamo polja Record-a
         uint32_t crc = 0;
         fileOffset += sizeof(crc);
@@ -760,7 +765,7 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
         uint64_t ts = 0;
         fileOffset += sizeof(ts);
 
-        char tomb;
+        char tomb=1;
         fileOffset += sizeof(tomb);
 
         uint64_t kSize = 0;

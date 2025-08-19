@@ -160,7 +160,6 @@ void System::loadTokenBucket() {
     }
 }
 
-
 void System::del(const std::string& key) {
     if (!checkRateLimit()) {
         return; // Request denied by rate limiter

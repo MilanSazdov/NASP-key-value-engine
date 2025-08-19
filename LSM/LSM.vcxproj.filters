@@ -18,39 +18,12 @@
     <ClInclude Include="LSMManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Compaction.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SSTableIterator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MergeIterator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SizeTieredCompaction.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="LeveledCompaction.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LSMManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SSTableIterator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MergeIterator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SizeTieredCompaction.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="LeveledCompaction.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

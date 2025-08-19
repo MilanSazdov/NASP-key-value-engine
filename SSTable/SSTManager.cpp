@@ -48,6 +48,7 @@ void SSTManager::readMap() {
     if (!readBytes(&count, sizeof(count), fileOffset, key_map_file)) {
         return;
     };
+    std::cout << "count: " << count << std::endl;
 
     key_map.reserve(count);
     id_to_key.reserve(count);
@@ -138,7 +139,7 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
     cout << "current_directory == " << current_directory << endl;
 
     if (!fs::is_directory(current_directory)) {
-        cout << "Error get_from_level " << current_directory << " is not valid directory\n";
+        cout << "[SSTManager] Error get_from_level " << current_directory << " is not valid directory\n";
         throw exception();
     }
     if (!fs::exists(current_directory)) return nullopt;
@@ -149,10 +150,9 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
     {
         if (entry.is_regular_file()) {
             std::string filename = entry.path().filename().string();
-            cout << filename << endl;
+            //cout << filename << endl;
             // Prolazimo kroz sve filter fajlove
             if (filename.rfind("filter", 0) == 0) {
-
                 // Citamo fajl
                 std::size_t fileSize = fs::file_size(current_directory + filename);
 
@@ -282,7 +282,6 @@ SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) 
         std::cout << "[SSTManager] Creating a SINGLE-FILE SSTable: " << data_path << std::endl;
     }
     else {
-
         std::string type_str = use_compression ? "_comp_" : "_raw_";
         std::string extension = ".db";
 
@@ -398,4 +397,26 @@ bool SSTManager::readBytes(void* dst, size_t n, uint64_t& offset, string fileNam
     }
 
     return !error;
+}
+
+vector<SSTable> SSTManager::getTablesFromLevel(int level) {
+	string path = directory_ + "/level_" + to_string(level) + "/";
+
+	// ne postoji level direktorijum ili nije direktorijum
+    if (!fs::exists(path) || !fs::is_directory(path)) {
+        std::cerr << "[SSTManager] Level directory does not exist: " << path << std::endl;
+        return {};
+	}
+
+	vector<SSTable> tables;
+
+    // kompresovane 
+    if(Config::compress_sstable) {
+        
+    }
+    // raw
+    else {
+        
+	}
+
 }

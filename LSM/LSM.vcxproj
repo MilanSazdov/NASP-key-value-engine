@@ -133,20 +133,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Compaction.h" />
-    <ClInclude Include="LeveledCompaction.h" />
     <ClInclude Include="LSMManager.h" />
-    <ClInclude Include="MergeIterator.h" />
-    <ClInclude Include="SizeTieredCompaction.h" />
-    <ClInclude Include="SSTableIterator.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="LeveledCompaction.cpp" />
     <ClCompile Include="LSMManager.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MergeIterator.cpp" />
-    <ClCompile Include="SizeTieredCompaction.cpp" />
-    <ClCompile Include="SSTableIterator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\block-manager\block-manager.vcxproj">

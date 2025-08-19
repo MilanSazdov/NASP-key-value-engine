@@ -9,6 +9,8 @@
 #include "../Wal/wal.h"
 #include "../BloomFilter/BloomFilter.h"
 #include "../MerkleTree/MerkleTree.h"
+#include "../Utils/VarEncoding.h"
+
 
 struct IndexEntry {
     std::string key;
@@ -24,9 +26,6 @@ struct Summary {
 
 struct TOC
 {
-    // uint64_t saved_block_size;
-    // uint64_t saved_idx_sparsity;
-    // uint64_t saved_summ_sparsity; Valjda ne
     uint8_t flags; // Bit 0: Najmanji bit kompresija, sledeci single_file_mode
     uint64_t version = 1; // za upuduce ako se updejtuje TOC
     uint64_t data_offset, data_end;
@@ -64,7 +63,7 @@ public:
         toc()
     {
     };
-
+    
     SSTable(const std::string& dataFile,
         Block_manager* bmp) :
 
@@ -178,5 +177,22 @@ protected:
 
     bool readBytes(void* dst, size_t n, uint64_t& offset, string fileName) const;
 
+    // ovo mora ovde
+    template<typename UInt>
+    bool readNumValue(UInt& dst, uint64_t& fileOffset, string fileName) const {
+        char chunk;
+        bool finished = false;
+        size_t val_offset = 0;
 
+        dst = 0;
+
+        do {
+            if (!readBytes(&chunk, 1, fileOffset, fileName)) {
+                return false;
+            }
+            finished = varenc::template decodeVarint<UInt>(chunk, dst, val_offset);
+        } while (finished != true);
+
+        return true;
+    }
 };

@@ -23,11 +23,7 @@ std::string Config::compaction_strategy = "leveled";
 int Config::max_levels = 7;
 
 int Config::l0_compaction_trigger = 4;
-uint64_t Config::target_file_size_base = 2097152; // 2MB
 int Config::level_size_multiplier = 10;
-
-int Config::min_threshold = 4;
-int Config::max_threshold = 32;
 
 bool Config::compress_sstable = true;
 int Config::index_sparsity = 32;
@@ -45,6 +41,8 @@ int getValueFromLine(const std::string& line) {
     // Remove possible comma and spaces
     valuePart.erase(remove(valuePart.begin(), valuePart.end(), ','), valuePart.end());
     valuePart.erase(remove(valuePart.begin(), valuePart.end(), ' '), valuePart.end());
+
+    std::cout << valuePart << std::endl;
 
     return std::stoi(valuePart);
 }
@@ -67,10 +65,7 @@ void Config::debug() {
     std::cout << std::left << std::setw(30) << "  compaction_strategy:" << compaction_strategy << "\n";
     std::cout << std::left << std::setw(30) << "  max_levels:" << max_levels << "\n";
     std::cout << std::left << std::setw(30) << "  l0_compaction_trigger:" << l0_compaction_trigger << "\n";
-    std::cout << std::left << std::setw(30) << "  target_file_size_base:" << target_file_size_base << "\n";
     std::cout << std::left << std::setw(30) << "  level_size_multiplier:" << level_size_multiplier << "\n";
-    std::cout << std::left << std::setw(30) << "  min_threshold:" << min_threshold << "\n";
-    std::cout << std::left << std::setw(30) << "  max_threshold:" << max_threshold << "\n";
 
     std::cout << std::left << std::setw(30) << "  wal_directory:" << wal_directory << "\n";
     std::cout << std::left << std::setw(30) << "  data_directory:" << data_directory << "\n\n";
@@ -131,19 +126,11 @@ void Config::load_init_configuration() {
         else if (line.find("l0_compaction_trigger") != std::string::npos) {
             l0_compaction_trigger = getValueFromLine(line);
         }
-        else if (line.find("target_file_size_base") != std::string::npos) {
-            target_file_size_base = static_cast<uint64_t>(getValueFromLine(line));
-        }
+        
         else if (line.find("level_size_multiplier") != std::string::npos) {
             level_size_multiplier = getValueFromLine(line);
         }
-        else if (line.find("min_threshold") != std::string::npos) {
-            min_threshold = getValueFromLine(line);
-        }
-        else if (line.find("max_threshold") != std::string::npos) {
-            max_threshold = getValueFromLine(line);
-        }
-
+        
         else if (line.find("data_directory") != std::string::npos) {
             //std::cout << line << std::endl;
             data_directory = line.substr(line.find(':') + 1);

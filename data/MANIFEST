@@ -1,2 +1,0 @@
-0 0 ek system_tokenbucket 0 ../data/level_0/sstable_0.sst ../data/level_0/index_0.sst ../data/level_0/summary_0.sst ../data/level_0/filter_0.sst ../data/level_0/meta_0.sst
-0 0 system_tokenbucket system_tokenbucket 0 ../data/level_0/sstable_0.sst ../data/level_0/index_0.sst ../data/level_0/summary_0.sst ../data/level_0/filter_0.sst ../data/level_0/meta_0.sst

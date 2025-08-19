@@ -1,4 +1,4 @@
-﻿﻿#pragma once
+﻿#pragma once
 #include <string>
 #include <vector>
 #include <fstream>
@@ -54,8 +54,6 @@ public:
       */
     std::vector<Record> get(const std::string& key) override;
 
-    // std::vector<Record> get(const std::string& key, int n) override {std::vector<Record> r; return r;}
-
     /**
      * (Opciono) range_scan(startKey, endKey):
      *    vraca sve (key,value) koji su izmedju startKey i endKey
@@ -88,6 +86,4 @@ protected:
     void writeSummaryToFile() override;
     void writeMetaToFile() override;
     void readMetaFromFile() override;
-
-
 };

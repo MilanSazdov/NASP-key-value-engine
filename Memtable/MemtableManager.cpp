@@ -6,8 +6,6 @@
 #include <stdexcept>
 #include "MemtableManager.h"
 #include "MemtableFactory.h"
-#include "SizeTieredCompaction.h"
-#include "LeveledCompaction.h"
 
 MemtableManager::MemtableManager(Block_manager& bm)
     : type_(Config::memtable_type),
@@ -19,31 +17,9 @@ MemtableManager::MemtableManager(Block_manager& bm)
     // Kreiraj SSTManager
     sstManager_ = std::make_unique<SSTManager>(bm);
 
-    // Kreiraj odabranu strategiju kompakcije na osnovu vrednosti iz Config klase
-    std::unique_ptr<CompactionStrategy> strategy;
+    // TODO: Kreiraj odabranu strategiju kompakcije na osnovu vrednosti iz Config klase
 
-    if (Config::compaction_strategy == "leveled") {
-        std::cout << "[MemtableManager] Using Leveled Compaction Strategy (from Config)." << std::endl;
-        strategy = std::make_unique<LeveledCompactionStrategy>(
-            Config::l0_compaction_trigger,
-            Config::max_levels,
-            Config::target_file_size_base,
-            Config::level_size_multiplier
-        );
-    }
-    else if (Config::compaction_strategy == "size_tiered") {
-        std::cout << "[MemtableManager] Using Size-Tiered Compaction Strategy (from Config)." << std::endl;
-        strategy = std::make_unique<SizeTieredCompactionStrategy>(
-            Config::min_threshold,
-            Config::max_threshold
-        );
-    }
-    else {
-        throw std::runtime_error("Unknown compaction strategy in config: " + Config::compaction_strategy);
-    }
-
-    // Kreiraj LSMManager i prosledi mu kreiranu strategiju i kreirani sstmanager
-    lsmManager_ = std::make_unique<LSMManager>(std::move(strategy), Config::max_levels, (*sstManager_));
+    // TODO: Kreiraj LSMManager i prosledi mu kreiranu strategiju i kreirani sstmanager
 
     // Inicijalizuj prvu (aktivnu) Memtable
     memtables_.reserve(N_);
@@ -51,8 +27,6 @@ MemtableManager::MemtableManager(Block_manager& bm)
     first->setMaxSize(maxSize_);
     memtables_.push_back(std::move(first));
 
-    // Pokreni pozadinsku nit u LSMManager-u
-    lsmManager_->initialize();
 }
 
 MemtableManager::~MemtableManager() {
@@ -130,7 +104,10 @@ void MemtableManager::flushOldest() {
             records.push_back(r);
         }
         std::cout << "[MemtableManager] Flushing " << records.size() << " records to Level 0...\n";
-        lsmManager_->flushToLevel0(records);
+       
+        // flushhovanje
+        sort(records.begin(), records.end(), [](const Record& a, const Record& b) {return a.key < b.key; }); // Sortiramo po kljucevima
+        sstManager_->write(records, 1);
     }
 
     // brisemo najstariju memtable iz memorije

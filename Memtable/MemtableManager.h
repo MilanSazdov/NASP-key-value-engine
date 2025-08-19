@@ -6,7 +6,6 @@
 #include <optional>
 #include "IMemtable.h"
 #include "SSTManager.h"
-#include "LSMManager.h"
 
 class MemtableManager {
 public:
@@ -47,7 +46,6 @@ private:
     std::string directory_;
 
     std::unique_ptr<SSTManager> sstManager_;
-    std::unique_ptr<LSMManager> lsmManager_;
 
     // N instanci memtable
     std::vector<std::unique_ptr<IMemtable>> memtables_;

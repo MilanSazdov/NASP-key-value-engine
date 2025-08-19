@@ -17,6 +17,10 @@ public:
 	static int block_size;	    //BLOCK MANAGER: in bytes
 	static int segment_size;	//WAL:			 in records
 
+	// Putanje do direktorijuma
+	static std::string data_directory;
+	static std::string wal_directory;
+
 	// Memtable podesavanja
 	static std::string memtable_type;
 	static size_t memtable_instances;

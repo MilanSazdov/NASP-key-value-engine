@@ -6,7 +6,7 @@ class LSMManager {
 public:
     LSMManager(SSTManager* sstManager, Config* config);
     // konstruktor sada prima odabranu strategiju i maksimalan broj nivoa
-    LSMManager(std::unique_ptr<CompactionStrategy> strategy, int max_levels, SSTManager& sstRef);
+    //LSMManager(std::unique_ptr<CompactionStrategy> strategy, int max_levels, SSTManager& sstRef);
 
     // destruktor se brine o bezbednom zaustavljanju pozadinske niti
     ~LSMManager();
@@ -16,7 +16,6 @@ public:
     void triggerCompactionCheck();
 
 private:
-    SSTManager* sstManager;
     Config* config;
 
     // Specifična logika za Size-Tiered strategiju.

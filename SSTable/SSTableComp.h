@@ -12,7 +12,6 @@
 #include "../Wal/wal.h"
 #include "../BloomFilter/BloomFilter.h"
 #include "SSTable.h"
-#include "../Utils/VarEncoding.h"
 
 
 class SSTableComp : public SSTable {
@@ -90,9 +89,6 @@ protected:
     void writeMetaToFile() override;
     void readMetaFromFile() override;
 
-
-    template<typename UInt>
-    bool readNumValue(UInt& dst, uint64_t& fileOffset, string fileName) const;
 
     uint64_t summary_data_start;
 
