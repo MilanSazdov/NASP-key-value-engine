@@ -21,9 +21,15 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TypesMenu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainApp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TypesMenu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

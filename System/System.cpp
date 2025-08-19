@@ -5,6 +5,8 @@
 
 namespace fs = std::filesystem;
 
+const std::string System::RATE_LIMIT_KEY = "system_tokenbucket";
+
 void ensureDirectory(const std::string& path) {
     if (!fs::exists(path)) {
         try {
@@ -22,62 +24,148 @@ void ensureDirectory(const std::string& path) {
 }
 
 //TODO: sstable is uninitialized. fix?
-System::System() {
+System::System() : requestCounter(0) {
     std::cout << "[SYSTEM] Starting initialization... \n";
 
     std::cout << "Reading Config file ... \n";
 	Config::load_init_configuration();
-    Block_manager sharedInstanceBM;
+    sharedInstanceBM = new Block_manager();
 
     // --- Folder checks ---
     ensureDirectory(Config::data_directory);
 
     // --- WAL setup ---
     std::cout << "[Debug] Initializing WAL...\n";
-    wal = new Wal(sharedInstanceBM);
+    wal = new Wal(*sharedInstanceBM);
 
     // --- Cache setup ---
+
     cout << "[Debug] Initializing Cache...\n";
     cache = new Cache<string>();
     cout << "Cache initialized\n";
 
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
-    memtable = new MemtableManager(sharedInstanceBM);
+    memtable = new MemtableManager(*sharedInstanceBM);
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";
     std::vector<Record> records = wal->get_all_records();
 
-    /*std::cout << "[Debug] WAL Records:\n";
-    for (const Record& r : records) {
-        std::cout << "-----------------------------------\n";
-        std::cout << "Key       : " << r.key << "\n";
-        std::cout << "Value     : " << r.value << "\n";
-        std::cout << "Tombstone : " << static_cast<int>(r.tombstone) << "\n";
-        std::cout << "Timestamp : " << r.timestamp << "\n";
-        std::cout << "CRC       : " << r.crc << "\n";
-    }
-    std::cout << "-----------------------------------\n";*/
-
     std::cout << "[Debug] Loading records into Memtable...\n";
     memtable->loadFromWal(records);
 	//memtable->printAllData();
 
+    // --- Load Rate Limiter state after memtable is ready ---
+    std::cout << "[Debug] Loading Rate Limiter state...\n";
+    loadTokenBucket();
+
+	// --- TypesManager setup ---
+	std::cout << "[Debug] Initializing TypesManager...\n";
+	typesManager = new TypesManager(this);
+
     std::cout << "[Debug] System initialization completed.\n";
-
-
-	//std::cout << "[System] Data from WAL loaded into the Memory table.\n";
 }
 
 System::~System() {
 	std::cout << "[SYSTEM] Shutting down system and freeing resources...\n";
+
+    // Save rate limiter state before shutdown
+    saveTokenBucket();
+
 	delete wal;
 	delete memtable;
+    delete tokenBucket;
+
 	std::cout << "[SYSTEM] System shutdown complete.\n";
 }
 
+TypesManager* System::getTypesManager() {
+    return typesManager;
+}
+
+bool System::checkRateLimit() {
+    if (!tokenBucket->allowRequest()) {
+        std::cout << "\033[31m[RATE LIMIT] Request denied - rate limit exceeded. Try again later.\033[0m\n";
+        return false;
+    }
+
+    requestCounter++;
+
+    // Save state every SAVE_INTERVAL requests
+    if (requestCounter % SAVE_INTERVAL == 0) {
+        std::cout << "[RATE LIMIT] Saving rate limiter state (request #" << requestCounter << ")\n";
+        saveTokenBucket();
+    }
+
+    return true;
+}
+
+void System::saveTokenBucket() {
+    try {
+        std::vector<byte> serializedData = tokenBucket->serialize();
+
+        // Convert byte vector to string for storage
+        //std::string serializedString(serializedData.begin(), serializedData.end());
+        std::string serializedString(
+            reinterpret_cast<const char*>(serializedData.data()),
+            serializedData.size()
+        );
+
+        // Store directly in the key-value engine using internal storage
+        // We need to directly access WAL and memtable to avoid recursive rate limiting
+        wal->put(RATE_LIMIT_KEY, serializedString);
+        memtable->put(RATE_LIMIT_KEY, serializedString);
+
+        std::cout << "[RATE LIMIT] State saved successfully to key: " << RATE_LIMIT_KEY << "\n";
+
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[RATE LIMIT ERROR] Failed to save state: " << e.what() << "\n";
+    }
+}
+
+void System::loadTokenBucket() {
+    try {
+        // Try to load from memtable first (no rate limiting on system operations)
+        bool deleted = false;
+        auto value = memtable->get(RATE_LIMIT_KEY, deleted);
+
+        if (!deleted && value.has_value()) {
+            // Convert string back to byte vector
+            std::string serializedString = value.value();
+            //std::vector<byte> data(serializedString.begin(), serializedString.end());
+            std::vector<std::byte> data(
+                reinterpret_cast<const std::byte*>(serializedString.data()),
+                reinterpret_cast<const std::byte*>(serializedString.data() + serializedString.size())
+            );
+
+            // Deserialize and replace current rate limiter
+            TokenBucket loadedBucket = TokenBucket::deserialize(data);
+            delete tokenBucket;
+            tokenBucket = new TokenBucket(loadedBucket);
+
+            std::cout << "[RATE LIMIT] State loaded successfully from key: " << RATE_LIMIT_KEY << "\n";
+        }
+        else {
+            tokenBucket = new TokenBucket(Config::max_tokens, Config::refill_interval);
+
+            std::cout << "[RATE LIMIT] No saved state found, using default configuration\n";
+        }
+
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[RATE LIMIT ERROR] Failed to load state: " << e.what() << "\n";
+        std::cout << "[RATE LIMIT] Continuing with default configuration\n";
+    }
+}
+
+
 void System::del(const std::string& key) {
+    if (!checkRateLimit()) {
+        return; // Request denied by rate limiter
+    }
+
     cout << "Deleted from wal\n";
     wal->del(key);
 
@@ -103,13 +191,16 @@ void System::add_records_to_cache(vector<Record> records) {
 }
 
 void System::put(const std::string& key, const std::string& value) {
+    if (!checkRateLimit()) {
+        return; // Request denied by rate limiter
+    }
+
     cout << "Put to wal\n";
     wal->put(key, value);
 
     cout << "Put to memtable\n";
     memtable->put(key, value);
 
-    
     if (memtable->checkFlushIfNeeded()) {
         //prvo ubacujem sve recorde iz najstarijeg memtablea u cache.
         vector<Record> records = memtable->getRecordsFromOldest();
@@ -127,6 +218,11 @@ std::optional<std::string> System::get(const std::string& key) {
         VRACA NULLOPT AKO KLJUC NE POSTOJI
         VRACA STRING VALUE AKO KLJUC POSTOJI
     */
+
+    if (!checkRateLimit()) {
+        cout << "Premasili ste broj upita po jedinici vremena, probajte kasnije\n OVO BI MOGLO BOLJE";
+        return nullopt; // Request denied by rate limiter
+    }
 
     bool deleted;
     // searching memtable

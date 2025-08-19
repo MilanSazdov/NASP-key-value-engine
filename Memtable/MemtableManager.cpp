@@ -42,8 +42,8 @@ MemtableManager::MemtableManager(Block_manager& bm)
         throw std::runtime_error("Unknown compaction strategy in config: " + Config::compaction_strategy);
     }
 
-    // Kreiraj LSMManager i prosledi mu kreiranu strategiju
-    lsmManager_ = std::make_unique<LSMManager>(std::move(strategy), Config::max_levels, bm);
+    // Kreiraj LSMManager i prosledi mu kreiranu strategiju i kreirani sstmanager
+    lsmManager_ = std::make_unique<LSMManager>(std::move(strategy), Config::max_levels, (*sstManager_));
 
     // Inicijalizuj prvu (aktivnu) Memtable
     memtables_.reserve(N_);
@@ -89,6 +89,7 @@ bool MemtableManager::checkFlushIfNeeded() {
             return true;
         }
     }
+    return false;
 }
 
 void MemtableManager::flushMemtable() {

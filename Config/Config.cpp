@@ -34,6 +34,9 @@ int Config::index_sparsity = 32;
 int Config::summary_sparsity = 64;
 bool Config::sstable_single_file = false; // Default je multi-file
 
+int Config::max_tokens = 20;
+int Config::refill_interval = 10;
+
 int getValueFromLine(const std::string& line) {
     size_t colonPos = line.find(':');
     if (colonPos == std::string::npos) return -1;
@@ -70,7 +73,10 @@ void Config::debug() {
     std::cout << std::left << std::setw(30) << "  max_threshold:" << max_threshold << "\n";
 
     std::cout << std::left << std::setw(30) << "  wal_directory:" << wal_directory << "\n";
-    std::cout << std::left << std::setw(30) << "  data_directory:" << data_directory << "\n";
+    std::cout << std::left << std::setw(30) << "  data_directory:" << data_directory << "\n\n";
+
+    std::cout << std::left << std::setw(30) << "  max_tokens:" << max_tokens << "\n";
+    std::cout << std::left << std::setw(30) << "  refill_interval:" << refill_interval << "\n";
 }
 
 void remove_white_space_or_coma(std::string& s) {

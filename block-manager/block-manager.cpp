@@ -6,7 +6,7 @@
 
 Block_manager::Block_manager() {
 	this->block_size = Config::block_size;
-	c = new Cache<composite_key, pair_hash>;
+	c = new Cache<composite_key, pair_hash>();
 }
 
 void Block_manager::fill_in_padding(vector<byte>& bad_data) {
@@ -44,8 +44,7 @@ void Block_manager::write_block(composite_key key, vector<byte> data) {
 }
 
 void Block_manager::write_block(composite_key key, string data){
-	vector<byte> bytes;
-
+	vector<byte> bytes(data.size());
 	std::transform(data.begin(), data.end(), bytes.begin(),
 			[] (char c) { return std::byte(c); });
 

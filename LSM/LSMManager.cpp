@@ -6,6 +6,21 @@
 LSMManager::LSMManager(SSTManager* sstManager, Config* config)
     : sstManager(sstManager), config(config) {
     std::cout << "[LSM] Stateless LSM Manager initialized." << std::endl;
+#include "LSMManager.h"
+#include "SSTableIterator.h"
+#include "MergeIterator.h"
+
+namespace fs = std::filesystem;
+// OVO MOZDA NE TREBA
+LSMManager::LSMManager(std::unique_ptr<CompactionStrategy> strategy, int max_levels, SSTManager& sstRef)
+    : base_directory_(Config::data_directory),
+	manifest_path_(Config::data_directory + "/MANIFEST"),
+    strategy_(std::move(strategy)),
+    max_levels_(max_levels),
+    sstManager_(sstRef),
+    stop_worker_(false),
+    compaction_needed_(false) {
+    levels_.resize(max_levels_);
 }
 
 LSMManager::~LSMManager() {}

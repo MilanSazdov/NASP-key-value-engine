@@ -51,7 +51,7 @@ private:
 
 public:
     //SSTManager();
-    SSTManager(Block_manager& bm);
+    SSTManager(Block_manager& bmRef);
     ~SSTManager();
 
 	Block_manager& get_block_manager() { return bm; }
