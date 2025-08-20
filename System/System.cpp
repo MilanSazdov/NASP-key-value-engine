@@ -27,8 +27,18 @@ void ensureDirectory(const std::string& path) {
 System::System() : requestCounter(0) {
     std::cout << "[SYSTEM] Starting initialization... \n";
 
+    
+
     std::cout << "Reading Config file ... \n";
-	Config::load_init_configuration();
+    bool new_system = Config::load_init_configuration();
+    if (new_system) {
+        std::cout << "[Debug] Reseting system.\n";
+        resetSystem(Config::data_directory);
+        resetSystem(Config::wal_directory);
+    }
+    else {
+        std::cout << "[Debug] Old configuration is in use.\n";
+    }
 
     sharedInstanceBM = new Block_manager();
 
@@ -49,12 +59,8 @@ System::System() : requestCounter(0) {
     std::cout << "[Debug] Initializing MemtableManager...\n";
     memtable = new MemtableManager(*sharedInstanceBM);
 
-	std::cout << "[Debug] Printing existing sstables.\n";
-    memtable->printSSTables(1);
-
-	std::cout << "[Debug] Reseting system.\n";
-    resetSystem(Config::data_directory);
-    resetSystem(Config::wal_directory);
+	//std::cout << "[Debug] Printing existing sstables.\n";
+    //memtable->printSSTables(1);
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";

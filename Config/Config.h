@@ -47,5 +47,6 @@ public:
 	static int max_tokens;
 	static int refill_interval; // in seconds
 
-	static void load_init_configuration();
+	static bool load_init_configuration();
+	static void load_old_configuration();
 };

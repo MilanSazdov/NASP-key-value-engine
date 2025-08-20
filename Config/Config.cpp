@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <cstdint>
 
+// ovaj deo mora da postoji zato sto su static polja. Inace, vrednosti se mogu ignorisati jer postoji defaultConfig, iz njega se uzimaju vrednosti
 int Config::cache_capacity = 10;        // 10 elements
 int Config::block_size = 50;           // 100 bytes
 int Config::segment_size = 5;           // 5 blocks
@@ -82,11 +83,11 @@ void remove_white_space_or_coma(std::string& s) {
         s = s.substr(1);
 }
 
-void Config::load_init_configuration() {
+void Config::load_old_configuration() {
     // Open the file
-    std::ifstream file("../config.json");
+    std::ifstream file("../defaultConfig.json");
     if (!file.is_open()) {
-        std::cerr << "Failed to open config file." << std::endl;
+        std::cerr << "Failed to open default config file." << std::endl;
         return;
     }
 
@@ -126,11 +127,11 @@ void Config::load_init_configuration() {
         else if (line.find("l0_compaction_trigger") != std::string::npos) {
             l0_compaction_trigger = getValueFromLine(line);
         }
-        
+
         else if (line.find("level_size_multiplier") != std::string::npos) {
             level_size_multiplier = getValueFromLine(line);
         }
-        
+
         else if (line.find("data_directory") != std::string::npos) {
             //std::cout << line << std::endl;
             data_directory = line.substr(line.find(':') + 1);
@@ -155,5 +156,187 @@ void Config::load_init_configuration() {
             index_sparsity = getValueFromLine(line);
         }
     }
+}
+
+void writeDefaultConfig() {
+    std::cout << "[Config] Writing default configuration to config.json\n";
+    std::ofstream out("../defaultConfig.json");
+    if (!out.is_open()) {
+        std::cerr << "Failed to open defaultConfig.json for writing." << std::endl;
+        return;
+    }
+    out << "{\n";
+    out << "  \"cache_capacity\": " << Config::cache_capacity << ",\n";
+    out << "  \"block_size\": " << Config::block_size << ",\n";
+    out << "  \"segment_size\": " << Config::segment_size << ",\n";
+    out << "  \"data_directory\": \"" << Config::data_directory << "\",\n";
+    out << "  \"wal_directory\": \"" << Config::wal_directory << "\",\n";
+    out << "  \"memtable_type\": \"" << Config::memtable_type << "\",\n";
+    out << "  \"memtable_instances\": " << Config::memtable_instances << ",\n";
+    out << "  \"memtable_max_size\": " << Config::memtable_max_size << ",\n";
+    out << "  \"compaction_strategy\": \"" << Config::compaction_strategy << "\",\n";
+    out << "  \"max_levels\": " << Config::max_levels << ",\n";
+    out << "  \"l0_compaction_trigger\": " << Config::l0_compaction_trigger << ",\n";
+    out << "  \"level_size_multiplier\": " << Config::level_size_multiplier << ",\n";
+    out << "  \"index_sparsity\": " << Config::index_sparsity << ",\n";
+    out << "  \"summary_sparsity\": " << Config::summary_sparsity << ",\n";
+    out << "  \"compress_sstable\": " << (Config::compress_sstable ? 1 : 0) << ",\n";
+    out << "  \"sstable_single_file\": " << (Config::sstable_single_file ? 1 : 0) << ",\n";
+    out << "  \"max_tokens\": " << Config::max_tokens << ",\n";
+    out << "  \"refill_interval\": " << Config::refill_interval << "\n";
+    out << "}\n";
+    out.close();
+}
+
+bool Config::load_init_configuration() {
+	load_old_configuration();
+
+    // Open the file
+    std::ifstream file("../config.json");
+    if (!file.is_open()) {
+        std::cerr << "Failed to open config file." << std::endl;
+        return false;
+    }
+
+    std::string line;
+
+    std::string new_val;
+    int new_int;
+	bool new_configuration = 0;
+
+    while (std::getline(file, line)) {
+        //std::cout << line << std::endl;
+        if (line.find("cache_capacity") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (cache_capacity != new_int) {
+                new_configuration = 1;
+            }
+            cache_capacity = new_int;
+        }
+        else if (line.find("block_size") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (block_size != new_int) {
+                new_configuration = 1;
+            }
+            block_size = new_int;
+        }
+        else if (line.find("segment_size") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (segment_size != new_int) {
+                new_configuration = 1;
+            }
+            segment_size = new_int;
+        }
+
+        else if (line.find("memtable_type") != std::string::npos) {
+            new_val = line.substr(line.find(':') + 1);
+            new_val.erase(remove(new_val.begin(), new_val.end(), '\"'), new_val.end());
+            remove_white_space_or_coma(new_val);
+            if (memtable_type != new_val) {
+                new_configuration = 1;
+            }
+            memtable_type = new_val;
+        }
+        else if (line.find("memtable_instances") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (memtable_instances != new_int) {
+                new_configuration = 1;
+            }
+            memtable_instances = new_int;
+        }
+        else if (line.find("memtable_max_size") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (memtable_max_size != new_int) {
+                new_configuration = 1;
+            }
+            memtable_max_size = new_int;
+        }
+        else if (line.find("compaction_strategy") != std::string::npos) {
+            new_val = line.substr(line.find(':') + 1);
+            new_val.erase(remove(new_val.begin(), new_val.end(), '\"'), new_val.end());
+            remove_white_space_or_coma(new_val);
+            if (compaction_strategy != new_val) {
+                new_configuration = 1;
+            }
+            compaction_strategy = new_val;
+        }
+        else if (line.find("max_levels") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (max_levels != new_int) {
+                new_configuration = 1;
+            }
+            max_levels = new_int;
+        }
+        else if (line.find("l0_compaction_trigger") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (l0_compaction_trigger != new_int) {
+                new_configuration = 1;
+            }
+            l0_compaction_trigger = new_int;
+        }
+        
+        else if (line.find("level_size_multiplier") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (level_size_multiplier != new_int) {
+                new_configuration = 1;
+            }
+            level_size_multiplier = new_int;
+        }
+        
+        else if (line.find("data_directory") != std::string::npos) {
+            //std::cout << line << std::endl;
+            new_val = line.substr(line.find(':') + 1);
+            new_val.erase(remove(new_val.begin(), new_val.end(), '\"'), new_val.end());
+            remove_white_space_or_coma(new_val);
+            if (data_directory != new_val) {
+                new_configuration = 1;
+            }
+            data_directory = new_val;
+        }
+        else if (line.find("wal_directory") != std::string::npos) {
+            new_val = line.substr(line.find(':') + 1);
+            new_val.erase(remove(new_val.begin(), new_val.end(), '\"'), new_val.end());
+            remove_white_space_or_coma(new_val);
+            if (wal_directory != new_val) {
+                new_configuration = 1;
+            }
+            wal_directory = new_val;
+        }
+        else if (line.find("compress_sstable") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (compress_sstable != new_int) {
+                new_configuration = 1;
+            }
+            compress_sstable = new_int;
+        }
+        else if (line.find("sstable_single_file") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (sstable_single_file != new_int) {
+                new_configuration = 1;
+            }
+            sstable_single_file = new_int;
+        }
+        else if (line.find("summary_sparsity") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (summary_sparsity != new_int) {
+                new_configuration = 1;
+            }
+            summary_sparsity = new_int;
+        }
+        else if (line.find("index_sparsity") != std::string::npos) {
+            new_int = getValueFromLine(line);
+            if (index_sparsity != new_int) {
+                new_configuration = 1;
+            }
+            index_sparsity = new_int;
+        }
+    }
+
     debug();
+    
+    if (new_configuration) {
+        writeDefaultConfig();
+    }
+
+    return new_configuration;
 }
