@@ -253,7 +253,7 @@ optional<string> SSTManager::get(const std::string& key) {
     return nullopt;
 }
 
-SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) {
+void SSTManager::write(std::vector<Record> sortedRecords, int level) {
     if (sortedRecords.empty()) {
         throw std::runtime_error("[SSTManager] Cannot write an SSTable with zero records.");
     }
@@ -277,7 +277,7 @@ SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) 
 
     if (use_single_file) {
         std::string type_str = use_compression ? "_sf_comp_" : "_sf_raw_";
-        data_path = levelDir + "/sstable" + type_str + numStr + ".dat";
+        data_path = levelDir + "/sstable" + type_str + numStr + ".db";
         index_path = filter_path = summary_path = meta_path = data_path;
         std::cout << "[SSTManager] Creating a SINGLE-FILE SSTable: " << data_path << std::endl;
     }
@@ -322,7 +322,7 @@ SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) 
 
     sst->build(sortedRecords);
 
-
+    /*
     // Nakon sto su fajlovi upisani, kreiramo i popunjavamo metapodatke.
     SSTableMetadata meta;
     meta.level = level;
@@ -359,11 +359,12 @@ SSTableMetadata SSTManager::write(std::vector<Record> sortedRecords, int level) 
     meta.filter_path = filter_path;
     meta.meta_path = meta_path;
 
-    std::cout << "[SSTManager] Successfully wrote SSTable " << fileId << " to level " << level
-        << " (Total Size: " << total_size << " bytes)." << std::endl;
 
     delete sst; // Oslobodi memoriju
-    return meta;
+    */
+    std::cout << "[SSTManager] Successfully wrote SSTable " << fileId << " to level " << level
+        << " (Total Size: [NISAM IZRACUNO]" << " bytes)." << std::endl;
+    return;
 }
 
 bool SSTManager::readBytes(void* dst, size_t n, uint64_t& offset, string fileName) const
@@ -399,7 +400,7 @@ bool SSTManager::readBytes(void* dst, size_t n, uint64_t& offset, string fileNam
     return !error;
 }
 
-vector<SSTable> SSTManager::getTablesFromLevel(int level) {
+vector<unique_ptr<SSTable>> SSTManager::getTablesFromLevel(int level) {
 	string path = directory_ + "/level_" + to_string(level) + "/";
 
 	// ne postoji level direktorijum ili nije direktorijum
@@ -408,15 +409,59 @@ vector<SSTable> SSTManager::getTablesFromLevel(int level) {
         return {};
 	}
 
-	vector<SSTable> tables;
+    vector<unique_ptr<SSTable>> tables;
+                       
+    // nesto + _raw_ + id + .db
+    // nesto + _sf_raw_ + id + .db
+    for (const auto& entry : fs::directory_iterator(path)) {
+        if (entry.is_regular_file()) {
+            string filename = entry.path().filename().string();
 
-    // kompresovane 
-    if(Config::compress_sstable) {
-        
-    }
-    // raw
-    else {
-        
+            // ovo je single file
+            if (filename.rfind("sstable_", 0) == 0) {
+                // Proveri da li je raw ili comp
+                //sstable_sf_raw_0
+                if (filename.find("_raw_") != std::string::npos) {
+                    tables.push_back(make_unique<SSTableRaw>(filename, &bm));
+                }
+                //sstable_sf_comp_0
+                else {
+                    tables.push_back(make_unique<SSTableComp>(filename, &bm, key_map, id_to_key, next_ID_map));
+                }
+            }
+            // ovde je multi file, treba naci index, meta, summary, filter, data
+                
+            if (filename.rfind("data", 0) == 0) {
+                // Proveri da li je raw ili comp
+                if (filename.find("_raw_") != std::string::npos) {
+                    //data_raw_32.db
+					std::string numStr = filename.substr(9, filename.find(".db") -9);
+					int num = std::stoi(numStr);
+                    std::string data_path =     "data_raw_" + numStr + ".db";
+                    std::string index_path =    "index_raw_" + numStr + ".db";
+                    std::string filter_path =   "filter_raw_" + numStr + ".db";
+                    std::string summary_path =  "summary_raw_" + numStr + ".db";
+                    std::string meta_path =     "meta_raw_" + numStr + ".db";
+                    
+                    tables.push_back(make_unique<SSTableRaw>(data_path, index_path, filter_path, summary_path, meta_path, &bm));
+                }
+                else {
+                    //data_comp_32.db
+                    std::string numStr = filename.substr(10, filename.find(".db") - 10);
+                    int num = std::stoi(numStr);
+                    std::string data_path = "data_comp_" + numStr + ".db";
+                    std::string index_path = "index_comp_" + numStr + ".db";
+                    std::string filter_path = "filter_comp_" + numStr + ".db";
+                    std::string summary_path = "summary_comp_" + numStr + ".db";
+                    std::string meta_path = "meta_comp_" + numStr + ".db";
+                   
+                    tables.push_back(make_unique<SSTableComp>
+                        (data_path, index_path, filter_path, summary_path, meta_path, &bm, key_map, id_to_key, next_ID_map)
+                    );
+                }
+            }
+        }
 	}
 
+    return tables;
 }

@@ -111,7 +111,7 @@ public:
       */
     virtual Record getNextRecord(uint64_t& offset, bool& error) = 0;
 
-    virtual bool validate() = 0;
+    //virtual bool validate() = 0;
 
     /**
      * findRecordOffset(key, bool& in_file) - vraća offset u bajtovima gde se prvi Record sa kljucem nalazi u data fajlu.
@@ -124,6 +124,9 @@ public:
      * getDataStartOffset() - vraća offset u bajtovima gde počinje data segment u data fajlu.
      */
     virtual uint64_t getDataStartOffset() { return toc.data_offset; }
+
+    // i ovo sluzi samo za testiranje
+    virtual void printFileNames();
 
 protected:
     // putanje do fajlova

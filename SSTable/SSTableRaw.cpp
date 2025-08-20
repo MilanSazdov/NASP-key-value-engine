@@ -18,6 +18,7 @@ SSTableRaw::SSTableRaw(const std::string& dataFile, Block_manager* bmp)
 {
 }
 
+/*
 // TODO: SSTableIterator u try blocku
 bool SSTableRaw::validate() {
     std::cout << "[SSTable] Pokrecem validaciju integriteta za: " << dataFile_ << std::endl;
@@ -55,7 +56,7 @@ bool SSTableRaw::validate() {
             Record r = iter.next();
             data_for_merkle.push_back(r.key + r.value);
         }
-        */
+        
     }
     catch (const std::exception& e) {
         std::cerr << "Greska prilikom citanja data fajla tokom validacije: " << e.what() << std::endl;
@@ -102,6 +103,7 @@ bool SSTableRaw::validate() {
     std::cerr << "  DETEKCIJA: Nepoznata greška, listovi se poklapaju ali koreni ne (ovo ne bi smelo da se desi)." << std::endl;
     return false;
 }
+*/
 
 // Funkcija NE PROVERAVA bloomfilter, pretpostavlja da je vec provereno
 vector<Record> SSTableRaw::get(const std::string& key) {

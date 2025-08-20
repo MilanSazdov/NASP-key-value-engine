@@ -8,7 +8,8 @@
   "max_levels": 4,
   "l0_compaction_trigger": 4,
   "target_file_size_base": 2097152,
-  "data_directory": "../data/level_0/",
+  "data_directory": "../data/",
   "wal_directory": "../data/wal_logs",
-  "sstable_single_file": 1
+  "compress_sstable": 1,
+  "sstable_single_file": 0
 }

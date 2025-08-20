@@ -187,3 +187,12 @@ bool SSTable::readBytes(void* dst, size_t n, uint64_t& offset, string fileName) 
 
     return !error;
 }
+
+
+void SSTable::printFileNames() {
+    std::cout << "Data file: " << dataFile_ << std::endl;
+    std::cout << "Index file: " << indexFile_ << std::endl;
+    std::cout << "Filter file: " << filterFile_ << std::endl;
+    std::cout << "Summary file: " << summaryFile_ << std::endl;
+    std::cout << "Meta file: " << metaFile_ << std::endl;
+}

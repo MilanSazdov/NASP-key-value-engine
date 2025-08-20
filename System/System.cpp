@@ -25,15 +25,10 @@ void ensureDirectory(const std::string& path) {
 
 //TODO: sstable is uninitialized. fix?
 System::System() : requestCounter(0) {
-	
-
     std::cout << "[SYSTEM] Starting initialization... \n";
 
     std::cout << "Reading Config file ... \n";
 	Config::load_init_configuration();
-
-    resetSystem(Config::data_directory);
-	resetSystem(Config::wal_directory);
 
     sharedInstanceBM = new Block_manager();
 
@@ -53,6 +48,13 @@ System::System() : requestCounter(0) {
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
     memtable = new MemtableManager(*sharedInstanceBM);
+
+	std::cout << "[Debug] Printing existing sstables.\n";
+    memtable->printSSTables(1);
+
+	std::cout << "[Debug] Reseting system.\n";
+    resetSystem(Config::data_directory);
+    resetSystem(Config::wal_directory);
 
     // --- Load from WAL ---
     std::cout << "[Debug] Retrieving records from WAL...\n";
@@ -77,11 +79,13 @@ System::~System() {
 	std::cout << "[SYSTEM] Shutting down system and freeing resources...\n";
 
     // Save rate limiter state before shutdown
-    saveTokenBucket();
+    //saveTokenBucket();
 
 	delete wal;
 	delete memtable;
     delete tokenBucket;
+
+
 
 	std::cout << "[SYSTEM] System shutdown complete.\n";
 }

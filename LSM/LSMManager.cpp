@@ -83,11 +83,3 @@ void LSMManager::triggerCompactionCheck() {
     }
     */
 }
-
-void LSMManager::sizeTieredCompaction(int level, const std::vector<SSTableMetadata>& tablesOnLevel) {
-	// TODO: Implement size-tiered compaction logic
-}
-
-void LSMManager::leveledCompaction(int level, const std::vector<SSTableMetadata>& tablesOnLevel) {
-	// TODO: Implement leveled compaction logic
-}

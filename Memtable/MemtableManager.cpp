@@ -200,3 +200,12 @@ vector<Record> MemtableManager::getRecordsFromOldest() {
         return records;
     }
 }
+
+void MemtableManager::printSSTables(int level) {
+    std::cout << "[MemtableManager] Printing SSTables from level " << level << ":\n";
+    auto tables = sstManager_->getTablesFromLevel(level);
+    for (auto& table : tables) {
+        table->printFileNames();
+        std::cout << "\n";
+	}
+}

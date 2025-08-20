@@ -17,10 +17,4 @@ public:
 
 private:
     Config* config;
-
-    // Specifična logika za Size-Tiered strategiju.
-    void sizeTieredCompaction(int level, const std::vector<SSTableMetadata>& tablesOnLevel);
-
-    // Specifična logika za Leveled strategiju.
-    void leveledCompaction(int level, const std::vector<SSTableMetadata>& tablesOnLevel);
 };

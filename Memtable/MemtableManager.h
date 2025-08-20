@@ -39,6 +39,9 @@ public:
 
     vector<Record> getRecordsFromOldest();
 
+    // ovo sam koristio za testiranje, moze se obrisati kasnije
+    void printSSTables(int level);
+
 private:
     std::string type_;   // sacuvamo koji tip je korisnik izabrao
     size_t N_;           // max broj memtable

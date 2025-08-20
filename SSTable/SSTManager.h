@@ -7,27 +7,6 @@
 #include "../Wal/wal.h"
 #include "SSTable.h"
 
-struct SSTableMetadata {
-    int level;
-    int file_id;
-    uint64_t file_size; // Ukupna veličina svih fajlova za ovaj SSTable
-    std::string min_key;
-    std::string max_key;
-
-    bool is_compressed;
-    bool is_single_file;
-
-    std::string data_path;
-    std::string index_path;
-    std::string summary_path;
-    std::string filter_path;
-    std::string meta_path;
-
-    bool operator==(const SSTableMetadata& other) const {
-        return file_id == other.file_id && level == other.level;
-    }
-};
-
 class SSTManager
 {
 private:
@@ -43,6 +22,7 @@ private:
     uint32_t next_ID_map;
     unordered_map<string, uint32_t> key_map;
     vector<string> id_to_key;
+
     void writeMap() const;
     void readMap();
 
@@ -63,8 +43,6 @@ public:
 
     optional<string> get(const std::string& key);
     optional<string> get_from_level(const std::string& key, bool& deleted, int level);
-
-    SSTableMetadata write(std::vector<Record> sortedRecords, int level);
-
-    vector<SSTable> getTablesFromLevel(int level); // -skenira direktorijum za dati nivo, pronalazi sve SSTABLE
+	void write(std::vector<Record> sortedRecords, int level);
+    vector<unique_ptr<SSTable>> getTablesFromLevel(int level); // -skenira direktorijum za dati nivo, pronalazi sve SSTABLE
 };

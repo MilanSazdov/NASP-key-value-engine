@@ -33,6 +33,7 @@ SSTableComp::SSTableComp(const std::string& dataFile,
 
 // SSTableComp::~SSTableComp() { }
 
+/*
 bool SSTableComp::validate() {
     std::cout << "[SSTableComp] Pokrecem naprednu validaciju za: " << dataFile_ << std::endl;
 
@@ -103,7 +104,7 @@ bool SSTableComp::validate() {
         data_for_merkle.push_back(current_key + reconstructed_value);
     }
 
-end_of_validation_loop:;
+end_of_validation_loop:
 
 
     MerkleTree new_merkle_tree(data_for_merkle);
@@ -139,7 +140,7 @@ end_of_validation_loop:;
     return false;
 }
 
-
+*/
 // Funkcija NE PROVERAVA bloomfilter, pretpostavlja da je vec provereno
 vector<Record> SSTableComp::get(const std::string& key)
 {
