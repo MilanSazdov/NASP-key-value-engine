@@ -7,15 +7,15 @@
 #include "MemtableManager.h"
 #include "MemtableFactory.h"
 
-MemtableManager::MemtableManager(Block_manager& bm)
-    : type_(Config::memtable_type),
+MemtableManager::MemtableManager(SSTManager* sst)
+    : sstManager_(sst),
+    type_(Config::memtable_type),
     N_(Config::memtable_instances),
     maxSize_(Config::memtable_max_size),
     directory_(Config::data_directory),
     activeIndex_(0)
 {
     // Kreiraj SSTManager
-    sstManager_ = std::make_unique<SSTManager>(bm);
 
     // TODO: Kreiraj odabranu strategiju kompakcije na osnovu vrednosti iz Config klase
 

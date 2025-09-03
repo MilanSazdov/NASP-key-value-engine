@@ -12,19 +12,18 @@ namespace fs = std::filesystem;
 
 using ull = unsigned long long;
 
-SSTManager::SSTManager(Block_manager& bmRef) : directory_(Config::data_directory), bm(bmRef), block_size(Config::block_size) {
+SSTManager::SSTManager(Block_manager* bmRef) : directory_(Config::data_directory), bm(bmRef), block_size(Config::block_size) {
     cout << Config::data_directory << endl;
     readMap();
 }
 
-Block_manager& SSTManager::get_block_manager() {
+Block_manager* SSTManager::get_block_manager() {
     return bm;
 }
 
 std::unordered_map<std::string, uint32_t>& SSTManager::get_key_to_id_map() {
     return key_map;
 }
-
 
 std::vector<std::string>& SSTManager::get_id_to_key_map() {
     return id_to_key;
@@ -95,13 +94,13 @@ void SSTManager::writeMap() const {
 
     while (offset + block_size <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
-        bm.write_block({ block_id++, key_map_file }, chunk);
+        bm->write_block({ block_id++, key_map_file }, chunk);
         offset += block_size;
     }
 
     if (offset < total_bytes) {
         std::string chunk = payload.substr(offset);
-        bm.write_block({ block_id++, key_map_file }, chunk);
+        bm->write_block({ block_id++, key_map_file }, chunk);
     }
 }
 
@@ -112,22 +111,23 @@ int SSTManager::findNextIndex(const std::string& levelDir) const {
         return 0; // prvi fajl ce biti sa ID-em 0
     }
 
+    int digit, base=1, current;
+
     for (const auto& entry : fs::directory_iterator(levelDir)) {
         std::string filename = entry.path().filename().string();
-        if (filename.rfind("sstable_", 0) == 0 && entry.path().extension() == ".sst") {
-            try {
-                // Primer: iz "sstable_5.sst" izvuci "5"
-                std::string id_str = filename.substr(8, filename.find('.') - 8);
-                int id = std::stoi(id_str);
-                if (id > max_id) {
-                    max_id = id;
-                }
+        current = 0;
+        base = 1;
+
+        for(int i = filename.size()-1; i >= 0; i--) {
+            if (isdigit(filename[i])) {
+                // pronasli smo poslednji broj u nazivu fajla
+                digit = std::stoi(filename.substr(i));
+				current += base * digit;
+                base *= 10;
             }
-            catch (const std::exception& e) {
-                // Ignorisi fajlove sa nevalidnim formatom imena
-                continue;
-            }
-        }
+		}
+		max_id = max(max_id, current);
+        
     }
     return max_id + 1;
 }
@@ -135,7 +135,7 @@ int SSTManager::findNextIndex(const std::string& levelDir) const {
 optional<string> SSTManager::get_from_level(const std::string& key, bool& deleted, int level)
 {
     deleted = false;
-    string current_directory = directory_ + "/level_" + to_string(level) + "/";
+    string current_directory = Config::data_directory + "/level_" + to_string(level) + "/";
     cout << "current_directory == " << current_directory << endl;
 
     if (!fs::is_directory(current_directory)) {
@@ -145,6 +145,7 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
     if (!fs::exists(current_directory)) return nullopt;
 
     std::vector<Record> matches;
+	string data_path, index_path, filter_path, summary_path, meta_path;
 
     for (const auto& entry : fs::directory_iterator(current_directory))
     {
@@ -161,6 +162,7 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
                     cout << "File : " << filename << ".size() == 0\n";
                     continue;
                 }
+                // TODO: NE SME DA SE KORISTI STREAM, MORA PREKO BLOCK MANAGERA
                 std::ifstream file(current_directory + filename, std::ios::binary);
                 if (!file) {
                     throw std::runtime_error("[SSTManager] Ne mogu da otvorim fajl: " + filename);
@@ -173,35 +175,47 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
 
                 if (bloom.possiblyContains(key)) {
                     // Gledamo koji je broj
-                    std::size_t underscorePos = filename.find('_');
+                    std::size_t underscorePos = filename.rfind('_');
                     std::size_t dotPos = filename.find('.', underscorePos);
+
                     if (underscorePos == std::string::npos || dotPos == std::string::npos) {
                         cerr << ("[SSTManager] Ne validan format: " + filename);
                         continue;
                     }
 
                     std::string numStr = filename.substr(underscorePos + 1, dotPos - underscorePos - 1);
-                    std::string ending = numStr + ".sst";
-
+                    std::string ending = numStr + ".db";
+					
                     SSTable* sst;
 
+					// OVO UOPSTE NE RADI ZA SINGLE FILE MODE
                     if (Config::compress_sstable) {
-                        sst = new SSTableComp((current_directory + "sstable_" + ending),
-                            (current_directory + "index_" + ending),
-                            (current_directory + "filter_" + ending),
-                            (current_directory + "summary_" + ending),
-                            (current_directory + "meta_" + ending),
-                            &bm, key_map, id_to_key, next_ID_map);
+						data_path = current_directory + "data_comp_" + ending;
+						index_path = current_directory + "index_comp_" + ending;
+						filter_path = current_directory + "filter_comp_" + ending;
+						summary_path = current_directory + "summary_comp_" + ending;
+						meta_path = current_directory + "meta_comp_" + ending;
+
+                        sst = new SSTableComp(data_path,
+                                              index_path,
+                                              filter_path,
+                                              summary_path,
+							                  meta_path,
+                                              bm, key_map, id_to_key, next_ID_map);
                     }
                     else {
-                        sst = new SSTableRaw(
-                            (current_directory + "sstable_" + ending),
-                            (current_directory + "index_" + ending),
-                            (current_directory + "filter_" + ending),
-                            (current_directory + "summary_" + ending),
-                            (current_directory + "meta_" + ending),
-                            &bm
-                        );
+                        data_path = current_directory + "data_raw_" + ending;
+                        index_path = current_directory + "index_raw_" + ending;
+                        filter_path = current_directory + "filter_raw_" + ending;
+                        summary_path = current_directory + "summary_raw_" + ending;
+                        meta_path = current_directory + "meta_raw_" + ending;
+
+                        sst = new SSTableRaw(data_path,
+                                             index_path,
+                                             filter_path,
+                                             summary_path,
+                                             meta_path,
+							                 bm);
                     }
 
                     //Sve recorde sa odgovarajucim key-em stavljamo u vektor
@@ -242,7 +256,7 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
 // pretrazuje sstable po nivoima. Kad naide na nekom nivou na kljuc, to vraca. Kad prodje sve nivoe, ne postoji kljuc, vraca nullopt
 optional<string> SSTManager::get(const std::string& key) {
     bool deleted;
-    for (int i = 0; i <= Config::max_levels; i++) {
+    for (int i = 1; i <= Config::max_levels; i++) {
         auto ret = get_from_level(key, deleted, i);
         // record doesnt exists BECAUSE IT IS DELETED
         if (deleted) return nullopt;
@@ -266,6 +280,8 @@ void SSTManager::write(std::vector<Record> sortedRecords, int level) {
     }
 
     int fileId = findNextIndex(levelDir);
+	cout << "[SSTManager] Writing SSTable to level " << level << " with file ID: " << fileId << endl;
+
     std::string numStr = std::to_string(fileId);
 
     // Ovde treba da se handluje ako je jedan file
@@ -303,7 +319,7 @@ void SSTManager::write(std::vector<Record> sortedRecords, int level) {
             filter_path,
             summary_path,
             meta_path,
-            &bm,
+            bm,
             key_map,
             id_to_key,
             next_ID_map
@@ -316,7 +332,7 @@ void SSTManager::write(std::vector<Record> sortedRecords, int level) {
             filter_path,
             summary_path,
             meta_path,
-            &bm
+            bm
         );
     }
 
@@ -376,7 +392,7 @@ bool SSTManager::readBytes(void* dst, size_t n, uint64_t& offset, string fileNam
     int block_id = offset / block_size;
     uint64_t block_pos = offset % block_size;
 
-    vector<byte> block = bm.read_block({ block_id++, fileName }, error);
+    vector<byte> block = bm->read_block({ block_id++, fileName }, error);
     if (error) return !error;
 
     char* out = reinterpret_cast<char*>(dst);
@@ -384,7 +400,7 @@ bool SSTManager::readBytes(void* dst, size_t n, uint64_t& offset, string fileNam
     while (n > 0) {
         if (block_pos == block_size) {
             // fetch sledeci
-            block = bm.read_block({ block_id++, fileName }, error);
+            block = bm->read_block({ block_id++, fileName }, error);
             if (error) return !error;
 
             block_pos = 0;
@@ -422,11 +438,11 @@ vector<unique_ptr<SSTable>> SSTManager::getTablesFromLevel(int level) {
                 // Proveri da li je raw ili comp
                 //sstable_sf_raw_0
                 if (filename.find("_raw_") != std::string::npos) {
-                    tables.push_back(make_unique<SSTableRaw>(filename, &bm));
+                    tables.push_back(make_unique<SSTableRaw>(filename, bm));
                 }
                 //sstable_sf_comp_0
                 else {
-                    tables.push_back(make_unique<SSTableComp>(filename, &bm, key_map, id_to_key, next_ID_map));
+                    tables.push_back(make_unique<SSTableComp>(filename, bm, key_map, id_to_key, next_ID_map));
                 }
             }
             // ovde je multi file, treba naci index, meta, summary, filter, data
@@ -443,7 +459,7 @@ vector<unique_ptr<SSTable>> SSTManager::getTablesFromLevel(int level) {
                     std::string summary_path =  "summary_raw_" + numStr + ".db";
                     std::string meta_path =     "meta_raw_" + numStr + ".db";
                     
-                    tables.push_back(make_unique<SSTableRaw>(data_path, index_path, filter_path, summary_path, meta_path, &bm));
+                    tables.push_back(make_unique<SSTableRaw>(data_path, index_path, filter_path, summary_path, meta_path, bm));
                 }
                 else {
                     //data_comp_32.db
@@ -456,7 +472,7 @@ vector<unique_ptr<SSTable>> SSTManager::getTablesFromLevel(int level) {
                     std::string meta_path = "meta_comp_" + numStr + ".db";
                    
                     tables.push_back(make_unique<SSTableComp>
-                        (data_path, index_path, filter_path, summary_path, meta_path, &bm, key_map, id_to_key, next_ID_map)
+                        (data_path, index_path, filter_path, summary_path, meta_path, bm, key_map, id_to_key, next_ID_map)
                     );
                 }
             }

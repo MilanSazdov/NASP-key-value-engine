@@ -8,7 +8,7 @@ SSTableRaw::SSTableRaw(const std::string & dataFile,
     const std::string & filterFile,
     const std::string & summaryFile,
     const std::string & metaFile,
-    Block_manager * bmp)
+    Block_manager* bmp)
     : SSTable(dataFile, indexFile, filterFile, summaryFile, metaFile, bmp)
 {
 }
@@ -589,7 +589,7 @@ void SSTableRaw::writeBloomToFile()
     size_t total_bytes = payload.size();
     size_t offset = 0;
 
-    while (offset + block_size <= total_bytes) {
+    while (offset <= total_bytes) {
         string chunk = payload.substr(offset, block_size);
         bmp->write_block({ block_id++, filterFile_ }, chunk);
         offset += block_size;

@@ -58,7 +58,7 @@ void MainApp::handleGet() {
         cout << "[GET] Key " << key << " doesnt exists\n";
     }
     else {
-        cout << "[GET] Key " << key << " Value " << value.value() << "\n";
+        cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " Value " << "\033[31m" << value.value() << "\033[0m" << "\n";
     }
 }
 

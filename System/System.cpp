@@ -27,8 +27,6 @@ void ensureDirectory(const std::string& path) {
 System::System() : requestCounter(0) {
     std::cout << "[SYSTEM] Starting initialization... \n";
 
-    
-
     std::cout << "Reading Config file ... \n";
     bool new_system = Config::load_init_configuration();
     if (new_system) {
@@ -39,6 +37,10 @@ System::System() : requestCounter(0) {
     else {
         std::cout << "[Debug] Old configuration is in use.\n";
     }
+
+    // ovo stoji dok radim testiranje, posle treba samo ovo od gore
+    resetSystem(Config::data_directory);
+    resetSystem(Config::wal_directory);
 
     sharedInstanceBM = new Block_manager();
 
@@ -55,9 +57,12 @@ System::System() : requestCounter(0) {
     cache = new Cache<string>();
     cout << "Cache initialized\n";
 
+    // --- SSTManager setup ---
+    sstable = new SSTManager(sharedInstanceBM);
+
     // --- Memtable setup ---
     std::cout << "[Debug] Initializing MemtableManager...\n";
-    memtable = new MemtableManager(*sharedInstanceBM);
+    memtable = new MemtableManager(sstable);
 
 	//std::cout << "[Debug] Printing existing sstables.\n";
     //memtable->printSSTables(1);
@@ -223,6 +228,8 @@ void System::put(const std::string& key, const std::string& value) {
 
         //onda mogu da flushujem, i oslobodim prostor
         memtable->flushMemtable();
+
+        debugMemtable();
     }
     
 }

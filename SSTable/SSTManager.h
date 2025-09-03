@@ -26,17 +26,17 @@ private:
     void writeMap() const;
     void readMap();
 
-    Block_manager& bm;
+    Block_manager* bm;
     int block_size;
 
     bool readBytes(void* dst, size_t n, uint64_t& offset, string fileName) const;
 
 public:
     //SSTManager();
-    SSTManager(Block_manager& bmRef);
+    SSTManager(Block_manager* bmp);
     ~SSTManager();
 
-    Block_manager& get_block_manager();
+    Block_manager* get_block_manager();
     std::unordered_map<std::string, uint32_t>& get_key_to_id_map();
     std::vector<std::string>& get_id_to_key_map();
     uint32_t& get_next_id();

@@ -43,8 +43,6 @@ int getValueFromLine(const std::string& line) {
     valuePart.erase(remove(valuePart.begin(), valuePart.end(), ','), valuePart.end());
     valuePart.erase(remove(valuePart.begin(), valuePart.end(), ' '), valuePart.end());
 
-    std::cout << valuePart << std::endl;
-
     return std::stoi(valuePart);
 }
 

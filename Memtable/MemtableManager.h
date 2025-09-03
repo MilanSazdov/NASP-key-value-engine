@@ -15,7 +15,7 @@ public:
      * @param maxSizePerTable koliko elemenata moze stati u svaku memtable
      * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./".
      **/
-    MemtableManager(Block_manager& bm);
+    MemtableManager(SSTManager* sst);
 
     ~MemtableManager();
 
@@ -48,7 +48,7 @@ private:
     size_t maxSize_;     // max broj elemenata u svakoj
     std::string directory_;
 
-    std::unique_ptr<SSTManager> sstManager_;
+    SSTManager* sstManager_;
 
     // N instanci memtable
     std::vector<std::unique_ptr<IMemtable>> memtables_;
