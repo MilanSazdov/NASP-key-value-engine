@@ -5,7 +5,7 @@
 #include <string>
 #include <optional>
 #include "IMemtable.h"
-#include "SSTManager.h"
+#include "../SSTable/SSTManager.h"
 
 class MemtableManager {
 public:

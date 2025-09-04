@@ -1,7 +1,7 @@
 #pragma once
 #include <iostream>
 #include <string>
-#include "System.h"
+#include "../System/System.h"
 #include "TypesMenu.h"
 
 class MainApp {

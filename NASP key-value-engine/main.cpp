@@ -1,4 +1,4 @@
-#include "MainApp.h"
+#include "../MainApp/MainApp.h"
 
 /*
     what to configure in config file:

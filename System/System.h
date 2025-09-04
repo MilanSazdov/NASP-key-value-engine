@@ -1,9 +1,9 @@
 #pragma once
 
 
-#include "wal.h"
-#include "MemtableManager.h"
-#include "Config.h"
+#include "../Wal/wal.h"
+#include "../Memtable/MemtableManager.h"
+#include "../Config/Config.h"
 #include "TypesManager.h"
 #include "../TokenBucket/TokenBucket.h"
 

@@ -2,7 +2,7 @@
 
 #include <string>
 #include <optional>
-#include "wal.h"
+#include "../Wal/wal.h"
 #include <vector>
 
 using namespace std;

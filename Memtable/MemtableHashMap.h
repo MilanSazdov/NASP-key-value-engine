@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "IMemtable.h"
-#include "wal.h"
+#include "../Wal/wal.h"
 #include <unordered_map>
 #include <string>
 #include <optional>

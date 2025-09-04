@@ -1,8 +1,8 @@
 #pragma once
 #include <string>
-#include "block-manager.h"
+#include "../block-manager/block-manager.h"
 #include "wal_types.h"
-#include "Config.h"
+#include "../Config/Config.h"
 
 /*
 	koristi se little endian! (znaci 260 = 0x0104, ali po bajtovima je 04 01)!!!

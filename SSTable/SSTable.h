@@ -63,7 +63,8 @@ public:
         block_size(Config::block_size),
         index_sparsity(Config::index_sparsity),
         summary_sparsity(Config::summary_sparsity),
-        toc()
+        toc(),
+        ready_to_read_(false)
     {
     };
     
@@ -80,7 +81,8 @@ public:
         block_size(Config::block_size),
         index_sparsity(Config::index_sparsity),
         summary_sparsity(Config::summary_sparsity),
-        toc()
+        toc(),
+        ready_to_read_(false)
     {
     };
 
@@ -156,7 +158,9 @@ protected:
     size_t index_sparsity;
 
     TOC toc;
-
+    
+    bool ready_to_read_;
+    
     // ----- pomoćne metode -----
 
     virtual void prepare(); // Cita TOC i header summary fajla kako bi se pripremio za citanje
@@ -178,7 +182,6 @@ protected:
     virtual void writeSummaryToFile() = 0;
     virtual void writeMetaToFile() = 0;
     virtual void readMetaFromFile() = 0;
-
 
 
     bool readBytes(void* dst, size_t n, uint64_t& offset, string fileName) const;

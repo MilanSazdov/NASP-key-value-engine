@@ -8,10 +8,10 @@ typedef unsigned int uint;
 
 // This is used for fragmentation
 enum class Wal_record_type : uint8_t {
-	FULL = (byte)65,
-	FIRST = (byte)66,
-	MIDDLE = (byte)67,
-	LAST = (byte)68
+	FULL = 65,
+	FIRST = 66,
+	MIDDLE = 67,
+	LAST = 68
 };
 
 inline string record_type_to_string(Wal_record_type type) {

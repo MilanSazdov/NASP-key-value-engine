@@ -10,9 +10,9 @@
 class System;
 
 #include "../BloomFilter/BloomFilter.h"
-#include "../Cms/cms.h"
-#include "../HyperLogLog/hll.h"
-#include "../SimHash/simhash.h"
+#include "../CMS/cms.h"
+#include "../hyperloglog/hll.h"
+#include "../simhash/simhash.h"
 
 /**
  * TypesManager handles all probabilistic data structures for the System.

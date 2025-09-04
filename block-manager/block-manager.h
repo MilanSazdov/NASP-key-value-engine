@@ -1,8 +1,8 @@
 #pragma once
-#include "cache.h"
+#include "../Cache/cache.h"
 #include <vector>
 #include <string>
-#include "Config.h"
+#include "../Config/Config.h"
 using namespace std;
 
 struct pair_hash {

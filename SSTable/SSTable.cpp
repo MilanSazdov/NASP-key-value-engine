@@ -101,9 +101,7 @@ void SSTable::build(std::vector<Record>&records)
 }
 
 void SSTable::prepare() {
-    // if(toc.data_offset != 0) return; // Gledamo da li smo vec inicijalizovali.
-                                      // TODO: toc.data_offset je setovan u write pathu ali nije u read pathu van ove funkcije.
-                                      // To ne bi trebalo da bude problem, ali proveri svakako.
+    if(ready_to_read_) return;
 
     uint64_t offset = 0;
 
@@ -151,6 +149,8 @@ void SSTable::prepare() {
             */
 
     readSummaryHeader();
+
+    ready_to_read_ = true;
 }
 
 bool SSTable::readBytes(void* dst, size_t n, uint64_t& offset, string fileName) const

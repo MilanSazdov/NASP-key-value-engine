@@ -2,7 +2,7 @@
 #pragma once
 
 #include "IMemtable.h"
-#include "SkipList.h"
+#include "../SkipList/SkipList.h"
 #include <string>
 #include <optional>
 #include <iostream>
