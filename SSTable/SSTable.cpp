@@ -61,7 +61,6 @@ void SSTable::build(std::vector<Record>&records)
     writeBloomToFile();
     writeMetaToFile();
 
-
     // Pisemo toc
     // Moze da se zameni memcpy(&payload[0], ...) ali ce padovati 
     string payload;
@@ -96,7 +95,6 @@ void SSTable::build(std::vector<Record>&records)
         std::string chunk = payload.substr(offset);
         bmp->write_block({ block_id++, dataFile_ }, chunk);
     }
-
 
     std::cout << "[SSTable] build: upisano " << records.size()
         << " zapisa u " << dataFile_ << ".\n";

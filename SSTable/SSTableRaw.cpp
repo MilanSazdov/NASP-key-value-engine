@@ -365,6 +365,18 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
             }
 
+        ull remaining = block_size - (offset % block_size);
+
+        offset += r.key_size + r.value_size; // Dodajemo ceo key size i value size prvo, posle cemo videti koliko headera treba
+        
+        // Ako u bloku nema dovoljno mesta ni za record metadata
+        if (remaining < header_len) {
+            // concat.insert(concat.end(), remaining, (byte)0); write_block valjda vec paduje
+            offset += remaining;
+
+            bmp->write_block({block_id++, dataFile_}, concat);
+            concat.clear();
+            remaining = block_size;
         }
         else {
             flag = Wal_record_type::FULL;
@@ -659,7 +671,6 @@ void SSTableRaw::readSummaryHeader()
     summary_.max.clear();
 
     uint64_t offset = toc.summary_offset;
-
     uint64_t min_len;
     uint64_t max_len;
     uint64_t count;
@@ -933,6 +944,5 @@ Record SSTableRaw::getNextRecord(uint64_t& offset, bool& error) {
             }
         }
     }
-
     return r;
 }
