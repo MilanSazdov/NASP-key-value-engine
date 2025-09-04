@@ -16,7 +16,7 @@
 
 class SSTableComp : public SSTable {
 public:
-    /**
+    /*
      * Konstruktor prima putanje do tri fajla:
      *  - dataFile (npr. "data.sst")
      *  - indexFile (npr. "index.sst")
@@ -66,7 +66,7 @@ public:
 
     Record getNextRecord(uint64_t& offset, bool& error) override;
     
-    bool validate() override;
+    //bool validate() override;
     
     uint64_t findRecordOffset(const std::string& key, bool& in_file) override;
 

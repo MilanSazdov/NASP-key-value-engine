@@ -131,18 +131,6 @@ public:
     // i ovo sluzi samo za testiranje
     virtual void printFileNames();
 
-    /**
-     * findRecordOffset(key, bool& in_file) - vraća offset u bajtovima gde se prvi Record sa kljucem nalazi u data fajlu.
-     *    - Ukoliko sstabela ne sadrzi kljuc, funkcija vraca offset najblizeg desnog elementa i stavlja in_file = false
-     *    - Ukoliko sstabela ne sadrzi kljuc i kljuc je veci od najveceg u tabeli, funckija vraca numeric_limits<uint64_t>::max();
-     */
-    virtual uint64_t findRecordOffset(const std::string& key, bool& in_file) = 0;
-
-    /**
-     * getDataStartOffset() - vraća offset u bajtovima gde počinje data segment u data fajlu.
-     */
-    virtual uint64_t getDataStartOffset() { return toc.data_offset; }
-
 protected:
     // putanje do fajlova
     int block_size;

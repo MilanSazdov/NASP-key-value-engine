@@ -197,13 +197,13 @@ void System::del(const std::string& key) {
 void System::add_records_to_cache(vector<Record> records) {
     int lenght;
     for (Record r : records) {
-        if (r.tombstone == (byte)0) {
+        if (r.tombstone == (byte)1) {
             cache->del(r.key);
         }
         else {
             lenght = r.value.size();
             vector<byte> valueInBytes(lenght);
-            memcpy(valueInBytes.data(), r.key.data(), lenght);
+            memcpy(valueInBytes.data(), r.value.data(), lenght);
 
             cache->put(r.key, valueInBytes);
         }

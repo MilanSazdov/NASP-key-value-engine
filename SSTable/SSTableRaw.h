@@ -68,14 +68,11 @@ public:
 
     Record getNextRecord(uint64_t& offset, bool& error) override;
 
-  uint64_t findRecordOffset(const std::string& key, bool& found) override;
-  
-  Record getNextRecord(uint64_t& offset, bool& error) override;
-
 protected:
     std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) override;
 
     // Snima 'index_' u indexFile_
+    //std::vector<IndexEntry> writeIndexToFile() override;
     std::vector<IndexEntry> writeIndexToFile() override;
 
     // void readIndexFromFile();

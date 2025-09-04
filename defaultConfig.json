@@ -1,5 +1,5 @@
 {
-  "cache_capacity": 10,
+  "cache_capacity": 3,
   "block_size": 75,
   "segment_size": 5,
   "data_directory": "../data",

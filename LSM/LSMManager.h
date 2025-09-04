@@ -12,7 +12,6 @@
 
 #include "../SSTable/SSTManager.h"
 #include "../Wal/wal.h"
-#include "Compaction.h"
 
 // deklaracija unapred da se izbegnu ciklicne zavisnosti
 class CompactionStrategy;

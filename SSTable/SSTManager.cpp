@@ -139,9 +139,10 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
     cout << "current_directory == " << current_directory << endl;
 
     if (!fs::is_directory(current_directory)) {
-        cout << "[SSTManager] Error get_from_level " << current_directory << " is not valid directory\n";
-        throw exception();
+        cout << "[SSTManager] Error get_from_level " << current_directory << " is not valid directory\n\n";
+        return nullopt;
     }
+
     if (!fs::exists(current_directory)) return nullopt;
 
     std::vector<Record> matches;
@@ -195,7 +196,7 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
 						filter_path = current_directory + "filter_comp_" + ending;
 						summary_path = current_directory + "summary_comp_" + ending;
 						meta_path = current_directory + "meta_comp_" + ending;
-
+                        
                         sst = new SSTableComp(data_path,
                                               index_path,
                                               filter_path,
@@ -240,7 +241,7 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
 
 
     // not found. Return nullopt
-    if (tsMax == 0) nullopt;
+    if (tsMax == 0) return nullopt;
 
     // found. Record is deleted. Return nullopt + DELETED = TRUE
     else if (static_cast<int>(rMax.tombstone) == 1)

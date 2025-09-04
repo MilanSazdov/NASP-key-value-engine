@@ -63,32 +63,43 @@ void MainApp::handleGet() {
 }
 
 void MainApp::test_case() {
-    system->put("apple", "fruit");
-    system->put("car", "vehicle");
-    system->put("house", "building");
-    system->put("sky", "blue");
-    system->put("book", "read");
-    //new memtable
+	cout << "\n\n\n[TEST CASE] Inserting 6 key-value pairs...\n";
+    key = "keyy1";
+    value = "value1";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
 
-    system->put("phone", "call");
-    system->put("water", "drink");
-    system->put("fire", "hot");
-    system->put("music", "sound");
-    system->put("cat", "animal");
-    //new memtable
+    key = "key2";
+    value = "value2";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
 
-    system->put("moon", "night");
-    system->put("train", "transport");
-    system->put("light", "bright");
-    system->put("code", "program");
-    system->put("tree", "green");
-    // flush
+    key = "keeey3";
+    value = "value3";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "keyeyeye4";
+    value = "value4";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "key55";
+    value = "value5";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "key6";
+    value = "value6";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+    cout << "[TEST CASE] Done...\n\n\n\n";
 }
 
 void MainApp::run() {
     int choice;
     //cin.ignore();
-
+    test_case();
     while (true) {
         showMenu();
         cin >> choice;
