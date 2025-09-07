@@ -705,10 +705,10 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
     uint64_t kSize;
     bool error;
 
-    uint64_t lastOffset = 0ULL;
+    uint64_t offset_in_index = 0ULL;
     
     string rKey;
-    for(int i = 0; i < summary_.count; i++){
+    for(int i = 0; i < summary_.count; i++) {
         readBytes(&kSize, sizeof(kSize), fileOffset, summaryFile_);
 
         rKey.resize(kSize);
@@ -718,26 +718,31 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
             break;
         }
 
-        readBytes(&lastOffset, sizeof(lastOffset), fileOffset, summaryFile_);
+        readBytes(&offset_in_index, sizeof(offset_in_index), fileOffset, summaryFile_);
     }
 
-    fileOffset = lastOffset + toc.index_offset;
-    uint64_t off;
+    fileOffset = offset_in_index + toc.index_offset;
+    uint64_t offset_in_data;
 
-    while (true) {
+
+    for(;;) {
         readBytes(&kSize, sizeof(kSize), fileOffset, indexFile_);
         
         rKey.resize(kSize);
         readBytes(&rKey[0], kSize, fileOffset, indexFile_);
 
-        readBytes(&off, sizeof(off), fileOffset, indexFile_);
+        if (rKey > key) {
+            break;
+        }
 
-        if (rKey >= key) {
+        readBytes(&offset_in_data, sizeof(offset_in_data), fileOffset, indexFile_);
+
+        if (rKey == key) {
             break;
         }
     }
 
-    fileOffset = off;
+    fileOffset = offset_in_data;
 
     const uint64_t header_len =  sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(ull) + sizeof(ull);
 
@@ -822,7 +827,7 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
         
         if(r.key == key) {
             found = true;
-            return fileOffset;
+            return offset_in_data;
         }
         
         if (r.key > key) {

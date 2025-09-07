@@ -1127,6 +1127,10 @@ uint64_t SSTableComp::findRecordOffset(const std::string& key, bool& in_file)
         }
 
         readNumValue<uint64_t>(off, file_offset, indexFile_);
+
+        if (r_key == key) {
+            break;
+        }
     }
 
     uint64_t fileOffset = off;
