@@ -153,6 +153,11 @@ void SSTable::prepare() {
     ready_to_read_ = true;
 }
 
+bool SSTable::possiblyContains(const std::string& key){
+    readBloomFromFile();
+    return bloom_.possiblyContains(key);
+}
+
 bool SSTable::readBytes(void* dst, size_t n, uint64_t& offset, string fileName) const
 {
     if (n == 0) return true;

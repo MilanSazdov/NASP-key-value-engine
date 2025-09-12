@@ -133,6 +133,8 @@ public:
     // i ovo sluzi samo za testiranje
     virtual void printFileNames();
 
+    bool possiblyContains(const std::string& key);
+
 protected:
     // putanje do fajlova
     int block_size;

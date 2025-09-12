@@ -41,6 +41,8 @@ SSTManager::~SSTManager()
 void SSTManager::readMap() {
     string key_map_file = directory_ + "/key_map";
 
+    next_ID_map = 0;
+
     uint64_t fileOffset = 0;
 
     uint64_t count;
@@ -153,76 +155,70 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
         if (entry.is_regular_file()) {
             std::string filename = entry.path().filename().string();
             //cout << filename << endl;
-            // Prolazimo kroz sve filter fajlove
+            // Prolazimo kroz sve multi-fajl sstabele (samo one ce imati zasebni filter fajl)
             if (filename.rfind("filter", 0) == 0) {
-                // Citamo fajl
-                std::size_t fileSize = fs::file_size(current_directory + filename);
 
-                std::vector<byte> fileData(fileSize);
-                if (fileSize == 0) {
-                    cout << "File : " << filename << ".size() == 0\n";
+                std::size_t underscorePos = filename.rfind('_');
+                std::size_t dotPos = filename.find('.', underscorePos);
+
+                if (underscorePos == std::string::npos || dotPos == std::string::npos) {
+                    cerr << ("[SSTManager] Ne validan format: " + filename);
                     continue;
                 }
-                // TODO: NE SME DA SE KORISTI STREAM, MORA PREKO BLOCK MANAGERA
-                std::ifstream file(current_directory + filename, std::ios::binary);
-                if (!file) {
-                    throw std::runtime_error("[SSTManager] Ne mogu da otvorim fajl: " + filename);
+
+                std::string numStr = filename.substr(underscorePos + 1, dotPos - underscorePos - 1);
+                std::string ending = numStr + ".db";
+                
+                SSTable* sst;
+                data_path = current_directory + "data_comp_" + ending;
+                index_path = current_directory + "index_comp_" + ending;
+                filter_path = current_directory + "filter_comp_" + ending;
+                summary_path = current_directory + "summary_comp_" + ending;
+                meta_path = current_directory + "meta_comp_" + ending;
+
+                if (Config::compress_sstable) {                    
+                    sst = new SSTableComp(data_path,
+                                            index_path,
+                                            filter_path,
+                                            summary_path,
+                                            meta_path,
+                                            bm, key_map, id_to_key, next_ID_map);
+                }
+                else {
+                    sst = new SSTableRaw(data_path,
+                                            index_path,
+                                            filter_path,
+                                            summary_path,
+                                            meta_path,
+                                            bm);
                 }
 
-                file.read(reinterpret_cast<char*>(fileData.data()), fileSize);
-
-
-                BloomFilter bloom = BloomFilter::deserialize(fileData);
-
-                if (bloom.possiblyContains(key)) {
-                    // Gledamo koji je broj
-                    std::size_t underscorePos = filename.rfind('_');
-                    std::size_t dotPos = filename.find('.', underscorePos);
-
-                    if (underscorePos == std::string::npos || dotPos == std::string::npos) {
-                        cerr << ("[SSTManager] Ne validan format: " + filename);
-                        continue;
-                    }
-
-                    std::string numStr = filename.substr(underscorePos + 1, dotPos - underscorePos - 1);
-                    std::string ending = numStr + ".db";
-					
-                    SSTable* sst;
-
-					// OVO UOPSTE NE RADI ZA SINGLE FILE MODE
-                    if (Config::compress_sstable) {
-						data_path = current_directory + "data_comp_" + ending;
-						index_path = current_directory + "index_comp_" + ending;
-						filter_path = current_directory + "filter_comp_" + ending;
-						summary_path = current_directory + "summary_comp_" + ending;
-						meta_path = current_directory + "meta_comp_" + ending;
-                        
-                        sst = new SSTableComp(data_path,
-                                              index_path,
-                                              filter_path,
-                                              summary_path,
-							                  meta_path,
-                                              bm, key_map, id_to_key, next_ID_map);
-                    }
-                    else {
-                        data_path = current_directory + "data_raw_" + ending;
-                        index_path = current_directory + "index_raw_" + ending;
-                        filter_path = current_directory + "filter_raw_" + ending;
-                        summary_path = current_directory + "summary_raw_" + ending;
-                        meta_path = current_directory + "meta_raw_" + ending;
-
-                        sst = new SSTableRaw(data_path,
-                                             index_path,
-                                             filter_path,
-                                             summary_path,
-                                             meta_path,
-							                 bm);
-                    }
-
+                if (sst->possiblyContains(key)) {
                     //Sve recorde sa odgovarajucim key-em stavljamo u vektor
                     std::vector<Record> found = sst->get(key);
                     matches.insert(matches.end(), found.begin(), found.end());
                 }
+            }
+            if (filename.rfind("data", 0) == 0 && Config::sstable_single_file==true)
+            {
+                
+                SSTable* sst;
+                data_path = filename;
+
+                if (Config::compress_sstable) {
+                        sst = new SSTableComp(data_path, bm, key_map, id_to_key, next_ID_map);
+                    }
+                    else {
+
+                        sst = new SSTableRaw(data_path, bm);
+                    }
+
+                    //Sve recorde sa odgovarajucim key-em stavljamo u vektor
+                    if(sst->possiblyContains(key)) {
+                        std::vector<Record> found = sst->get(key);
+                        matches.insert(matches.end(), found.begin(), found.end());
+                    }
+
             }
         }
     }
@@ -379,6 +375,9 @@ void SSTManager::write(std::vector<Record> sortedRecords, int level) {
 
     delete sst; // Oslobodi memoriju
     */
+
+    writeMap();
+
     std::cout << "[SSTManager] Successfully wrote SSTable " << fileId << " to level " << level
         << " (Total Size: [NISAM IZRACUNO]" << " bytes)." << std::endl;
     return;
