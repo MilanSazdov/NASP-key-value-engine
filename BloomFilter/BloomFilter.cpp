@@ -50,12 +50,15 @@ BloomFilter::BloomFilter(unsigned int n, double falsePositiveRate) {
 	// 2) Vratiti (h1 + i * h2) % m
 
     hashFunctions.reserve(k);
+    unsigned int m_copy = m;
+    size_t seed_copy = h2_seed;
+
     for (unsigned int i = 0; i < k; ++i) {
         hashFunctions.emplace_back(
-            [i, this](const string& key) {
+            [i, m_copy, seed_copy](const string& key) {
                 size_t h1 = hash<string>()(key);
-                size_t h2 = hash<string>()(to_string(h2_seed) + key);
-                return (h1 + i * h2) % this->m;
+                size_t h2 = hash<string>()(to_string(seed_copy) + key);
+                return (h1 + i * h2) % m_copy;
             }
         );
     }
@@ -68,7 +71,8 @@ bool BloomFilter::possiblyContains(const string& elem) const {
 	// U tom slucaju vracamo true, ali postoji verovatnoca da je to lazno pozitivan rezultat
 
     for (const auto& hashFunction : hashFunctions) {
-        if (!bitSet[hashFunction(elem)]) {
+        size_t h = hashFunction(elem);
+        if (!bitSet[h]) {
             return false;
         }
     }
@@ -168,12 +172,16 @@ BloomFilter BloomFilter::deserialize(const vector<byte>& data) {
 	// Sada ponovo kreiramo hashFunctions
     bf.hashFunctions.clear();
     bf.hashFunctions.reserve(bf.k);
+
+    unsigned int m_copy = bf.m;
+    size_t seed_copy = bf.h2_seed;
+
     for (unsigned int i = 0; i < bf.k; ++i) {
         bf.hashFunctions.emplace_back(
-            [i, &bf](const string& key) {
+            [i, m_copy, seed_copy](const string& key) {
                 size_t h1 = hash<string>()(key);
-                size_t h2 = hash<string>()(to_string(bf.h2_seed) + key);
-                return (h1 + i * h2) % bf.m;
+                size_t h2 = hash<string>()(to_string(seed_copy) + key);
+                return (h1 + i * h2) % m_copy;
             }
         );
     }

@@ -967,8 +967,7 @@ void SSTableComp::writeBloomToFile()
 
     payload.reserve(raw.size());
 
-    // payload.append(len_str);
-
+    payload.append(len_str);
     payload.append(reinterpret_cast<const char*>(raw.data()), raw.size());
 
     int block_id = start_offset / block_size;
