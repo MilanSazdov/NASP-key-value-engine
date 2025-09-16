@@ -14,7 +14,7 @@
   "index_sparsity": 5,
   "summary_sparsity": 5,
   "compress_sstable": 0,
-  "sstable_single_file": 0,
+  "sstable_single_file": 1,
   "max_tokens": 20,
   "refill_interval": 10
 }

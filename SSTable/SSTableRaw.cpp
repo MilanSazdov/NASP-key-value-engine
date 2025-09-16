@@ -762,7 +762,7 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
         uint64_t ts = 0;
         fileOffset += sizeof(ts);
 
-        char tomb;
+        char tomb = '0';
         fileOffset += sizeof(tomb);
 
         uint64_t kSize = 0;

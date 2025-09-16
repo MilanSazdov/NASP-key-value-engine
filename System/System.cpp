@@ -327,3 +327,13 @@ void System::resetSystem(std::string dataFolder) {
         std::cerr << "Greška: " << e.what() << std::endl;
     }
 }
+
+// sluzi za testiranje, ne znam jel treba system ovo da poziva...?
+void System::removeSSTables() {
+	vector<unique_ptr<SSTable>> tablesToRemove = sstable->getTablesFromLevel(1);
+    if (tablesToRemove.size() >= 2) {
+        tablesToRemove.resize(tablesToRemove.size() - 2);
+    }
+
+	sstable->removeSSTables(1, tablesToRemove);
+}

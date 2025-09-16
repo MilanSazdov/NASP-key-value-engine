@@ -3,5 +3,5 @@
   "memtable_max_size": 2,
   "compress_sstable": 0,
   "cache_capacity": 3,
-  "sstable_single_file": 0
+  "sstable_single_file": 1
 }

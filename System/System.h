@@ -34,6 +34,9 @@ public:
 
 	void resetSystem(string folder);
 
+	// sluzi za testiranje, ne znam jel treba system ovo da poziva...?
+	void removeSSTables();
+
 private:
 
 	// Onemogucavamo kopiranje da bismo izbegli probleme sa vlasnistvom pokazivaca

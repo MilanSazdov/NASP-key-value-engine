@@ -45,4 +45,5 @@ public:
     optional<string> get_from_level(const std::string& key, bool& deleted, int level);
 	void write(std::vector<Record> sortedRecords, int level);
     vector<unique_ptr<SSTable>> getTablesFromLevel(int level); // -skenira direktorijum za dati nivo, pronalazi sve SSTABLE
+	void removeSSTables(int level, const vector<unique_ptr<SSTable>>& tablesToRemove);
 };

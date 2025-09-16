@@ -86,6 +86,12 @@ public:
     {
     };
 
+    string getDataFileName() const { return dataFile_; }
+	string getIndexFileName() const { return indexFile_; }
+	string getFilterFileName() const { return filterFile_; }
+	string getSummaryFileName() const { return summaryFile_; }
+	string getMetaFileName() const { return metaFile_; }
+
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
      * Postupak:

@@ -64,7 +64,7 @@ void MainApp::handleGet() {
 
 void MainApp::test_case() {
 	cout << "\n\n\n[TEST CASE] Inserting 6 key-value pairs...\n";
-    key = "keyy1";
+    key = "key1";
     value = "value1";
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
@@ -74,23 +74,58 @@ void MainApp::test_case() {
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 
-    key = "keeey3";
+    key = "key3";
     value = "value3";
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 
-    key = "keyeyeye4";
+    key = "key4";
     value = "value4";
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 
-    key = "key55";
+    key = "key5";
     value = "value5";
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 
     key = "key6";
     value = "value6";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "key7";
+    value = "value7";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "key8";
+    value = "value8";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "key9";
+    value = "value9";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "key10";
+    value = "value10";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "key11";
+    value = "value11";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "key12";
+    value = "value12";
+    system->put(key, value);
+    cout << "[PUT] Inserted key: " << key << "\n";
+
+    key = "key13";
+    value = "value13";
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
     cout << "[TEST CASE] Done...\n\n\n\n";
@@ -100,6 +135,11 @@ void MainApp::run() {
     int choice;
     //cin.ignore();
     test_case();
+    
+	
+    system->removeSSTables();
+
+    return;
     while (true) {
         showMenu();
         cin >> choice;

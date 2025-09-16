@@ -481,3 +481,38 @@ vector<unique_ptr<SSTable>> SSTManager::getTablesFromLevel(int level) {
 
     return tables;
 }
+
+void tryRemove(const fs::path& path) {
+    if (fs::exists(path)) {
+        try {
+            fs::remove(path);
+            //std::cout << "Obrisan fajl: " << path << '\n';
+        }
+        catch (const std::exception& e) {
+            std::cerr << "Greška pri brisanju " << path << ": " << e.what() << '\n';
+        }
+    }
+}
+
+void SSTManager::removeSSTables(int level, const std::vector<std::unique_ptr<SSTable>>& tablesToRemove) {
+	cout << "[SSTManager] Removing SSTables from level " << level << ", count: " << tablesToRemove.size() << endl;
+
+    string levelDir = Config::data_directory + "/level_" + std::to_string(level) + "/";
+
+    for(const auto& sstable: tablesToRemove) {
+		//cout << "[SSTManager] Removing SSTable files for level " << sstable->getDataFileName() << endl;
+        
+        if (Config::sstable_single_file) {
+
+            tryRemove(levelDir + sstable->getDataFileName());
+        }
+        else {
+            tryRemove(levelDir + sstable->getDataFileName());
+			tryRemove(levelDir + sstable->getIndexFileName());
+			tryRemove(levelDir + sstable->getFilterFileName());
+			tryRemove(levelDir + sstable->getSummaryFileName());
+			tryRemove(levelDir + sstable->getMetaFileName());
+        }
+	}
+
+}
