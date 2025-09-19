@@ -231,9 +231,7 @@ LSMManager::~LSMManager() = default;
 
 void LSMManager::triggerCompactionCheck()
 {
-    // Pretpostavka: config->compaction_strategy određuje strategiju
-    // 1 = Leveled, 2 = SizeTiered (ili koristi enum)
-    if (config->compaction_strategy == "leveled") // LEVELED
+    if (config->compaction_strategy == "leveled")
     {
         const int maxLevels = std::max(1, (int)config->max_levels);
         bool any_compaction;
@@ -262,9 +260,7 @@ void LSMManager::triggerCompactionCheck()
             // Prolazi od nivoa 0 nagore
             for (int level = 0; level < maxLevels - 1; ++level) {
                 // Petlja se izvršava dokle god je nivo prenatrpan
-                // jer jedna kompakcija može osloboditi mesto, ali nivo i dalje može biti iznad praga.
-                // Medjutim, u SizeTiered logici, jedna kompakcija spaja ceo nivo, tako da se while petlja nece ponavljati
-                // ali je ostavljamo radi konzistentnosti
+                // jer jedna kompakcija može osloboditi mesto, ali nivo i dalje može biti iznad praga
                 bool compacted_at_level;
                 do {
                     compacted_at_level = compactFullLevelOnce(level, sstManager, threshold, maxLevels);
