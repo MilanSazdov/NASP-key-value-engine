@@ -17,7 +17,7 @@
 
 class LSMManager {
 public:
-    LSMManager(SSTManager* sstManager, Config* config);
+    LSMManager(SSTManager* sstManager);
     ~LSMManager();
 
     // Glavna funkcija koja se poziva nakon flush-a iz Memtable-a.
@@ -26,7 +26,4 @@ public:
 
 private:
     SSTManager* sstManager;
-    Config* config;
-
-
 };

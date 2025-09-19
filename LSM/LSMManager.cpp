@@ -138,14 +138,13 @@ static long long fileLimitForLevel(int level, int l0_trigger, int multiplier)
 // Rezultat upise na L+1. Obrise BAS te ulaze. Vraca true ako je nesto uradjeno
 static bool leveledCompactOneAtLevel(
     int level,
-    SSTManager* sstManager,
-    const Config* cfg)
+    SSTManager* sstManager)
 {
-    const int maxLevels = std::max(1, (int)cfg->max_levels);
+    const int maxLevels = std::max(1, (int)Config::max_levels);
     if (level >= maxLevels - 1) return false; // Poslednji nivo se ne kompaktuje
 
     auto tables_L = sstManager->getTablesFromLevel(level);
-    long long limit = fileLimitForLevel(level, cfg->l0_compaction_trigger, cfg->level_size_multiplier);
+    long long limit = fileLimitForLevel(level, Config::l0_compaction_trigger, Config::level_size_multiplier);
 
     if ((long long)tables_L.size() < limit) return false; // Nema potrebe za kompakcijom
     if (tables_L.empty()) return false;
@@ -226,20 +225,19 @@ static bool compactFullLevelOnce(
     return true;
 }
 
-LSMManager::LSMManager(SSTManager* sstManager, Config* config)
-    : sstManager(sstManager), config(config)
+LSMManager::LSMManager(SSTManager* sstManager)
+    : sstManager(sstManager)
 {
     assert(this->sstManager != nullptr && "SSTManager must not be null");
-    assert(this->config != nullptr && "Config must not be null");
 }
 
 LSMManager::~LSMManager() = default;
 
 void LSMManager::triggerCompactionCheck()
 {
-    if (config->compaction_strategy == "leveled")
+    if (Config::compaction_strategy == "leveled")
     {
-        const int maxLevels = std::max(1, (int)config->max_levels);
+        const int maxLevels = std::max(1, (int)Config::max_levels);
         bool any_compaction;
         do {
             any_compaction = false;
@@ -247,7 +245,7 @@ void LSMManager::triggerCompactionCheck()
             for (int L = 0; L < maxLevels - 1; ++L) {
                 bool compacted_at_level;
                 do {
-                    compacted_at_level = leveledCompactOneAtLevel(L, sstManager, config);
+                    compacted_at_level = leveledCompactOneAtLevel(L, sstManager);
                     if (compacted_at_level) {
                         any_compaction = true;
                     }
@@ -257,8 +255,8 @@ void LSMManager::triggerCompactionCheck()
     }
     else // SIZE-TIERED (i podrazumevana)
     {
-        const int maxLevels = std::max(1, static_cast<int>(config->max_levels));
-        const int threshold = std::max(2, static_cast<int>(config->max_number_of_sstable_on_level));
+        const int maxLevels = std::max(1, static_cast<int>(Config::max_levels));
+        const int threshold = std::max(2, static_cast<int>(Config::max_number_of_sstable_on_level));
 
         bool any_compaction;
         do {

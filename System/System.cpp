@@ -64,6 +64,9 @@ System::System() : requestCounter(0) {
     std::cout << "[Debug] Initializing MemtableManager...\n";
     memtable = new MemtableManager(sstable);
 
+
+    std::cout << "[Debug] Initializing LSMManager...\n";
+    lsmManager_ = new LSMManager(sstable);
 	//std::cout << "[Debug] Printing existing sstables.\n";
     //memtable->printSSTables(1);
 
@@ -92,6 +95,7 @@ System::~System() {
     // Save rate limiter state before shutdown
     //saveTokenBucket();
 
+    delete lsmManager_;
 	delete wal;
 	delete memtable;
     delete tokenBucket;
@@ -228,6 +232,10 @@ void System::put(const std::string& key, const std::string& value) {
 
         //onda mogu da flushujem, i oslobodim prostor
         memtable->flushMemtable();
+
+        std::cout << "[SYSTEM] Triggering compaction check...\n";
+        lsmManager_->triggerCompactionCheck();
+        std::cout << "[SYSTEM] Compaction check finished.\n";
 
         debugMemtable();
     }

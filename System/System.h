@@ -6,6 +6,8 @@
 #include "../Config/Config.h"
 #include "TypesManager.h"
 #include "../TokenBucket/TokenBucket.h"
+#include "../SSTable/SSTManager.h"
+#include "../LSM/LSMManager.h"
 
 class System {
 	
@@ -17,6 +19,7 @@ public:
 	Cache<string>* cache;
 	TokenBucket* tokenBucket;
 	TypesManager* typesManager;
+	LSMManager* lsmManager_;
 
 public:
 	System();
