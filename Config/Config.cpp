@@ -26,6 +26,9 @@ int Config::max_levels = 7;
 int Config::l0_compaction_trigger = 4;
 int Config::level_size_multiplier = 10;
 
+// Size-Tiered Compaction
+int Config::max_number_of_sstable_on_level = 3;
+
 bool Config::compress_sstable = true;
 int Config::index_sparsity = 32;
 int Config::summary_sparsity = 64;
@@ -153,6 +156,7 @@ void Config::load_old_configuration() {
         else if (line.find("index_sparsity") != std::string::npos) {
             index_sparsity = getValueFromLine(line);
         }
+		// TODO: dodati max_number_of_sstable_on_level
     }
 }
 

@@ -6,9 +6,15 @@ struct HeapItem
     Record rec;
     int srcIdx; // indeks sstable iz koje je zapis dosao
 
-    // Min-heap po kljucu (leksikografski redosled) => sortiranje po kljucu
+    /*// Min-heap po kljucu (leksikografski redosled) => sortiranje po kljucu
     bool operator<(const HeapItem& other) const {
-        return rec.key > other.rec.key;
+        return rec.key < other.rec.key;
+    }*/
+};
+
+struct HeapItemMinHeapCmp {
+    bool operator()(const HeapItem& a, const HeapItem& b) const {
+        return a.rec.key > b.rec.key; // min-heap
     }
 };
 
@@ -17,7 +23,7 @@ static bool readAndPushNext(
     int idx,
     SSTable* table,
     std::vector<uint64_t>& offsets,
-    std::priority_queue<HeapItem, std::vector<HeapItem>, std::greater<HeapItem>>& heap)
+    std::priority_queue<HeapItem, std::vector<HeapItem>, HeapItemMinHeapCmp >& heap)
 {
     bool error = false;
     Record r = table->getNextRecord(offsets[idx], error);
@@ -41,7 +47,7 @@ static std::vector<Record> kWayMerge(const std::vector<SSTable*>& inputs)
     if (n == 0) return out;
 
     std::vector<uint64_t> offsets(n, 0);
-    std::priority_queue<HeapItem, std::vector<HeapItem>, std::greater<HeapItem>> heap;
+    std::priority_queue<HeapItem, std::vector<HeapItem>, HeapItemMinHeapCmp> heap;
 
     // Učitaj prvi zapis iz svake ulazne SSTabele
     for (int i = 0; i < n; ++i) {
