@@ -109,13 +109,16 @@ void MainApp::test_case() {
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 
-    key = "key10";
-    value = "value10";
+   
+    //TODO: Ovaj key se ne ubaci
+    //znam zasto. Zbog tocken bucketa (MISLIM). Bukvalno prepise tocken bucket preko ovog kljuca, i on ne stane
+    key = "key11";
+    value = "value11";
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 
-    key = "key11";
-    value = "value11";
+    key = "key10";
+    value = "value10";
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 
@@ -137,9 +140,8 @@ void MainApp::run() {
     test_case();
     
 	
-    system->removeSSTables();
+    //system->removeSSTables();
 
-    return;
     while (true) {
         showMenu();
         cin >> choice;

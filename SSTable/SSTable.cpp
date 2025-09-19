@@ -102,7 +102,7 @@ void SSTable::build(std::vector<Record>&records)
 
 void SSTable::prepare() {
     if(ready_to_read_) return;
-
+    //cout << getDataFileName() << endl;
     uint64_t offset = 0;
 
     if (!readBytes(&toc, sizeof(toc), offset, dataFile_)) {

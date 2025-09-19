@@ -46,7 +46,11 @@ static std::vector<Record> kWayMerge(const std::vector<SSTable*>& inputs)
     const int n = static_cast<int>(inputs.size());
     if (n == 0) return out;
 
-    std::vector<uint64_t> offsets(n, 0);
+    std::vector<uint64_t> offsets(n);
+    for(int i = 0; i < n; ++i) {
+        offsets[i] = inputs[i]->getDataStartOffset();
+	}
+
     std::priority_queue<HeapItem, std::vector<HeapItem>, HeapItemMinHeapCmp> heap;
 
     // Učitaj prvi zapis iz svake ulazne SSTabele
@@ -186,8 +190,8 @@ static bool leveledCompactOneAtLevel(
     // Obriši ulazne tabele
     std::vector<std::unique_ptr<SSTable>> to_del_L;
     to_del_L.push_back(std::move(chosen_table));
-    sstManager->removeSSTables(level, to_del_L);
-    sstManager->removeSSTables(level + 1, overlapping_L1);
+    sstManager->removeSSTables(to_del_L);
+    sstManager->removeSSTables(overlapping_L1);
 
     return true;
 }
@@ -202,7 +206,7 @@ static bool compactFullLevelOnce(
     if (level >= maxLevels - 1) return false;
 
     auto tables = sstManager->getTablesFromLevel(level);
-    if (static_cast<int>(tables.size()) < threshold) return false;
+	if (static_cast<int>(tables.size()) < threshold) return false;      //nema potrebe za kompakcijom, broj sstabela u nivou je manji od max_sstable_per_level
 
     // Kreiraj grupu pokazivača za spajanje
     std::vector<SSTable*> group_ptrs;
@@ -220,7 +224,7 @@ static bool compactFullLevelOnce(
     }
 
     // Obriši sve stare SSTabele sa nivoa L
-    sstManager->removeSSTables(level, tables);
+    sstManager->removeSSTables(tables);
 
     return true;
 }
@@ -242,7 +246,7 @@ void LSMManager::triggerCompactionCheck()
         do {
             any_compaction = false;
             // Prolazi od nivoa 0 nagore
-            for (int L = 0; L < maxLevels - 1; ++L) {
+            for (int L = 1; L < maxLevels - 1; ++L) {
                 bool compacted_at_level;
                 do {
                     compacted_at_level = leveledCompactOneAtLevel(L, sstManager);
@@ -262,7 +266,7 @@ void LSMManager::triggerCompactionCheck()
         do {
             any_compaction = false;
             // Prolazi od nivoa 0 nagore
-            for (int level = 0; level < maxLevels - 1; ++level) {
+            for (int level = 1; level < maxLevels - 1; ++level) {
                 // Petlja se izvršava dokle god je nivo prenatrpan
                 // jer jedna kompakcija može osloboditi mesto, ali nivo i dalje može biti iznad praga
                 bool compacted_at_level;

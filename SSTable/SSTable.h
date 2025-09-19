@@ -141,6 +141,8 @@ public:
 
     bool possiblyContains(const std::string& key);
 
+    virtual void prepare(); // Cita TOC i header summary fajla kako bi se pripremio za citanje
+
 protected:
     // putanje do fajlova
     int block_size;
@@ -171,7 +173,7 @@ protected:
     
     // ----- pomoćne metode -----
 
-    virtual void prepare(); // Cita TOC i header summary fajla kako bi se pripremio za citanje
+   
 
     // Upisuje dataFile_
     // Vraca vector<IndexEntry> da bismo iz njega generisali sparse index

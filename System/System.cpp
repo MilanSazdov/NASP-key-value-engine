@@ -343,5 +343,5 @@ void System::removeSSTables() {
         tablesToRemove.resize(tablesToRemove.size() - 2);
     }
 
-	sstable->removeSSTables(1, tablesToRemove);
+	sstable->removeSSTables(tablesToRemove);
 }

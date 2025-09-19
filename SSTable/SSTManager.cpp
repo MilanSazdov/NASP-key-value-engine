@@ -170,11 +170,21 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
                 std::string ending = numStr + ".db";
                 
                 SSTable* sst;
-                data_path = current_directory + "data_comp_" + ending;
-                index_path = current_directory + "index_comp_" + ending;
-                filter_path = current_directory + "filter_comp_" + ending;
-                summary_path = current_directory + "summary_comp_" + ending;
-                meta_path = current_directory + "meta_comp_" + ending;
+                string extension;
+
+                // nastavak je _comp_
+                if(Config::compress_sstable) {
+                    extension = "_comp_";
+				}
+                else {
+					extension = "_raw_";
+                }
+
+                data_path = current_directory + "data" + extension + ending;
+                index_path = current_directory + "index" + extension + ending;
+                filter_path = current_directory + "filter" + extension + ending;
+                summary_path = current_directory + "summary" + extension + ending;
+                meta_path = current_directory + "meta" + extension + ending;
 
                 if (Config::compress_sstable) {                    
                     sst = new SSTableComp(data_path,
@@ -453,27 +463,50 @@ vector<unique_ptr<SSTable>> SSTManager::getTablesFromLevel(int level) {
                     //data_raw_32.db
 					std::string numStr = filename.substr(9, filename.find(".db") -9);
 					int num = std::stoi(numStr);
-                    std::string data_path =     "data_raw_" + numStr + ".db";
-                    std::string index_path =    "index_raw_" + numStr + ".db";
-                    std::string filter_path =   "filter_raw_" + numStr + ".db";
-                    std::string summary_path =  "summary_raw_" + numStr + ".db";
-                    std::string meta_path =     "meta_raw_" + numStr + ".db";
+                    std::string data_path =     path + "data_raw_" + numStr + ".db";
+                    std::string index_path =    path + "index_raw_" + numStr + ".db";
+                    std::string filter_path =   path + "filter_raw_" + numStr + ".db";
+                    std::string summary_path =  path + "summary_raw_" + numStr + ".db";
+                    std::string meta_path =     path + "meta_raw_" + numStr + ".db";
                     
-                    tables.push_back(make_unique<SSTableRaw>(data_path, index_path, filter_path, summary_path, meta_path, bm));
+                    auto table = std::make_unique<SSTableRaw>(
+                        data_path,
+                        index_path,
+                        filter_path,
+                        summary_path,
+                        meta_path,
+                        bm
+                    );
+
+                    table->prepare();
+
+                    tables.push_back(std::move(table));
+                    //tables.push_back(make_unique<SSTableRaw>(data_path, index_path, filter_path, summary_path, meta_path, bm));
                 }
                 else {
                     //data_comp_32.db
                     std::string numStr = filename.substr(10, filename.find(".db") - 10);
                     int num = std::stoi(numStr);
-                    std::string data_path = "data_comp_" + numStr + ".db";
-                    std::string index_path = "index_comp_" + numStr + ".db";
-                    std::string filter_path = "filter_comp_" + numStr + ".db";
-                    std::string summary_path = "summary_comp_" + numStr + ".db";
-                    std::string meta_path = "meta_comp_" + numStr + ".db";
+                    std::string data_path = path + "data_comp_" + numStr + ".db";
+                    std::string index_path = path + "index_comp_" + numStr + ".db";
+                    std::string filter_path = path + "filter_comp_" + numStr + ".db";
+                    std::string summary_path = path + "summary_comp_" + numStr + ".db";
+                    std::string meta_path = path + "meta_comp_" + numStr + ".db";
                    
-                    tables.push_back(make_unique<SSTableComp>
-                        (data_path, index_path, filter_path, summary_path, meta_path, bm, key_map, id_to_key, next_ID_map)
-                    );
+                    auto table = std::make_unique<SSTableComp>(
+                        data_path,
+                        index_path,
+                        filter_path,
+                        summary_path,
+                        meta_path,
+                        bm,
+                        key_map,
+                        id_to_key,
+                        next_ID_map);
+
+                    table->prepare();
+
+                    tables.push_back(std::move(table));
                 }
             }
         }
@@ -494,25 +527,23 @@ void tryRemove(const fs::path& path) {
     }
 }
 
-void SSTManager::removeSSTables(int level, const std::vector<std::unique_ptr<SSTable>>& tablesToRemove) {
-	cout << "[SSTManager] Removing SSTables from level " << level << ", count: " << tablesToRemove.size() << endl;
+void SSTManager::removeSSTables(const std::vector<std::unique_ptr<SSTable>>& tablesToRemove) {
+	//cout << "[SSTManager] Removing SSTables from level " << level << ", count: " << tablesToRemove.size() << endl;
 
-    string levelDir = Config::data_directory + "/level_" + std::to_string(level) + "/";
+    //string levelDir = Config::data_directory + "/level_" + std::to_string(level) + "/";
 
     for(const auto& sstable: tablesToRemove) {
 		//cout << "[SSTManager] Removing SSTable files for level " << sstable->getDataFileName() << endl;
         
         if (Config::sstable_single_file) {
-
-            tryRemove(levelDir + sstable->getDataFileName());
+            tryRemove(sstable->getDataFileName());
         }
         else {
-            tryRemove(levelDir + sstable->getDataFileName());
-			tryRemove(levelDir + sstable->getIndexFileName());
-			tryRemove(levelDir + sstable->getFilterFileName());
-			tryRemove(levelDir + sstable->getSummaryFileName());
-			tryRemove(levelDir + sstable->getMetaFileName());
+            tryRemove(sstable->getDataFileName());
+			tryRemove(sstable->getIndexFileName());
+			tryRemove(sstable->getFilterFileName());
+			tryRemove(sstable->getSummaryFileName());
+			tryRemove(sstable->getMetaFileName());
         }
 	}
-
 }
