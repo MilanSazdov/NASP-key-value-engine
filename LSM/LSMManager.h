@@ -1,28 +1,23 @@
 #pragma once
-#include "../Config/Config.h"
 
-#include <string>
+#include <queue>
 #include <vector>
-#include <filesystem>
-#include <memory>
-#include <mutex>
-#include <thread>
-#include <condition_variable>
-#include <atomic>
-
+#include <string>
+#include <cstdint>
+#include <algorithm>
+#include <cassert>
 #include "../SSTable/SSTManager.h"
-#include "../Wal/wal.h"
+#include "../SSTable/SSTable.h"
+#include "../SSTable/SSTableComp.h"
+#include "../SSTable/SSTableRaw.h"
+#include "../Config/Config.h"
+#include "..//Wal/wal.h"
 
-// deklaracija unapred da se izbegnu ciklicne zavisnosti
-class CompactionStrategy;
+
 
 class LSMManager {
 public:
     LSMManager(SSTManager* sstManager, Config* config);
-    // konstruktor sada prima odabranu strategiju i maksimalan broj nivoa
-    //LSMManager(std::unique_ptr<CompactionStrategy> strategy, int max_levels, SSTManager& sstRef);
-
-    // destruktor se brine o bezbednom zaustavljanju pozadinske niti
     ~LSMManager();
 
     // Glavna funkcija koja se poziva nakon flush-a iz Memtable-a.
@@ -30,5 +25,8 @@ public:
     void triggerCompactionCheck();
 
 private:
+    SSTManager* sstManager;
     Config* config;
+
+
 };
