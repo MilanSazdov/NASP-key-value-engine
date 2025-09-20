@@ -36,6 +36,10 @@ string key, value;
 void MainApp::handlePut() {
     cout << "Enter key: ";
     getline(cin, key);
+    if (key.rfind("system_", 0) == 0) {
+        cout << "\033[31m[SYSTEM ERROR] Attempt to use reserved system key. Operation aborted.\n\033[0m";
+        return;
+    }
     cout << "Enter value: ";
     getline(cin, value);
     system->put(key, value);
@@ -45,6 +49,10 @@ void MainApp::handlePut() {
 void MainApp::handleDelete() {
     cout << "Enter key to delete: ";
     getline(cin, key);
+    if (key.rfind("system_", 0) == 0) {
+        cout << "\033[31m[SYSTEM ERROR] Attempt to use reserved system key. Operation aborted.\n\033[0m";
+        return;
+    }
     system->del(key);
     cout << "[DELETE] Marked as deleted: " << key << "\n";
 }
@@ -52,6 +60,10 @@ void MainApp::handleDelete() {
 void MainApp::handleGet() {
     cout << "Enter key to get: ";
     getline(cin, key);
+    if (key.rfind("system_", 0) == 0) {
+        cout << "\033[31m[SYSTEM ERROR] Attempt to use reserved system key. Operation aborted.\n\033[0m";
+        return;
+    }
     auto value = system->get(key);
     
     if (value == nullopt) {
