@@ -3,39 +3,39 @@
 #include <iostream>
 #include <stdexcept>
 
-namespace fs = std::filesystem;
+namespace fs = filesystem;
 
-const std::string System::RATE_LIMIT_KEY = "system_tokenbucket";
+const string System::RATE_LIMIT_KEY = "system_tokenbucket";
 
-void ensureDirectory(const std::string& path) {
+void ensureDirectory(const string& path) {
     if (!fs::exists(path)) {
         try {
             if (fs::create_directory(path)) {
-                std::cout << "[SYSTEM INFO] Created missing folder: " << path << "\n";
+                cout << "[SYSTEM INFO] Created missing folder: " << path << "\n";
             }
             else {
-                std::cerr << "[SYSTEM ERROR] Failed to create folder (unknown reason): " << path << "\n";
+                cerr << "[SYSTEM ERROR] Failed to create folder (unknown reason): " << path << "\n";
             }
         }
         catch (const fs::filesystem_error& e) {
-            std::cerr << "[SYSTEM ERROR] Exception while creating folder '" << path << "': " << e.what() << "\n";
+            cerr << "[SYSTEM ERROR] Exception while creating folder '" << path << "': " << e.what() << "\n";
         }
     }
 }
 
 //TODO: sstable is uninitialized. fix?
 System::System() : requestCounter(0) {
-    std::cout << "[SYSTEM] Starting initialization... \n";
+    cout << "[SYSTEM] Starting initialization... \n";
 
-    std::cout << "Reading Config file ... \n";
+    cout << "Reading Config file ... \n";
     bool new_system = Config::load_init_configuration();
     if (new_system) {
-        std::cout << "[Debug] Reseting system.\n";
+        cout << "[Debug] Reseting system.\n";
         resetSystem(Config::data_directory);
         resetSystem(Config::wal_directory);
     }
     else {
-        std::cout << "[Debug] Old configuration is in use.\n";
+        cout << "[Debug] Old configuration is in use.\n";
     }
 
     // ovo stoji dok radim testiranje, posle treba samo ovo od gore
@@ -48,7 +48,7 @@ System::System() : requestCounter(0) {
     ensureDirectory(Config::data_directory);
 
     // --- WAL setup ---
-    std::cout << "[Debug] Initializing WAL...\n";
+    cout << "[Debug] Initializing WAL...\n";
     wal = new Wal(*sharedInstanceBM);
 
     // --- Cache setup ---
@@ -61,48 +61,48 @@ System::System() : requestCounter(0) {
     sstable = new SSTManager(sharedInstanceBM);
 
     // --- Memtable setup ---
-    std::cout << "[Debug] Initializing MemtableManager...\n";
+    cout << "[Debug] Initializing MemtableManager...\n";
     memtable = new MemtableManager(sstable);
 
 
-    std::cout << "[Debug] Initializing LSMManager...\n";
+    cout << "[Debug] Initializing LSMManager...\n";
     lsmManager_ = new LSMManager(sstable);
-	//std::cout << "[Debug] Printing existing sstables.\n";
+    //cout << "[Debug] Printing existing sstables.\n";
     //memtable->printSSTables(1);
 
     // --- Load from WAL ---
-    std::cout << "[Debug] Retrieving records from WAL...\n";
-    std::vector<Record> records = wal->get_all_records();
+    cout << "[Debug] Retrieving records from WAL...\n";
+    vector<Record> records = wal->get_all_records();
 
-    std::cout << "[Debug] Loading records into Memtable...\n";
+    cout << "[Debug] Loading records into Memtable...\n";
     memtable->loadFromWal(records);
-	//memtable->printAllData();
+    //memtable->printAllData();
 
     // --- Load Rate Limiter state after memtable is ready ---
-    std::cout << "[Debug] Loading Rate Limiter state...\n";
+    cout << "[Debug] Loading Rate Limiter state...\n";
     loadTokenBucket();
 
-	// --- TypesManager setup ---
-	std::cout << "[Debug] Initializing TypesManager...\n";
-	typesManager = new TypesManager(this);
+    // --- TypesManager setup ---
+    cout << "[Debug] Initializing TypesManager...\n";
+    typesManager = new TypesManager(this);
 
-    std::cout << "[Debug] System initialization completed.\n";
+    cout << "[Debug] System initialization completed.\n";
 }
 
 System::~System() {
-	std::cout << "[SYSTEM] Shutting down system and freeing resources...\n";
+    cout << "[SYSTEM] Shutting down system and freeing resources...\n";
 
     // Save rate limiter state before shutdown
     //saveTokenBucket();
 
     delete lsmManager_;
-	delete wal;
-	delete memtable;
+    delete wal;
+    delete memtable;
     delete tokenBucket;
 
 
 
-	std::cout << "[SYSTEM] System shutdown complete.\n";
+    cout << "[SYSTEM] System shutdown complete.\n";
 }
 
 TypesManager* System::getTypesManager() {
@@ -110,16 +110,18 @@ TypesManager* System::getTypesManager() {
 }
 
 bool System::checkRateLimit() {
-    if (!tokenBucket->allowRequest()) {
-        std::cout << "\033[31m[RATE LIMIT] Request denied - rate limit exceeded. Try again later.\033[0m\n";
+    bool isRefilled;
+    if (!tokenBucket->allowRequest(&isRefilled)) {
+        cout << "\033[31m[RATE LIMIT] Request denied - rate limit exceeded. Try again later.\033[0m\n";
         return false;
     }
 
     requestCounter++;
 
-    // Save state every SAVE_INTERVAL requests
-    if (requestCounter % SAVE_INTERVAL == 0) {
-        std::cout << "[RATE LIMIT] Saving rate limiter state (request #" << requestCounter << ")\n";
+    // Save state every SAVE_INTERVAL requests or when refill is done
+    if (requestCounter % SAVE_INTERVAL == 0 || isRefilled) {
+        cout << "[RATE LIMIT] Saving rate limiter state (request #" << requestCounter <<
+            ", avaliable:" << tokenBucket->getTokens() << "/" << tokenBucket->getMaxTokens() << ")\n";
         saveTokenBucket();
     }
 
@@ -128,11 +130,11 @@ bool System::checkRateLimit() {
 
 void System::saveTokenBucket() {
     try {
-        std::vector<byte> serializedData = tokenBucket->serialize();
+        vector<byte> serializedData = tokenBucket->serialize();
 
         // Convert byte vector to string for storage
-        //std::string serializedString(serializedData.begin(), serializedData.end());
-        std::string serializedString(
+        //string serializedString(serializedData.begin(), serializedData.end());
+        string serializedString(
             reinterpret_cast<const char*>(serializedData.data()),
             serializedData.size()
         );
@@ -142,11 +144,24 @@ void System::saveTokenBucket() {
         wal->put(RATE_LIMIT_KEY, serializedString);
         memtable->put(RATE_LIMIT_KEY, serializedString);
 
-        std::cout << "[RATE LIMIT] State saved successfully to key: " << RATE_LIMIT_KEY << "\n";
+        if (memtable->checkFlushIfNeeded()) {
+            vector<Record> records = memtable->getRecordsFromOldest();
+            add_records_to_cache(records);
+
+            memtable->flushMemtable();
+
+            cout << "[SYSTEM] Triggering compaction check...\n";
+            lsmManager_->triggerCompactionCheck();
+            cout << "[SYSTEM] Compaction check finished.\n";
+
+            debugMemtable();
+        }
+
+        cout << "[RATE LIMIT] State saved successfully to key: " << RATE_LIMIT_KEY << "\n";
 
     }
-    catch (const std::exception& e) {
-        std::cerr << "[RATE LIMIT ERROR] Failed to save state: " << e.what() << "\n";
+    catch (const exception& e) {
+        cerr << "[RATE LIMIT ERROR] Failed to save state: " << e.what() << "\n";
     }
 }
 
@@ -158,11 +173,11 @@ void System::loadTokenBucket() {
 
         if (!deleted && value.has_value()) {
             // Convert string back to byte vector
-            std::string serializedString = value.value();
-            //std::vector<byte> data(serializedString.begin(), serializedString.end());
-            std::vector<std::byte> data(
-                reinterpret_cast<const std::byte*>(serializedString.data()),
-                reinterpret_cast<const std::byte*>(serializedString.data() + serializedString.size())
+            string serializedString = value.value();
+            //vector<byte> data(serializedString.begin(), serializedString.end());
+            vector<byte> data(
+                reinterpret_cast<const byte*>(serializedString.data()),
+                reinterpret_cast<const byte*>(serializedString.data() + serializedString.size())
             );
 
             // Deserialize and replace current rate limiter
@@ -170,22 +185,22 @@ void System::loadTokenBucket() {
             delete tokenBucket;
             tokenBucket = new TokenBucket(loadedBucket);
 
-            std::cout << "[RATE LIMIT] State loaded successfully from key: " << RATE_LIMIT_KEY << "\n";
+            cout << "[RATE LIMIT] State loaded successfully from key: " << RATE_LIMIT_KEY << "\n";
         }
         else {
             tokenBucket = new TokenBucket(Config::max_tokens, Config::refill_interval);
 
-            std::cout << "[RATE LIMIT] No saved state found, using default configuration\n";
+            cout << "[RATE LIMIT] No saved state found, using default configuration\n";
         }
 
     }
-    catch (const std::exception& e) {
-        std::cerr << "[RATE LIMIT ERROR] Failed to load state: " << e.what() << "\n";
-        std::cout << "[RATE LIMIT] Continuing with default configuration\n";
+    catch (const exception& e) {
+        cerr << "[RATE LIMIT ERROR] Failed to load state: " << e.what() << "\n";
+        cout << "[RATE LIMIT] Continuing with default configuration\n";
     }
 }
 
-void System::del(const std::string& key) {
+void System::del(const string& key) {
     if (!checkRateLimit()) {
         return; // Request denied by rate limiter
     }
@@ -214,7 +229,7 @@ void System::add_records_to_cache(vector<Record> records) {
     }
 }
 
-void System::put(const std::string& key, const std::string& value) {
+void System::put(const string& key, const string& value) {
     if (!checkRateLimit()) {
         return; // Request denied by rate limiter
     }
@@ -233,17 +248,17 @@ void System::put(const std::string& key, const std::string& value) {
         //onda mogu da flushujem, i oslobodim prostor
         memtable->flushMemtable();
 
-        std::cout << "[SYSTEM] Triggering compaction check...\n";
+        cout << "[SYSTEM] Triggering compaction check...\n";
         lsmManager_->triggerCompactionCheck();
-        std::cout << "[SYSTEM] Compaction check finished.\n";
+        cout << "[SYSTEM] Compaction check finished.\n";
 
         debugMemtable();
     }
-    
+
 }
 
 // NIJE TESTIRANO!!
-std::optional<std::string> System::get(const std::string& key) {
+optional<string> System::get(const string& key) {
     /*
         VRACA NULLOPT AKO KLJUC NE POSTOJI
         VRACA STRING VALUE AKO KLJUC POSTOJI
@@ -269,7 +284,7 @@ std::optional<std::string> System::get(const std::string& key) {
     }
 
     // key doesnt exists in memtable. Read path goes forward
-    
+
     // searching cache
     bool exists;
     vector<byte> bytes = cache->get(key, exists);
@@ -300,18 +315,18 @@ std::optional<std::string> System::get(const std::string& key) {
 }
 
 void System::debugWal() const {
-    std::vector<Record> records = wal->get_all_records();
-    std::cout << "[Debug] WAL Records: \n";
+    vector<Record> records = wal->get_all_records();
+    cout << "[Debug] WAL Records: \n";
 
     for (const auto& r : records) {
-        std::cout << "-----------------------------------\n";
-        std::cout << "\033[31m" << "Key       : " << r.key << "\033[0m\n";
-        std::cout << "\033[32m" << "Value     : " << r.value << "\033[0m\n";
-        std::cout << "Tombstone : " << (int)r.tombstone << "\n";
-        std::cout << "Timestamp : " << r.timestamp << "\n";
-        std::cout << "CRC       : " << r.crc << "\n";
+        cout << "-----------------------------------\n";
+        cout << "\033[31m" << "Key       : " << r.key << "\033[0m\n";
+        cout << "\033[32m" << "Value     : " << r.value << "\033[0m\n";
+        cout << "Tombstone : " << (int)r.tombstone << "\n";
+        cout << "Timestamp : " << r.timestamp << "\n";
+        cout << "CRC       : " << r.crc << "\n";
     }
-    std::cout << "-----------------------------------\n";
+    cout << "-----------------------------------\n";
     // red: << "\033[31m" << "This text is red!" << "\033[0m" <<
     // greem" "\033[32m" << "This text is green!" << "\033[0m"
 }
@@ -320,7 +335,7 @@ void System::debugMemtable() const {
     memtable->printAllData();
 }
 
-void System::resetSystem(std::string dataFolder) {
+void System::resetSystem(string dataFolder) {
     try {
         // Proveri da li folder postoji
         if (fs::exists(dataFolder) && fs::is_directory(dataFolder)) {
@@ -329,19 +344,19 @@ void System::resetSystem(std::string dataFolder) {
             // Ponovo kreiraj prazan folder
             fs::create_directory(dataFolder);
         }
-        std::cout << "Folder 'data' je sada prazan." << std::endl;
+        cout << "Folder 'data' je sada prazan." << endl;
     }
     catch (const fs::filesystem_error& e) {
-        std::cerr << "Greška: " << e.what() << std::endl;
+        cerr << "Greška: " << e.what() << endl;
     }
 }
 
 // sluzi za testiranje, ne znam jel treba system ovo da poziva...?
 void System::removeSSTables() {
-	vector<unique_ptr<SSTable>> tablesToRemove = sstable->getTablesFromLevel(1);
+    vector<unique_ptr<SSTable>> tablesToRemove = sstable->getTablesFromLevel(1);
     if (tablesToRemove.size() >= 2) {
         tablesToRemove.resize(tablesToRemove.size() - 2);
     }
 
-	sstable->removeSSTables(tablesToRemove);
+    sstable->removeSSTables(tablesToRemove);
 }

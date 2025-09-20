@@ -2,7 +2,7 @@
 #include <chrono>
 #include <cstring>
 #include <algorithm>
-    
+
 using namespace std;
 
 TokenBucket::TokenBucket(uint32_t maxTokens, uint64_t refillIntervalSec, uint64_t lastRefillTimestamp, uint32_t tokens)
@@ -13,8 +13,12 @@ TokenBucket::TokenBucket(uint32_t maxTokens, uint64_t refillIntervalSec, uint64_
     }
 }
 
-bool TokenBucket::allowRequest() {
-    refillIfNeeded();
+bool TokenBucket::allowRequest(bool* isRefilled) {
+    bool refilled = refillIfNeeded();
+    if (isRefilled != nullptr) {
+        *isRefilled = refilled;
+    }
+
     if (tokens > 0) {
         --tokens;
         return true;
@@ -22,12 +26,14 @@ bool TokenBucket::allowRequest() {
     return false;
 }
 
-void TokenBucket::refillIfNeeded() {
+bool TokenBucket::refillIfNeeded() {
     uint64_t now = currentTimeSec();
     if (now - lastRefillTimestamp >= refillIntervalSec) {
         tokens = maxTokens;
         lastRefillTimestamp = now;
+        return true;
     }
+    return false;
 }
 
 vector<byte> TokenBucket::serialize() const {

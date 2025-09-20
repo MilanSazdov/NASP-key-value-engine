@@ -7,8 +7,8 @@ class TokenBucket {
 public:
     TokenBucket(uint32_t maxTokens, uint64_t refillIntervalSec, uint64_t lastRefillTimestamp = 0, uint32_t tokens = 0);
 
-    bool allowRequest();
-    void refillIfNeeded();
+    bool allowRequest(bool* isRefilled);
+    bool refillIfNeeded();
 
     std::vector<std::byte> serialize() const;
     static TokenBucket deserialize(const std::vector<std::byte>& data);

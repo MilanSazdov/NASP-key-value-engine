@@ -35,7 +35,8 @@ int main() {
     // Pokusaj 7 zahteva odmah
     for (int i = 1; i <= 7; ++i) {
         uint64_t now = currentTimeSec() - startTime;
-        bool allowed = bucket.allowRequest();
+        bool isRefilled;
+        bool allowed = bucket.allowRequest(&isRefilled);
         cout << "Vreme: " << now << "s | Zahtev " << i << ": " << (allowed ? "Dozvoljen" : "Odbijen") << " | Preostali tokeni: " << bucket.getTokens() << endl;
         this_thread::sleep_for(chrono::milliseconds(500)); // mala pauza radi preglednosti
     }
@@ -47,7 +48,8 @@ int main() {
     // Ponovni zahtevi
     for (int i = 1; i <= 3; ++i) {
         uint64_t now = currentTimeSec() - startTime;
-        bool allowed = bucket.allowRequest();
+        bool isRefilled;
+        bool allowed = bucket.allowRequest(&isRefilled);
         cout << "Vreme: " << now << "s | Zahtev " << i << ": " << (allowed ? "Dozvoljen" : "Odbijen") << " | Preostali tokeni: " << bucket.getTokens() << endl;
     }
 
