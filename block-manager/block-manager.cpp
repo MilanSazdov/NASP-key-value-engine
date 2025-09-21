@@ -45,6 +45,9 @@ void Block_manager::write_block(composite_key key, vector<byte> data) {
 
 void Block_manager::write_block(composite_key key, string data){
 	vector<byte> bytes(data.size());
+	std::cout << "Writing block: " << key.first << " " << key.second << " of size " << data.size() << endl;
+	cout << "Data: " << data << endl;
+
 	std::transform(data.begin(), data.end(), bytes.begin(),
 			[] (char c) { return std::byte(c); });
 
@@ -54,7 +57,7 @@ void Block_manager::write_block(composite_key key, string data){
 
 vector<byte> Block_manager::read_block(composite_key key, bool& error) {
 	error = false;
-	cout << "Reading block: " << key.first << " " << key.second << endl;
+	//cout << "Reading block: " << key.first << " " << key.second << endl;
 
 	bool exists = false;
 	vector<byte> ret;

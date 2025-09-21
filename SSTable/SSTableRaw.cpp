@@ -254,7 +254,9 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
             // concat.insert(concat.end(), remaining, (byte)0); write_block valjda vec paduje
             offset += remaining;
 
-            bmp->write_block({block_id++, dataFile_}, concat);
+            bmp->write_block({block_id, dataFile_}, concat);
+            block_id++;
+
             concat.clear();
             remaining = block_size;
         }
@@ -296,7 +298,8 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
  
 
             // Flushujemo blok
-            bmp->write_block({block_id++, dataFile_}, concat);
+            bmp->write_block({block_id, dataFile_}, concat);
+            block_id++;
             concat.clear();
 
             rec.key = rec.key.substr(key_written);
@@ -344,7 +347,8 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
                 
                 if (flag == Wal_record_type::MIDDLE){
                     // Flushujemo blok
-                    bmp->write_block({block_id++, dataFile_}, concat);
+                    bmp->write_block({block_id, dataFile_}, concat);
+                    block_id++;
                     concat.clear();
 
 
@@ -845,7 +849,7 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
 Record SSTableRaw::getNextRecord(uint64_t& offset, bool& error) {
 
     const uint64_t header_len =  sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(ull) + sizeof(ull);
-	cout << "toc.data_end: " << toc.data_end << " toc.data_offset: " << toc.data_offset << " offset: " << offset << endl;
+	//cout << "toc.data_end: " << toc.data_end << " toc.data_offset: " << toc.data_offset << " offset: " << offset << endl;
     // TODO: OVAJ DEO TREBA POPRAVITI, ovaj drugi. Za sada ga ignorisem
     if (offset >= toc.data_end /* || offset < toc.data_offset*/) {
         error = true;

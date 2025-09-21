@@ -104,7 +104,12 @@ void MemtableManager::flushOldest() {
             records.push_back(r);
         }
         std::cout << "[MemtableManager] Flushing " << records.size() << " records to Level 0...\n";
-       
+        for(const auto& rec : records) {
+            std::cout << "  " << rec.key
+                << ", " << rec.value
+                << ", " << (rec.tombstone == std::byte{1} ? "true" : "false")
+                << ", " << rec.timestamp << "\n";
+		}
         // flushhovanje
         sort(records.begin(), records.end(), [](const Record& a, const Record& b) {return a.key < b.key; }); // Sortiramo po kljucevima
         sstManager_->write(records, 1);

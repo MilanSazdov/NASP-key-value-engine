@@ -234,10 +234,10 @@ void System::put(const string& key, const string& value) {
         return; // Request denied by rate limiter
     }
 
-    cout << "Put to wal\n";
+    //cout << "Put to wal\n";
     wal->put(key, value);
 
-    cout << "Put to memtable\n";
+    //cout << "Put to memtable\n";
     memtable->put(key, value);
 
     if (memtable->checkFlushIfNeeded()) {
@@ -247,6 +247,7 @@ void System::put(const string& key, const string& value) {
 
         //onda mogu da flushujem, i oslobodim prostor
         memtable->flushMemtable();
+
 
         cout << "[SYSTEM] Triggering compaction check...\n";
         lsmManager_->triggerCompactionCheck();
