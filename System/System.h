@@ -8,6 +8,7 @@
 #include "../TokenBucket/TokenBucket.h"
 #include "../SSTable/SSTManager.h"
 #include "../LSM/LSMManager.h"
+#include "../SSTableIter/SSTableCursor.h"
 
 class System {
 
@@ -20,6 +21,7 @@ public:
 	TokenBucket* tokenBucket;
 	TypesManager* typesManager;
 	LSMManager* lsmManager_;
+	SSTableCursor* sstCursor;
 
 public:
 	System();
@@ -39,6 +41,9 @@ public:
 
 	// sluzi za testiranje, ne znam jel treba system ovo da poziva...?
 	void removeSSTables();
+
+	void prefixScan(const std::string& prefix, int page_size, bool& end);
+
 
 private:
 

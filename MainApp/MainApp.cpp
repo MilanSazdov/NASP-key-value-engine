@@ -67,7 +67,7 @@ void MainApp::handleGet() {
     auto value = system->get(key);
     
     if (value == nullopt) {
-        cout << "[GET] Key " << key << " doesnt exists\n";
+        cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " doesnt exists\n";
     }
     else {
         cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " Value " << "\033[31m" << value.value() << "\033[0m" << "\n";
@@ -75,52 +75,33 @@ void MainApp::handleGet() {
 }
 
 void MainApp::test_case() {
-	cout << "\n\n\n[TEST CASE] Inserting 6 key-value pairs...\n";
-    key = "key1";
-    value = "value1";
-    system->put(key, value);
-    cout << "[PUT] Inserted key: " << key << "\n";
-
-    key = "key2";
-    value = "value2";
-    system->put(key, value);
-    cout << "[PUT] Inserted key: " << key << "\n";
-
-    key = "key3";
-    value = "value3";
-    system->put(key, value);
-    cout << "[PUT] Inserted key: " << key << "\n";
-
-    key = "key4";
-    value = "value4";
-    system->put(key, value);
-    cout << "[PUT] Inserted key: " << key << "\n";
-
-    key = "key5";
-    value = "value5";
-    system->put(key, value);
-    cout << "[PUT] Inserted key: " << key << "\n";
-
-    key = "key6";
-    value = "value6";
-    system->put(key, value);
-    cout << "[PUT] Inserted key: " << key << "\n";
+    int n = 6;
+	cout << "\n\n\n[TEST CASE] Inserting 9 key-value pairs...\n";
+    for(int i = 1; i <= n; i++) {
+        key = "key" + to_string(i);
+        value = "value" + to_string(i);
+        system->put(key, value);
+        cout << "[PUT] Inserted key: " << key << "\n";
+	}
+    
+	cout << "\n\n\n\n\n[TEST CASE] Retrieving 9 keys (key1 to key9)...\n";
+    for (int i = 1; i <= n; i++) {
+        key = "key" + to_string(i);
+		cout << "Getting key: " << key << "\n";
+        auto value = system->get(key);
+        if (value == nullopt) {
+            cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " doesnt exists\n";
+        }
+        else {
+            cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " Value " << "\033[31m" << value.value() << "\033[0m" << "\n";
+		}
+    }
 
     key = "key7";
     value = "value7";
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 
-    key = "key8";
-    value = "value8";
-    system->put(key, value);
-    cout << "[PUT] Inserted key: " << key << "\n";
-
-    key = "key9";
-    value = "value9";
-    system->put(key, value);
-    cout << "[PUT] Inserted key: " << key << "\n";
-    
     key = "key10";
     value = "value10";
     system->put(key, value);
@@ -140,8 +121,17 @@ void MainApp::test_case() {
     value = "value13";
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
+
+    system->sstCursor->read_tables();
+
+    bool end = false;
+    while(!end) {
+        system->prefixScan("key", 5, end);
+    }
+
     cout << "[TEST CASE] Done...\n\n\n\n";
 }
+
 
 void MainApp::run() {
     int choice;

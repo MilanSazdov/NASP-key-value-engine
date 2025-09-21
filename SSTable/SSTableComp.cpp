@@ -1088,7 +1088,7 @@ uint64_t SSTableComp::findRecordOffset(const std::string& key, bool& in_file)
 
     if (key < summary_.min) {
         in_file = false;
-        return 0;
+        return toc.data_offset;
     }
 
     uint64_t file_offset = summary_data_start;
@@ -1183,7 +1183,7 @@ uint64_t SSTableComp::findRecordOffset(const std::string& key, bool& in_file)
 
         if (rkey > key) {
             in_file = false;
-            return fileOffset;
+            return recordStart;
         }
     }
 

@@ -134,7 +134,7 @@ public:
     /**
      * getDataStartOffset() - vraća offset u bajtovima gde počinje data segment u data fajlu.
      */
-    virtual uint64_t getDataStartOffset() { return toc.data_offset; }
+    virtual uint64_t getDataStartOffset() { prepare(); return toc.data_offset; }
 
     // i ovo sluzi samo za testiranje
     virtual void printFileNames();
@@ -142,6 +142,9 @@ public:
     bool possiblyContains(const std::string& key);
 
     virtual void prepare(); // Cita TOC i header summary fajla kako bi se pripremio za citanje
+
+    virtual std::string getSummaryMax() { prepare(); return summary_.max; }
+    virtual std::string getSummaryMin() { prepare(); return summary_.min; }
 
 protected:
     // putanje do fajlova

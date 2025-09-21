@@ -60,6 +60,9 @@ System::System() : requestCounter(0) {
     // --- SSTManager setup ---
     sstable = new SSTManager(sharedInstanceBM);
 
+    // --- SSTCursor setup TODO: THIS IS FOR TESTING REMOVE LATER---
+    sstCursor = new SSTableCursor(sstable);
+
     // --- Memtable setup ---
     cout << "[Debug] Initializing MemtableManager...\n";
     memtable = new MemtableManager(sstable);
@@ -99,7 +102,7 @@ System::~System() {
     delete wal;
     delete memtable;
     delete tokenBucket;
-
+    delete sstCursor;
 
 
     cout << "[SYSTEM] System shutdown complete.\n";
@@ -347,7 +350,7 @@ void System::resetSystem(string dataFolder) {
         cout << "Folder 'data' je sada prazan." << endl;
     }
     catch (const fs::filesystem_error& e) {
-        cerr << "Greška: " << e.what() << endl;
+        cerr << "Greï¿½ka: " << e.what() << endl;
     }
 }
 
@@ -359,4 +362,9 @@ void System::removeSSTables() {
     }
 
     sstable->removeSSTables(tablesToRemove);
+}
+
+void System::prefixScan(const std::string& prefix, int page_size, bool& end) {
+    vector<Record> page = sstCursor->prefix_scan(prefix, 10, end);
+    cout << "Done scan." << endl;
 }

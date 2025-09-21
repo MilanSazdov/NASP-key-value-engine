@@ -697,7 +697,7 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
 
     if (key < summary_.min) {
         found = false;
-        return 0;
+        return toc.data_offset;
     }
 
     size_t fileOffset = toc.summary_offset + summary_.min.size() + summary_.max.size() + 3*sizeof(uint64_t);
@@ -751,6 +751,8 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
         if(block_size - (fileOffset % block_size) < header_len) {
             fileOffset += block_size - (fileOffset % block_size);
         } // Ako u bloku posle recorda nema mesta za header, znaci da smo padovali i sledeci record pocinje u sledecem bloku
+
+        uint64_t saved_offset = fileOffset;
 
         // citamo polja Record-a
         uint32_t crc = 0;
@@ -827,17 +829,17 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
         
         if(r.key == key) {
             found = true;
-            return offset_in_data;
+            return saved_offset;
         }
         
         if (r.key > key) {
             // nema smisla ici dalje, data fajl je sortiran
             found = false;
-            return std::numeric_limits<uint64_t>::max();
+            return saved_offset;
         }
     }
 
-
+    // Funkcija ne bi trebala doci ovde
     found = false;
     return std::numeric_limits<uint64_t>::max();
 }

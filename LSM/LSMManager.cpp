@@ -61,6 +61,7 @@ static std::vector<Record> kWayMerge(const std::vector<SSTable*>& inputs)
     while (!heap.empty()) {
         HeapItem first = heap.top();
         heap.pop();
+        cout << first.rec.key << endl;
 
         std::string currKey = first.rec.key;
         Record winner = first.rec; // Kandidat sa najvećim timestamp-om za trenutni ključ
