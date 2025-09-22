@@ -64,7 +64,7 @@ public:
     // Funkcija vraca do `n` rekorda, pocinje pretragu od `key`. Vratice manje od `n` ako dodje do kraja SSTabele.
     // std::vector<Record> get(const std::string& key, int n) override;
 
-    Record getNextRecord(uint64_t& offset, bool& error) override;
+    Record getNextRecord(uint64_t& offset, bool& error, bool& eof) override;
     
     //bool validate() override;
     

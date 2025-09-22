@@ -2,35 +2,39 @@
 
 static constexpr uint64_t NO_OFFSET = UINT64_MAX;
 
-SSTableIterator::SSTableIterator(std::shared_ptr<SSTable> sst) : sstp(sst), next_offset(NO_OFFSET) {
+SSTableIterator::SSTableIterator(std::shared_ptr<SSTable> sst) : sstp(sst), next_offset(NO_OFFSET), cache_valid(false) {
     seek(sst->getDataStartOffset());
 };
 
 void SSTableIterator::operator++(){
-    if(next_offset == NO_OFFSET) {
-        bool error = false;
-        sstp->getNextRecord(offset, error);
-        if(error) {
-            reached_end = true;
-        }
-
-        return;
+    cache_valid = false;
+    bool error = false;
+    bool eof = false;
+    sstp->getNextRecord(offset, error, eof);
+    if(eof) {
+        reached_end = true;
     }
-
-    offset = next_offset;
-    next_offset = NO_OFFSET;
+    if(error) {
+        throw SSTableIteratorException();
+    }
+    return;
 }
 
 Record SSTableIterator::operator*(){
+    if (cache_valid) return cached;
+
     uint64_t temp_offset = offset;
     bool error = false;
+    bool eof = false;
 
-    Record r = sstp->getNextRecord(offset, error);
+    Record r = sstp->getNextRecord(offset, error, eof);
 
-    if(error) throw new SSTableEndException();
+    if(error) throw SSTableIteratorException();
 
-    next_offset = offset;
     offset = temp_offset;
+
+    cached = r;
+    cache_valid = true;
 
     return r;
 }

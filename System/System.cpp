@@ -60,9 +60,6 @@ System::System() : requestCounter(0) {
     // --- SSTManager setup ---
     sstable = new SSTManager(sharedInstanceBM);
 
-    // --- SSTCursor setup TODO: THIS IS FOR TESTING REMOVE LATER---
-    sstCursor = new SSTableCursor(sstable);
-
     // --- Memtable setup ---
     cout << "[Debug] Initializing MemtableManager...\n";
     memtable = new MemtableManager(sstable);
@@ -102,7 +99,6 @@ System::~System() {
     delete wal;
     delete memtable;
     delete tokenBucket;
-    delete sstCursor;
 
 
     cout << "[SYSTEM] System shutdown complete.\n";
@@ -364,7 +360,77 @@ void System::removeSSTables() {
     sstable->removeSSTables(tablesToRemove);
 }
 
-void System::prefixScan(const std::string& prefix, int page_size, bool& end) {
-    vector<Record> page = sstCursor->prefix_scan(prefix, 10, end);
-    cout << "Done scan." << endl;
+void System::prefixScan(const std::string& prefix, int page_size) {
+    bool end = false;
+
+        SSTableCursor sstCursor(sstable, memtable);
+
+        while (true) {
+            std::vector<Record> page = sstCursor.prefix_scan(prefix, page_size, end);
+
+            if (page.empty()) {
+                std::cout << "(no records found)\n";
+            } else {
+                for (const auto& rec : page) {
+                    std::cout << "key: " << "\033[31m" << rec.key << "\033[0m" << ", value: " << "\033[31m" << rec.value << "\033[0m" << '\n';
+                }
+            }
+
+            if (end) {
+                std::cout << "Cursor reached the end.\n";
+                break;
+            }
+
+            std::cout << "Show next page? (y/n): ";
+            std::string answer;
+            std::getline(std::cin, answer);
+
+            if (answer.empty() && std::cin.good() && std::cin.peek() == '\n') {
+                std::cin.get(); // consume newline
+                std::getline(std::cin, answer);
+            }
+
+            if (answer.empty() || std::tolower(static_cast<unsigned char>(answer[0])) != 'y') {
+                std::cout << "Exiting prefix scan.\n";
+                break;
+            }
+        }
+}
+
+
+void System::rangeScan(const std::string& min_key, const std::string& max_key, int page_size) {
+    bool end = false;
+
+        SSTableCursor sstCursor(sstable, memtable);
+
+        while (true) {
+            std::vector<Record> page = sstCursor.range_scan(min_key, max_key, page_size, end);
+
+            if (page.empty()) {
+                std::cout << "(no records found)\n";
+            } else {
+                for (const auto& rec : page) {
+                    std::cout << "key: " << "\033[31m" << rec.key << "\033[0m" << ", value: " << "\033[31m" << rec.value << "\033[0m" << '\n';
+                }
+            }
+
+            if (end) {
+                std::cout << "Cursor reached the end.\n";
+                break;
+            }
+
+            std::cout << "Show next page? (y/n): ";
+            std::string answer;
+            std::getline(std::cin, answer);
+
+            if (answer.empty() && std::cin.good() && std::cin.peek() == '\n') {
+                std::cin.get(); // consume newline
+                std::getline(std::cin, answer);
+            }
+
+            if (answer.empty() || std::tolower(static_cast<unsigned char>(answer[0])) != 'y') {
+                std::cout << "Exiting range scan.\n";
+                break;
+            }
+        }
 }

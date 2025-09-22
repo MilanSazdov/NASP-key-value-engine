@@ -42,6 +42,9 @@ public:
     // ovo sam koristio za testiranje, moze se obrisati kasnije
     void printSSTables(int level);
 
+    // Za kursore
+    std::vector<MemtableEntry> getAllEntries() const;
+
 private:
     std::string type_;   // sacuvamo koji tip je korisnik izabrao
     size_t N_;           // max broj memtable

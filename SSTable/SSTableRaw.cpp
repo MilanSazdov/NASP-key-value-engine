@@ -844,7 +844,7 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
     return std::numeric_limits<uint64_t>::max();
 }
 
-Record SSTableRaw::getNextRecord(uint64_t& offset, bool& error) {
+Record SSTableRaw::getNextRecord(uint64_t& offset, bool& error, bool& eof) {
 
     const uint64_t header_len =  sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(ull) + sizeof(ull);
 	cout << "toc.data_end: " << toc.data_end << " toc.data_offset: " << toc.data_offset << " offset: " << offset << endl;
@@ -931,6 +931,8 @@ Record SSTableRaw::getNextRecord(uint64_t& offset, bool& error) {
             }
         }
     }
+
+    if( offset == toc.data_end ) eof = true;
     
     return r;
 }

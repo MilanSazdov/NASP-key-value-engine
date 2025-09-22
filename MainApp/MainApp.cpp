@@ -27,7 +27,9 @@ void MainApp::showMenu() {
     std::cout << "2. DELETE(key)       - Mark key as deleted\n";
     std::cout << "3. GET(key)          - (Not implemented yet)\n";
     std::cout << "4. TYPES             - Types menu\n";
-    std::cout << "5. EXIT              - Exit program\n";
+    std::cout << "5. PREFIX SCAN       - Scan for keys starting with prefix\n";
+    std::cout << "6. RANGE SCAN        - Scan for keys in a range\n";
+    std::cout << "7. EXIT              - Exit program\n";
     std::cout << "======================================\n";
     std::cout << "Enter choice: ";
 }
@@ -72,6 +74,35 @@ void MainApp::handleGet() {
     else {
         cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " Value " << "\033[31m" << value.value() << "\033[0m" << "\n";
     }
+}
+
+void MainApp::handlePrefixScan() {
+    cout << "Enter prefix: ";
+    std::string prefix;
+    getline(cin, prefix);
+    cout << "Enter page size: ";
+    int page_size;
+    cin >> page_size;
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    system->prefixScan(prefix, page_size);
+}
+
+void MainApp::handleRangeScan() {
+    cout << "Enter min key: ";
+    std::string min_key;
+    getline(cin, min_key);
+
+    cout << "Enter max key: ";
+    std::string max_key;
+    getline(cin, max_key);
+
+    cout << "Enter page size: ";
+    int page_size;
+    cin >> page_size;
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    system->rangeScan(min_key, max_key, page_size);
 }
 
 void MainApp::test_case() {
@@ -122,13 +153,6 @@ void MainApp::test_case() {
     system->put(key, value);
     cout << "[PUT] Inserted key: " << key << "\n";
 
-    system->sstCursor->read_tables();
-
-    bool end = false;
-    while(!end) {
-        system->prefixScan("key", 5, end);
-    }
-
     cout << "[TEST CASE] Done...\n\n\n\n";
 }
 
@@ -151,7 +175,9 @@ void MainApp::run() {
         case 2: handleDelete(); break;
         case 3: handleGet(); break;
         case 4: typesMenu->showMenu(); break;
-        case 5:
+        case 5: handlePrefixScan(); break;
+        case 6: handleRangeScan(); break;
+        case 7:
             cout << "Exiting...\n";
             return;
         case 404:

@@ -66,7 +66,7 @@ public:
 
     uint64_t findRecordOffset(const std::string& key, bool& found) override;
 
-    Record getNextRecord(uint64_t& offset, bool& error) override;
+    Record getNextRecord(uint64_t& offset, bool& error, bool& eof) override;
 
 protected:
     std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) override;

@@ -25,4 +25,6 @@ public:
 	void handlePut();
 	void handleDelete();
 	void handleGet();
+	void handlePrefixScan();
+	void handleRangeScan();
 };

@@ -1191,7 +1191,7 @@ uint64_t SSTableComp::findRecordOffset(const std::string& key, bool& in_file)
     return std::numeric_limits<uint64_t>::max();
 }
 
-Record SSTableComp::getNextRecord(uint64_t& offset, bool& error) {
+Record SSTableComp::getNextRecord(uint64_t& offset, bool& error, bool& eof) {
     prepare();
     
     const uint64_t header_max_len =  sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(uint64_t) + sizeof(uint32_t);
@@ -1275,6 +1275,8 @@ Record SSTableComp::getNextRecord(uint64_t& offset, bool& error) {
             }
         }
     }
+
+    if(offset==toc.data_end) eof=true;
 
     return r;
 }

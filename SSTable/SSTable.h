@@ -120,7 +120,7 @@ public:
       * getNextRecord(&offset, &error) - Čita jedan rekord desno od offset i menja offset.
       *    error ce biti postavljen na true ukoliko dodje do kraja fajla.
       */
-    virtual Record getNextRecord(uint64_t& offset, bool& error) = 0;
+    virtual Record getNextRecord(uint64_t& offset, bool& error, bool& eof) = 0;
 
     //virtual bool validate() = 0;
 

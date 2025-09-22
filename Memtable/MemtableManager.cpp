@@ -181,6 +181,24 @@ void MemtableManager::printAllData() const {
 // greem" "\033[32m" << "This text is green!" << "\033[0m"
 }
 
+std::vector<MemtableEntry> MemtableManager::getAllEntries() const {
+    std::vector<MemtableEntry> result;
+
+    for (const auto& mt_ptr : memtables_) {
+        if (!mt_ptr) continue;
+
+        auto entries = mt_ptr->getAllMemtableEntries();
+        result.insert(
+            result.end(),
+            std::make_move_iterator(entries.begin()),
+            std::make_move_iterator(entries.end()) // da ne bi kopirali opet
+        );
+    }
+
+    return result;
+}
+
+
 //returns records from oldest memtable
 vector<Record> MemtableManager::getRecordsFromOldest() {
     auto& oldestMemtable = memtables_.front();

@@ -26,7 +26,8 @@ static bool readAndPushNext(
     std::priority_queue<HeapItem, std::vector<HeapItem>, HeapItemMinHeapCmp >& heap)
 {
     bool error = false;
-    Record r = table->getNextRecord(offsets[idx], error);
+    bool eof = false;
+    Record r = table->getNextRecord(offsets[idx], error, eof);
     if (!error) {
         heap.push(HeapItem{ std::move(r), idx });
         return true;
@@ -99,10 +100,11 @@ struct KeyRange {
 static KeyRange computeKeyRangeByScan(SSTable& t)
 {
     uint64_t off = 0;
+    bool eof = false;
     bool err = false;
     KeyRange kr{};
 
-    Record first = t.getNextRecord(off, err);
+    Record first = t.getNextRecord(off, err, eof);
     if (err) return kr; // Prazna tabela
 
     kr.min_key = first.key;
@@ -111,7 +113,7 @@ static KeyRange computeKeyRangeByScan(SSTable& t)
 
     // Skeniraj do kraja; poslednji zapis ima najveći ključ
     while (true) {
-        Record r = t.getNextRecord(off, err);
+        Record r = t.getNextRecord(off, err, eof);
         if (err) break;
         kr.max_key = r.key;
     }

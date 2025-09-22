@@ -21,7 +21,6 @@ public:
 	TokenBucket* tokenBucket;
 	TypesManager* typesManager;
 	LSMManager* lsmManager_;
-	SSTableCursor* sstCursor;
 
 public:
 	System();
@@ -42,7 +41,8 @@ public:
 	// sluzi za testiranje, ne znam jel treba system ovo da poziva...?
 	void removeSSTables();
 
-	void prefixScan(const std::string& prefix, int page_size, bool& end);
+	void prefixScan(const std::string& prefix, int page_size);
+	void rangeScan(const std::string& min_Key, const std::string& max_key, int page_size);
 
 
 private:
