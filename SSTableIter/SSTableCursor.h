@@ -1,6 +1,6 @@
 #include "../SSTable/SSTManager.h"
 #include "../Memtable/MemtableManager.h"
-#include "SSTableIterator.h"
+#include "SSTableIter.h"
 #include <list>
 
 class SSTableCursor {

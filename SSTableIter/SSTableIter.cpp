@@ -1,4 +1,4 @@
-#include "SSTableIterator.h"
+#include "SSTableIter.h"
 
 static constexpr uint64_t NO_OFFSET = UINT64_MAX;
 
