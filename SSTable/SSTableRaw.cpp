@@ -236,6 +236,11 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
     for (auto& r : sortedRecords) {
 
         data_for_merkle.push_back(r.key + r.value);
+
+        if(r.key=="key3") {
+            cout << "hello" << endl;
+        }
+
     
         IndexEntry ie;
         ie.key = r.key;
@@ -373,6 +378,11 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
             concat.insert(concat.end(), r.key.begin(), r.key.begin()+r.key_size);
             concat.insert(concat.end(), r.value.begin(), r.value.begin()+r.value_size);    
 
+            // Flush
+            if(remaining==len){
+                bmp->write_block({block_id++, dataFile_}, concat);
+                concat.clear();
+            }
         }
     }
 
