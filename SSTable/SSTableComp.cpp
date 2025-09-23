@@ -772,6 +772,11 @@ SSTableComp::writeDataMetaFiles(std::vector<Record>& sortedRecords) {
             concat.append(rec.key);
             if (!tomb) concat.append(rec.value);
 
+            // Flush
+            if(remaining==len){
+                bmp->write_block({block_id++, dataFile_}, concat);
+                concat.clear();
+            }
         }
     }
 

@@ -237,10 +237,6 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
         data_for_merkle.push_back(r.key + r.value);
 
-        if(r.key=="key3") {
-            cout << "hello" << endl;
-        }
-
     
         IndexEntry ie;
         ie.key = r.key;
