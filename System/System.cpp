@@ -229,9 +229,9 @@ void System::add_records_to_cache(vector<Record> records) {
 }
 
 void System::put(const string& key, const string& value) {
-    // if (!checkRateLimit()) {
-    //     return; // Request denied by rate limiter
-    // }
+    if (!checkRateLimit()) {
+        return; // Request denied by rate limiter
+    }
 
     cout << "Put to wal\n";
     wal->put(key, value);
