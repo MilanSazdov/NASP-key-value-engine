@@ -106,8 +106,8 @@ void MainApp::handleRangeScan() {
 }
 
 void MainApp::test_case() {
-    int n = 6;
-	cout << "\n\n\n[TEST CASE] Inserting 9 key-value pairs...\n";
+    int n = 100;
+	cout << "\n\n\n[TEST CASE] Inserting "<< n <<" key-value pairs...\n";
     for(int i = 1; i <= n; i++) {
         key = "key" + to_string(i);
         value = "value" + to_string(i);
@@ -115,18 +115,18 @@ void MainApp::test_case() {
         cout << "[PUT] Inserted key: " << key << "\n";
 	}
     
-	cout << "\n\n\n\n\n[TEST CASE] Retrieving 9 keys (key1 to key9)...\n";
-    for (int i = 1; i <= n; i++) {
-        key = "key" + to_string(i);
-		cout << "Getting key: " << key << "\n";
-        auto value = system->get(key);
-        if (value == nullopt) {
-            cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " doesnt exists\n";
-        }
-        else {
-            cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " Value " << "\033[31m" << value.value() << "\033[0m" << "\n";
-		}
-    }
+	// cout << "\n\n\n\n\n[TEST CASE] Retrieving 6 keys (key1 to key9)...\n";
+    // for (int i = 1; i <= n; i++) {
+    //     key = "key" + to_string(i);
+	// 	cout << "Getting key: " << key << "\n";
+    //     auto value = system->get(key);
+    //     if (value == nullopt) {
+    //         cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " doesnt exists\n";
+    //     }
+    //     else {
+    //         cout << "[GET] Key " << "\033[31m" << key << "\033[0m" << " Value " << "\033[31m" << value.value() << "\033[0m" << "\n";
+	// 	}
+    // }
 
     key = "key7";
     value = "value7";

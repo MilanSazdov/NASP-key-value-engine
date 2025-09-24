@@ -54,16 +54,16 @@ void Block_manager::write_block(composite_key key, string data){
 
 vector<byte> Block_manager::read_block(composite_key key, bool& error) {
 	error = false;
-	cout << "Reading block: " << key.first << " " << key.second << endl;
-
 	bool exists = false;
 	vector<byte> ret;
-
+	
 	ret = c->get(key, exists);
-
+	
 	if (exists) {
 		return ret;
 	}
+
+	cout << "Reading block: " << key.first << " " << key.second << endl;
 	
 	ifstream file(key.second, ios::in | ios::binary);
 
