@@ -237,10 +237,6 @@ SSTableRaw::writeDataMetaFiles(std::vector<Record>& sortedRecords)
 
         data_for_merkle.push_back(r.key + r.value);
 
-        if(r.key=="key3") {
-            cout << "hello" << endl;
-        }
-
     
         IndexEntry ie;
         ie.key = r.key;
@@ -614,7 +610,7 @@ void SSTableRaw::writeMetaToFile() {
     }
 
 	// upisujemo payload u blokove
-    int block_id = 0;
+    int block_id = start_offset/block_size;
     size_t offset = 0;
     while (offset < payload.length()) {
         size_t chunk_size = std::min((size_t)block_size, payload.length() - offset);
@@ -857,7 +853,6 @@ uint64_t SSTableRaw::findRecordOffset(const std::string& key, bool& found)
 Record SSTableRaw::getNextRecord(uint64_t& offset, bool& error, bool& eof) {
 
     const uint64_t header_len =  sizeof(uint) + sizeof(ull) + 1 + 1 + sizeof(ull) + sizeof(ull);
-	cout << "toc.data_end: " << toc.data_end << " toc.data_offset: " << toc.data_offset << " offset: " << offset << endl;
     // TODO: OVAJ DEO TREBA POPRAVITI, ovaj drugi. Za sada ga ignorisem
     if (offset >= toc.data_end /* || offset < toc.data_offset*/) {
         error = true;

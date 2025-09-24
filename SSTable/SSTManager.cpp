@@ -209,11 +209,11 @@ optional<string> SSTManager::get_from_level(const std::string& key, bool& delete
                     matches.insert(matches.end(), found.begin(), found.end());
                 }
             }
-            if (filename.rfind("data", 0) == 0 && Config::sstable_single_file==true)
+            if (filename.rfind("sstable", 0) == 0 && Config::sstable_single_file==true)
             {
                 
                 SSTable* sst;
-                data_path = filename;
+                data_path = current_directory + filename;
 
                 if (Config::compress_sstable) {
                         sst = new SSTableComp(data_path, bm, key_map, id_to_key, next_ID_map);
@@ -320,27 +320,35 @@ void SSTManager::write(std::vector<Record> sortedRecords, int level) {
 
     // TODO: PROVERITI DA LI TREBA I SINGLE FILE DA SE SALJE U CONSTRUCTOR I KOD COMP I KOD RAW
     if (use_compression) {
-        sst = new SSTableComp(
-            data_path,
-            index_path,
-            filter_path,
-            summary_path,
-            meta_path,
-            bm,
-            key_map,
-            id_to_key,
-            next_ID_map
-        );
+        if(use_single_file) {
+            sst = new SSTableComp(data_path, bm, key_map, id_to_key, next_ID_map);
+        } else {
+            sst = new SSTableComp(
+                data_path,
+                index_path,
+                filter_path,
+                summary_path,
+                meta_path,
+                bm,
+                key_map,
+                id_to_key,
+                next_ID_map
+            );
+        }
     }
     else {
-        sst = new SSTableRaw(
-            data_path,
-            index_path,
-            filter_path,
-            summary_path,
-            meta_path,
-            bm
-        );
+        if(use_single_file) {
+            sst = new SSTableRaw(data_path, bm);
+        } else {
+            sst = new SSTableRaw(
+                data_path,
+                index_path,
+                filter_path,
+                summary_path,
+                meta_path,
+                bm
+            );
+        }
     }
 
     sst->build(sortedRecords);
@@ -448,11 +456,11 @@ vector<unique_ptr<SSTable>> SSTManager::getTablesFromLevel(int level) {
                 // Proveri da li je raw ili comp
                 //sstable_sf_raw_0
                 if (filename.find("_raw_") != std::string::npos) {
-                    tables.push_back(make_unique<SSTableRaw>(filename, bm));
+                    tables.push_back(make_unique<SSTableRaw>(path+filename, bm));
                 }
                 //sstable_sf_comp_0
                 else {
-                    tables.push_back(make_unique<SSTableComp>(filename, bm, key_map, id_to_key, next_ID_map));
+                    tables.push_back(make_unique<SSTableComp>(path+filename, bm, key_map, id_to_key, next_ID_map));
                 }
             }
             // ovde je multi file, treba naci index, meta, summary, filter, data
