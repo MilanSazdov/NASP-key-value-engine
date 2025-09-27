@@ -122,7 +122,7 @@ public:
       */
     virtual Record getNextRecord(uint64_t& offset, bool& error, bool& eof) = 0;
 
-    //virtual bool validate() = 0;
+    virtual bool validate() = 0;
 
     /**
      * findRecordOffset(key, bool& in_file) - vraća offset u bajtovima gde se prvi Record sa kljucem nalazi u data fajlu.

@@ -25,10 +25,20 @@ void SSTable::build(std::vector<Record>&records)
     }
 
     BloomFilter bf(records.size(), 0.01);
+    std::vector<std::string> valuesForMerkle;
+    valuesForMerkle.reserve(records.size());
     for (const auto& r : records) {
         bf.add(r.key);
+        valuesForMerkle.push_back(std::string(reinterpret_cast<const char*>(r.value.data()), r.value.size()));
     }
     bloom_ = bf;
+
+    if (!valuesForMerkle.empty()) {
+        MerkleTree merkleTree(valuesForMerkle);
+        rootHash_ = merkleTree.getRootHash();
+        originalLeafHashes_ = merkleTree.getLeaves();
+        std::cout << "[SSTable] Kreiran Merkle Root Hash: " << rootHash_ << std::endl;
+    }
 
     // Index u fajl
     std::vector<IndexEntry> summaryAll = writeIndexToFile();

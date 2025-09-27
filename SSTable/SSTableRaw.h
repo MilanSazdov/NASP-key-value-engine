@@ -62,7 +62,7 @@ public:
         range_scan(const std::string& startKey, const std::string& endKey);
      */
 
-    //bool validate() override;
+    bool validate() override;
 
     uint64_t findRecordOffset(const std::string& key, bool& found) override;
 

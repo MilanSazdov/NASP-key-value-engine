@@ -10,7 +10,7 @@ namespace varenc {
     bool decodeVarint(char input, UInt& value, size_t& offset);
 
     template<typename UInt>
-    std::string varenc::encodeVarint(UInt value) {
+    std::string encodeVarint(UInt value) {
 
         std::string out;
         out.reserve(sizeof(UInt));
@@ -27,7 +27,7 @@ namespace varenc {
     }
 
     template<typename UInt>
-    bool varenc::decodeVarint(char chunk, UInt& value, size_t& bitOffset) {
+    bool decodeVarint(char chunk, UInt& value, size_t& bitOffset) {
         bool more = (chunk & 0x80) != 0;
         chunk &= 0x7F;
         value |= (UInt(chunk) << bitOffset);

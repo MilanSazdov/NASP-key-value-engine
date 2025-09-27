@@ -555,3 +555,33 @@ void SSTManager::removeSSTables(const std::vector<std::unique_ptr<SSTable>>& tab
         }
 	}
 }
+
+void SSTManager::validateTablesForLevel(int level) {
+    std::cout << "\n--- VALIDATION STARTED FOR LEVEL:  " << level << " ---" << std::endl;
+
+    // Koristimo postojeću funkciju da dobijemo sve tabele za dati nivo
+    vector<unique_ptr<SSTable>> tables = getTablesFromLevel(level);
+
+    if (tables.empty()) {
+        std::cout << "THERE IS NOT SSTABLES ON LEVEL:  " << level << " FOR VALIDATION " << std::endl;
+        std::cout << "--- VALIDATION FINISHED ---" << std::endl;
+        return;
+    }
+
+    bool allLevelsValid = true;
+    for (const auto& table : tables) {
+        // Pozivamo validate() metodu za svaku tabelu.
+        // Sva kompleksna logika je sakrivena unutar same tabele.
+        if (!table->validate()) {
+            allLevelsValid = false;
+        }
+    }
+
+    std::cout << "\n--- VALIDATION FOR LEVEL:  " << level << " FINISHED ---" << std::endl;
+    if (allLevelsValid) {
+        std::cout << "RESULT: ALL SSTABLES ARE VALID (ON THIS LEVEL). " << std::endl;
+    }
+    else {
+        std::cout << "RESULT: THERE ARE SOME CORUMPTION IN DATA" << std::endl;
+    }
+}

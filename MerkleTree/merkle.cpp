@@ -1,4 +1,8 @@
 ﻿#include "MerkleTree.h"
+#include <sstream>
+#include <iomanip>
+#include <algorithm>
+#include <functional>
 
 MerkleTree::MerkleTree(const std::vector<std::string>& data) {
     if (data.empty()) {
@@ -20,7 +24,11 @@ std::string MerkleTree::getRootHash() const {
 }
 
 std::string MerkleTree::hash(const std::string& data) {
-    return std::string(64, '1');
+    std::hash<std::string> hasher;
+    size_t hash_value = hasher(data);
+    std::stringstream ss;
+    ss << hash_value;
+    return ss.str();
 }
 
 std::string MerkleTree::buildTree(const std::vector<std::string>& hashes) {
@@ -79,14 +87,15 @@ bool MerkleTree::verifyProof(const std::string& rootHash, const std::string& dat
     const std::vector<std::pair<std::string, bool>>& proof) {
     std::string computedHash = hash(data); // Koristi istu hash metodu
 
-    for (const auto& pair : proof) {  
-        const std::string& siblingHash = pair.first;  
-        bool isRight = pair.second;  
-        if (isRight) {  
-            computedHash = hash(siblingHash + computedHash); // Heširaj spajanje desno  
-        } else {  
-            computedHash = hash(computedHash + siblingHash); // Heširaj spajanje levo  
-        }  
+    for (const auto& pair : proof) {
+        const std::string& siblingHash = pair.first;
+        bool isRight = pair.second;
+        if (isRight) {
+            computedHash = hash(siblingHash + computedHash); // Heširaj spajanje desno
+        }
+        else {
+            computedHash = hash(computedHash + siblingHash); // Heširaj spajanje levo
+        }
     }
 
     return computedHash == rootHash;

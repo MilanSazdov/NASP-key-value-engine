@@ -1285,3 +1285,92 @@ Record SSTableComp::getNextRecord(uint64_t& offset, bool& error, bool& eof) {
 
     return r;
 }
+
+bool SSTableComp::validate() {
+    // 1. Učitavamo metapodatke (TOC i Merkle stablo)
+    prepare();
+    readMetaFromFile();
+
+    // 2. Provera da li Merkle stablo uopšte postoji za ovu tabelu
+    if (rootHash_.empty()) {
+        std::cout << "[Validate] Merkle hash nije pronađen za SSTable: " << dataFile_
+            << ". Tabela se smatra validnom (moguće da je starija verzija)." << std::endl;
+        return true;
+    }
+
+    std::cout << "\n[Validate] Započeta validacija za SSTable: " << dataFile_ << std::endl;
+    std::cout << "[Validate] Očekivani (sačuvani) Root Hash: " << rootHash_ << std::endl;
+
+    // 3. Čitamo sve rekorde iz data fajla da bismo rekonstruisali stanje
+    std::vector<Record> records;
+    uint64_t offset = getDataStartOffset();
+    bool error = false, eof = false;
+
+    while (!eof) {
+        Record rec = getNextRecord(offset, error, eof);
+        if (error) {
+            std::cerr << "[Validate] Greška pri čitanju rekorda tokom validacije." << std::endl;
+            return false;
+        }
+        if (!eof) {
+            records.push_back(rec);
+        }
+    }
+
+    // 4. Kreiramo novo Merkle stablo od trenutnih vrednosti u fajlu
+    std::vector<std::string> currentValues;
+    currentValues.reserve(records.size());
+    for (const auto& rec : records) {
+        currentValues.push_back(std::string(reinterpret_cast<const char*>(rec.value.data()), rec.value.size()));
+    }
+
+    // Ako nema rekorda, a imamo root hash, to je greška
+    if (currentValues.empty() && !rootHash_.empty()) {
+        std::cout << "[Validate] GREŠKA: Tabela bi trebalo da sadrži podatke, ali je prazna!" << std::endl;
+        return false;
+    }
+
+    MerkleTree newMerkleTree(currentValues);
+    std::string newRootHash = newMerkleTree.getRootHash();
+    std::cout << "[Validate] Trenutni (izračunati) Root Hash:  " << newRootHash << std::endl;
+
+    // 5. Poredimo root hasheve
+    if (newRootHash == rootHash_) {
+        std::cout << "[Validate] USPEH: Podaci u SSTable su validni i nisu menjani." << std::endl;
+        return true;
+    }
+
+    // 6. Ako hashevi NISU isti, započinjemo detaljnu analizu problema
+    std::cout << "[Validate] GREŠKA: Podaci u SSTable su izmenjeni! Detaljna analiza:" << std::endl;
+    std::vector<std::string> newLeafHashes = newMerkleTree.getLeaves();
+
+    size_t max_leaves = std::max(originalLeafHashes_.size(), newLeafHashes.size());
+
+    for (size_t i = 0; i < max_leaves; ++i) {
+        bool original_exists = i < originalLeafHashes_.size();
+        bool new_exists = i < newLeafHashes.size();
+
+        if (original_exists && new_exists) {
+            // Slučaj 1: Hash postoji u obe verzije, proveravamo da li je isti
+            if (originalLeafHashes_[i] != newLeafHashes[i]) {
+                std::cout << "  -> IZMENA na rekordu sa indeksom " << i << "." << std::endl;
+                std::cout << "     Ključ rekorda: " << records[i].key << std::endl;
+                std::cout << "     Originalni hash vrednosti: " << originalLeafHashes_[i] << std::endl;
+                std::cout << "     Trenutni hash vrednosti:   " << newLeafHashes[i] << std::endl;
+            }
+        }
+        else if (original_exists && !new_exists) {
+            // Slučaj 2: Hash postoji u originalu, ali ne i u novoj verziji -> Rekord je obrisan
+            std::cout << "  -> OBRISAN rekord koji je bio na indeksu " << i << "." << std::endl;
+            // Ne možemo znati ključ jer rekord više ne postoji
+        }
+        else if (!original_exists && new_exists) {
+            // Slučaj 3: Hash ne postoji u originalu, ali postoji u novoj verziji -> Rekord je dodat
+            std::cout << "  -> DODAT novi rekord na indeksu " << i << "." << std::endl;
+            std::cout << "     Ključ rekorda: " << records[i].key << std::endl;
+            std::cout << "     Hash vrednosti: " << newLeafHashes[i] << std::endl;
+        }
+    }
+
+    return false;
+}

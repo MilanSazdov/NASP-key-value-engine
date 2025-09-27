@@ -43,6 +43,7 @@ public:
 
 	void prefixScan(const std::string& prefix, int page_size);
 	void rangeScan(const std::string& min_Key, const std::string& max_key, int page_size);
+	void validateSSTables(int level);
 
 
 private:
@@ -60,4 +61,5 @@ private:
 	void saveTokenBucket();
 	void loadTokenBucket();
 	bool checkRateLimit(); // Vraca true ako je prihvacen
+
 };

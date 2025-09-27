@@ -136,6 +136,7 @@
     <ClInclude Include="opensslconf.h" />
     <ClInclude Include="opensslv.h" />
     <ClInclude Include="sha.h" />
+    <ClInclude Include="sha256.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="libcrypto.lib" />

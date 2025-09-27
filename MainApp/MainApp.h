@@ -27,4 +27,5 @@ public:
 	void handleGet();
 	void handlePrefixScan();
 	void handleRangeScan();
+	void handleValidate();
 };

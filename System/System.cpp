@@ -434,3 +434,12 @@ void System::rangeScan(const std::string& min_key, const std::string& max_key, i
             }
         }
 }
+
+void System::validateSSTables(int level) {
+    if (sstable) {
+        sstable->validateTablesForLevel(level);
+    }
+    else {
+        std::cerr << "[SYSTEM ERROR] SSTManager nije inicijalizovan." << std::endl;
+    }
+}

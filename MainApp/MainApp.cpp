@@ -1,4 +1,4 @@
-#include "MainApp.h"
+﻿#include "MainApp.h"
 using namespace std;
 
 MainApp::MainApp() {
@@ -9,6 +9,7 @@ MainApp::MainApp() {
 
 MainApp::~MainApp() {
     delete system;
+    delete typesMenu;
 }
 
 void MainApp::debugWal() {
@@ -29,7 +30,8 @@ void MainApp::showMenu() {
     std::cout << "4. TYPES             - Types menu\n";
     std::cout << "5. PREFIX SCAN       - Scan for keys starting with prefix\n";
     std::cout << "6. RANGE SCAN        - Scan for keys in a range\n";
-    std::cout << "7. EXIT              - Exit program\n";
+    std::cout << "7. VALIDATE SSTABLES - Validate data integrity for a level\n";
+    std::cout << "8. EXIT              - Exit program\n";
     std::cout << "======================================\n";
     std::cout << "Enter choice: ";
 }
@@ -105,6 +107,25 @@ void MainApp::handleRangeScan() {
     system->rangeScan(min_key, max_key, page_size);
 }
 
+void MainApp::handleValidate() {
+    int level;
+    cout << "Enter level to validate: ";
+    cin >> level;
+
+    // Provera da li je unos validan broj
+    if (cin.fail()) {
+        cout << "\033[31m[ERROR] Invalid input. Please enter a number.\n\033[0m";
+        cin.clear(); // Čisti flag greške
+        cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Odbacuje loš unos
+        return;
+    }
+
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Čisti bafer
+
+    // Pozivamo novu funkciju iz System klase
+    system->validateSSTables(level);
+}
+
 void MainApp::test_case() {
     int n = 100;
 	cout << "\n\n\n[TEST CASE] Inserting "<< n <<" key-value pairs...\n";
@@ -177,7 +198,8 @@ void MainApp::run() {
         case 4: typesMenu->showMenu(); break;
         case 5: handlePrefixScan(); break;
         case 6: handleRangeScan(); break;
-        case 7:
+        case 7: handleValidate(); break;
+        case 8:
             cout << "Exiting...\n";
             return;
         case 404:
