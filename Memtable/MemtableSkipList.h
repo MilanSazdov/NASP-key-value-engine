@@ -2,7 +2,7 @@
 #pragma once
 
 #include "IMemtable.h"
-#include "SkipList.h"
+#include "../SkipList/SkipList.h"
 #include <string>
 #include <optional>
 #include <iostream>
@@ -22,17 +22,14 @@ public:
     void remove(const std::string& key) override;
 
     // get vraca vrednost ako kljuc postoji, ili nullopt ako ne postoji
-    std::optional<std::string> get(const std::string& key) const override;
+    std::optional<std::string> get(const std::string& key, bool& deleted) const override;
 
     // size vraca broj elemenata u memtejblu
     size_t size() const override;
 
     // setMaxSize postavlja maksimalnu velicinu memtejbla
     void setMaxSize(size_t maxSize) override;
-
-    // loadFromWal ucitava podatke iz WAL fajla.
-    void loadFromWal(const std::string& wal_file) override;
-
+    
     // vector<pair<string, string>> getAllKeyValuePairs() const override;
 
     std::vector<MemtableEntry> getAllMemtableEntries() const override;
@@ -42,6 +39,8 @@ public:
 
 	// NOVO: ažurira zapis
 	void updateEntry(const std::string& key, const MemtableEntry& entry) override;
+
+    virtual std::vector<MemtableEntry> getSortedEntries() const override;
 
 private:
     SkipList skiplist_;

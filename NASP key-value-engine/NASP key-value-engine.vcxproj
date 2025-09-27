@@ -24,6 +24,8 @@
     <ProjectGuid>{764a778a-9fcd-42a8-b1d2-3fd20b4add15}</ProjectGuid>
     <RootNamespace>NASPkeyvalueengine</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>NASP key-value-engine</ProjectName>
+    <UsePowerShellExe>true</UsePowerShellExe>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -70,6 +72,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(SolutionDir)..\System;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -104,11 +109,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\System;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Memtable;$(SolutionDir)..\Wal;$(SolutionDir)..\block-manager;$(SolutionDir)..\System;$(SolutionDir)..\SSTable;$(SolutionDir)..\Cache;$(SolutionDir)..\MainApp;$(SolutionDir)..\LSM;$(SolutionDir)..\Config;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(SolutionDir)..\MainApp\x64\Debug\MainApp.obj;$(SolutionDir)..\MainApp\x64\Debug\TypesMenu.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableManager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableFactory.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableSkipList.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableHashMap.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableRaw.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableComp.obj;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\Wal\x64\Debug\Wal.obj;$(SolutionDir)..\CMS\x64\Debug\cms.obj;$(SolutionDir)..\MurmurHash3\x64\Debug\MurmurHash3.obj;$(SolutionDir)..\System\x64\Debug\System.obj;$(SolutionDir)..\System\x64\Debug\TypesManager.obj;$(SolutionDir)..\LSM\x64\Debug\LSMManager.obj;$(SolutionDir)..\Config\x64\Debug\Config.obj;$(SolutionDir)..\TokenBucket\x64\Debug\ToketBucket.obj;$(SolutionDir)..\hyperloglog\x64\Debug\hll.obj;$(SolutionDir)..\SimHash\x64\Debug\simhash.obj;$(SolutionDir)..\MerkleTree\x64\Debug\merkle.obj;$(SolutiontDir)..\MerkleTree\libcrypto.lib;$(SolutionDir)..\SSTableIter\x64\Debug\SSTableIter.obj;$(SolutionDir)..\SSTableIter\x64\Debug\SSTableCursor.obj</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -128,12 +135,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\System\System.vcxproj">
-      <Project>{370092af-36a0-4027-95b3-b42d9e53bfaa}</Project>
-    </ProjectReference>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ProjectReference Include="..\MainApp\MainApp.vcxproj">
+      <Project>{e23ad1ad-a42f-49b1-b931-c469389cbd35}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -108,13 +108,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\Cache;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Cache;$(SolutionDir)..\Config;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)..\cache\x64\Debug\cache.obj;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\Config\x64\Debug\config.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -136,6 +136,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Cache\Cache.vcxproj">
       <Project>{bbe2b400-ec22-4474-bdef-8923446cf937}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Config\Config.vcxproj">
+      <Project>{7b9abda1-acc1-45dd-b7eb-ad59512ddea9}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

@@ -110,13 +110,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\Wal;$(SolutionDir)..\Memtable;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SSTable</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Wal;$(SolutionDir)..\Memtable;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SSTable;$(SolutionDir)..\LSM;$(SolutionDir)..\Config</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableManager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableFactory.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableSkipList.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableHashMap.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\Wal\x64\Debug\Wal.obj;$(SolutionDir)..\CMS\x64\Debug\cms.obj;$(SolutionDir)..\MurmurHash3\x64\Debug\MurmurHash3.obj;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableManager.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableFactory.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableSkipList.obj;$(SolutionDir)..\Memtable\x64\Debug\MemtableHashMap.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableRaw.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableComp.obj;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\Wal\x64\Debug\Wal.obj;$(SolutionDir)..\CMS\x64\Debug\cms.obj;$(SolutionDir)..\MurmurHash3\x64\Debug\MurmurHash3.obj;$(SolutionDir)..\LSM\x64\Debug\LSMManager.obj;$(SolutionDir)..\Config\x64\Debug\Config.obj;$(SolutionDir)..\TokenBucket\x64\Debug\ToketBucket.obj;$(SolutionDir)..\hyperloglog\x64\Debug\hll.obj;$(SolutionDir)..\SimHash\x64\Debug\simhash.obj;$(SolutionDir)..\MerkleTree\x64\Debug\merkle.obj;$(SolutiontDir)..\MerkleTree\libcrypto.lib;$(SolutionDir)..\SSTableIter\x64\Debug\SSTableIter.obj;$(SolutionDir)..\SSTableIter\x64\Debug\SSTableCursor.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -141,19 +141,30 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="System.cpp" />
+    <ClCompile Include="TypesManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="System.h" />
+    <ClInclude Include="TypesManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\block-manager\block-manager.vcxproj">
       <Project>{6228c74d-ae1e-441e-b7cb-f26bc73c89b6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\BloomFilter\BloomFilter.vcxproj">
+      <Project>{c925acb9-baa1-45e2-b9b9-7119c12f3540}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Cache\Cache.vcxproj">
       <Project>{bbe2b400-ec22-4474-bdef-8923446cf937}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Memtable\Memtable.vcxproj">
       <Project>{c45940cd-1736-4b0a-8801-edb702e39602}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\simhash\simhash.vcxproj">
+      <Project>{78e45c51-cbcb-4a2d-85cd-044e20dc9743}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\TokenBucket\TokenBucket.vcxproj">
+      <Project>{076c451d-7dc4-43a9-aec9-117576c3fd40}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Wal\Wal.vcxproj">
       <Project>{5da9bc8b-8645-418b-9050-1b0e61e1121a}</Project>

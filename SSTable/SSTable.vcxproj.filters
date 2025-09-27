@@ -21,6 +21,12 @@
     <ClInclude Include="SSTManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SSTableComp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SSTableRaw.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SSTable.cpp">
@@ -30,6 +36,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SSTManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SSTableComp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SSTableRaw.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

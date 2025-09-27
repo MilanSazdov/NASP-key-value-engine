@@ -112,12 +112,12 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(SolutionDir)..\SSTable;$(SolutionDir)..\Wal;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SkipList;$(SolutionDir)..\MerkleTree;$(SolutionDir)..\BloomFilter</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\OpenSSL-Win64\include;$(SolutionDir)..\SSTable;$(SolutionDir)..\Wal;$(SolutionDir)..\block-manager;$(SolutionDir)..\Cache;$(SolutionDir)..\SkipList;$(SolutionDir)..\MerkleTree;$(SolutionDir)..\BloomFilter;$(SolutionDir)..\LSM;$(SolutionDir)..\Config</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\Wal\x64\Debug\wal.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\MerkleTree.obj;$(SolutionDir)..\MerkleTree\additional\libcrypto.lib;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)..\SSTable\x64\Debug\SSTManager.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTable.obj;$(SolutionDir)..\Wal\x64\Debug\wal.obj;$(SolutionDir)..\block-manager\x64\Debug\block-manager.obj;$(SolutionDir)..\Cache\x64\Debug\cache.obj;$(SolutionDir)..\BloomFilter\x64\Debug\BloomFilter.obj;$(SolutionDir)..\MerkleTree\x64\Debug\merkle.obj;$(SolutionDir)..\MerkleTree\libcrypto.lib;$(SolutionDir)..\SkipList\x64\Debug\SkipList.obj;$(SolutionDir)..\LSM\x64\Debug\LSMManager.obj;$(SolutionDir)..\Config\x64\Debug\Config.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableRaw.obj;$(SolutionDir)..\SSTable\x64\Debug\SSTableComp.obj</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -147,6 +147,7 @@
     <ClInclude Include="MemtableSkipList.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BTree.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MemtableFactory.cpp" />
     <ClCompile Include="MemtableHashMap.cpp" />
@@ -154,6 +155,9 @@
     <ClCompile Include="MemtableSkipList.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\LSM\LSM.vcxproj">
+      <Project>{f4305f7b-8b94-41f6-8f5d-bacc683716f8}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\SkipList\SkipList.vcxproj">
       <Project>{696a9cf6-8afa-4d64-bf62-878d6b29c179}</Project>
     </ProjectReference>

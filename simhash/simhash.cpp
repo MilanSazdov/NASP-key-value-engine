@@ -2,6 +2,7 @@
 #include "../MurmurHash3/MurmurHash3.h"
 #include <stdexcept>
 
+using namespace std;
 
 SimHash::SimHash() {
     const vector<string> stopWordsList = {

@@ -45,15 +45,23 @@ void input_test_data(Wal*& w1) {
 }
 
 int main() {
-    System system;
+
+    std::cout << "[Main] Launching system...\n";
+    System sys;
+    
+
+
+    std::cout << "[Main] System launched successfully.\n";
+
 
     // Dodavanje novih ključeva i vrednosti
+    /*
     std::cout << "[Main] Dodavanje kljuceva u Memtable...\n";
     system.put("key1", "value1", false);
     system.put("key2", "value2", false);
     system.put("key3", "value3", false);
     system.put("key3", "value3", true);
-
+    */
     /*
     // Ažuriranje postojeće vrednosti
     std::cout << "[Main] Ažuriranje vrednosti za ključ 'key2'...\n";
@@ -80,7 +88,7 @@ int main() {
     // Ispis svih podataka u Memtable
     std::cout << "\n[Main] Svi podaci u Memtable nakon testiranja:\n";
     */
-    system.memtable->printAllData();
+    // system.memtable->printAllData();
 
     return 0;
 }

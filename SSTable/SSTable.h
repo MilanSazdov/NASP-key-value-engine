@@ -1,29 +1,41 @@
-﻿#pragma once
+#pragma once
 #include <string>
 #include <vector>
-#include <fstream>
 #include <cstdint>
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
-//#include <additional/sha.h> // OpenSSL za SHA256 heširanje
 
-#include "wal.h"
-#include "BloomFilter.h"
+#include "../Wal/wal.h"
+#include "../BloomFilter/BloomFilter.h"
+#include "../MerkleTree/MerkleTree.h"
+#include "../Utils/VarEncoding.h"
 
-/**
- * Struktura za indeks: (key, offset),
- * offset je pozicija u data fajlu odakle pocinje taj zapis
- */
+
 struct IndexEntry {
     std::string key;
-    uint64_t offset;
+    ull offset;
 };
 
-struct Summary{
+struct Summary {
     std::vector<IndexEntry> summary;
     std::string min;
     std::string max;
+    uint64_t count;
+};
+
+struct TOC
+{
+    // uint64_t saved_block_size;
+	// uint64_t saved_idx_sparsity;
+    // uint64_t saved_summ_sparsity; Valjda ne
+	uint8_t flags; // Bit 0: Najmanji bit kompresija, sledeci single_file_mode
+	uint64_t version = 1; // za upuduce ako se updejtuje TOC
+	uint64_t data_offset, data_end;
+	uint64_t index_offset;
+	uint64_t summary_offset;
+	uint64_t filter_offset;
+	uint64_t meta_offset;
 };
 
 class SSTable {
@@ -34,12 +46,51 @@ public:
      *  - indexFile (npr. "index.sst")
      *  - filterFile (npr. "filter.sst")
      */
-    SSTable(
-        const std::string& dataFile,
+    SSTable(const std::string& dataFile,
         const std::string& indexFile,
         const std::string& filterFile,
         const std::string& summaryFile,
-        const std::string& metaFile);
+        const std::string& metaFile,
+        Block_manager* bmp) :
+
+        dataFile_(dataFile),
+        indexFile_(indexFile),
+        filterFile_(filterFile),
+        summaryFile_(summaryFile),
+        metaFile_(metaFile),
+        bmp(bmp),
+        is_single_file_mode_(false),
+        block_size(Config::block_size),
+        index_sparsity(Config::index_sparsity),
+        summary_sparsity(Config::summary_sparsity),
+        toc(),
+        ready_to_read_(false)
+    {
+    };
+    
+    SSTable(const std::string& dataFile,
+        Block_manager* bmp) :
+
+        dataFile_(dataFile),
+        indexFile_(dataFile),
+        filterFile_(dataFile),
+        summaryFile_(dataFile),
+        metaFile_(dataFile),
+        bmp(bmp),
+        is_single_file_mode_(true),
+        block_size(Config::block_size),
+        index_sparsity(Config::index_sparsity),
+        summary_sparsity(Config::summary_sparsity),
+        toc(),
+        ready_to_read_(false)
+    {
+    };
+
+    string getDataFileName() const { return dataFile_; }
+	string getIndexFileName() const { return indexFile_; }
+	string getFilterFileName() const { return filterFile_; }
+	string getSummaryFileName() const { return summaryFile_; }
+	string getMetaFileName() const { return metaFile_; }
 
     /**
      * build(...) - gradi SSTable iz niza Record-ova (npr. dobijenih iz memtable).
@@ -51,65 +102,119 @@ public:
      *   5) Kreira sparse index (key -> offset) i upisuje u indexFile_
      *   6) Snima BloomFilter u filterFile_
      */
-    void build(const std::vector<Record>& records);
+    virtual void build(std::vector<Record>& records);
 
     /**
      * get(key) - dohvatanje vrednosti iz data.sst
-     *   - proverava BloomFilter da li kljuc "mozda postoji"
-     *   - ako kaze "nema", vraca ""
-     *   - ako kaze "mozda ima", binarno pretrazi index, pa cita data fajl
-     *     dok ne nadje key ili ga ne predje (data fajl je sortiran)
      */
-    std::vector<Record> get(const std::string& key);
+    virtual std::vector<Record> get(const std::string& key) = 0;
 
     /**
-     * (Opciono) range_scan(startKey, endKey):
-     *    vraca sve (key,value) koji su izmedju startKey i endKey
-     
-    std::vector<std::pair<std::string, std::string>>
-        range_scan(const std::string& startKey, const std::string& endKey);
+     * get(key, n) - Dohvatanje do n elemenata iz sstabele
+     *    Pocinje od `key`, skuplja elemente dok ih nema `n`
+     *    ili dok ne dodje do kraja data fajla.
      */
-private:
+     // virtual std::vector<Record> get(const std::string& key, int n) = 0; 
+
+     /**
+      * getNextRecord(&offset, &error) - Čita jedan rekord desno od offset i menja offset.
+      *    error ce biti postavljen na true ukoliko dodje do kraja fajla.
+      */
+    virtual Record getNextRecord(uint64_t& offset, bool& error, bool& eof) = 0;
+
+    virtual bool validate() = 0;
+
+    /**
+     * findRecordOffset(key, bool& in_file) - vraća offset u bajtovima gde se prvi Record sa kljucem nalazi u data fajlu.
+     *    - Ukoliko sstabela ne sadrzi kljuc, funkcija vraca offset najblizeg desnog elementa i stavlja in_file = false
+     *    - Ukoliko sstabela ne sadrzi kljuc i kljuc je veci od najveceg u tabeli, funckija vraca numeric_limits<uint64_t>::max();
+     */
+    virtual uint64_t findRecordOffset(const std::string& key, bool& in_file) = 0;
+
+    /**
+     * getDataStartOffset() - vraća offset u bajtovima gde počinje data segment u data fajlu.
+     */
+    virtual uint64_t getDataStartOffset() { prepare(); return toc.data_offset; }
+
+    // i ovo sluzi samo za testiranje
+    virtual void printFileNames();
+
+    bool possiblyContains(const std::string& key);
+
+    virtual void prepare(); // Cita TOC i header summary fajla kako bi se pripremio za citanje
+
+    virtual std::string getSummaryMax() { prepare(); return summary_.max; }
+    virtual std::string getSummaryMin() { prepare(); return summary_.min; }
+
+protected:
     // putanje do fajlova
+    int block_size;
     std::string dataFile_;
     std::string indexFile_;
     std::string filterFile_;
     std::string summaryFile_;
     std::string metaFile_;
 
-    // u memoriji cuvamo index i bloom, ako zelimo, inace ucitavamo "on demand"
+    bool is_single_file_mode_;
+
     std::vector<IndexEntry> index_;
     Summary summary_;
+
     BloomFilter bloom_;
 
-    std::vector<std::string> tree;
-    std::string rootHash;
+    Block_manager* bmp;
 
-    std::string buildMerkleTree(const std::vector<std::string>& leaves);
+    std::string rootHash_; // Cuvamo samo korenski hash
+    std::vector<std::string> originalLeafHashes_; // Cuvamo originalne listove Merkle stabla
 
+    size_t summary_sparsity;
+    size_t index_sparsity;
+
+    TOC toc;
+    
+    bool ready_to_read_;
+    
     // ----- pomoćne metode -----
 
-    // Upisuje binarno (Record by record) u dataFile_
+   
+
+    // Upisuje dataFile_
     // Vraca vector<IndexEntry> da bismo iz njega generisali sparse index
-    std::vector<IndexEntry> writeDataMetaFiles(const std::vector<Record>& sortedRecords) const;
+    virtual std::vector<IndexEntry> writeDataMetaFiles(std::vector<Record>& sortedRecords) = 0;
 
-    // Snima 'index_' u indexFile_ (binarno)
-    std::vector<IndexEntry> writeIndexToFile();
+    // Snima 'index_' u indexFile_
+    virtual std::vector<IndexEntry> writeIndexToFile() = 0;
 
-    // Ucitava 'index_' iz indexFile_ (binarno) ako je prazan
-    void readIndexFromFile();
-
-    // Snima 'bloom_' u filterFile_ (binarno)
-    void writeBloomToFile() const;
+    // Snima 'bloom_' u filterFile_
+    virtual void writeBloomToFile() = 0;
 
     // Ucitava 'bloom_' iz filterFile_ ako vec nije
-    void readBloomFromFile();
-    void readSummaryFromFile();
+    virtual void readBloomFromFile() = 0;
+    virtual void readSummaryHeader() = 0;
 
-    void writeSummaryToFile();
-    void writeMetaToFile() const;
-    void readMetaFromFile();
+    virtual void writeSummaryToFile() = 0;
+    virtual void writeMetaToFile() = 0;
+    virtual void readMetaFromFile() = 0;
 
-    // Binarna pretraga po 'index_' da nadjemo offset "bloka" gde treba da pocnemo citanje
-    uint64_t findDataOffset(const std::string& key, bool& found) const;
+
+    bool readBytes(void* dst, size_t n, uint64_t& offset, string fileName) const;
+
+    // ovo mora ovde
+    template<typename UInt>
+    bool readNumValue(UInt& dst, uint64_t& fileOffset, string fileName) const {
+        char chunk;
+        bool finished = false;
+        size_t val_offset = 0;
+
+        dst = 0;
+
+        do {
+            if (!readBytes(&chunk, 1, fileOffset, fileName)) {
+                return false;
+            }
+            finished = varenc::template decodeVarint<UInt>(chunk, dst, val_offset);
+        } while (finished != true);
+
+        return true;
+    }
 };

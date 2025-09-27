@@ -2,7 +2,7 @@
 
 #include <string>
 #include <optional>
-#include "wal.h"
+#include "../Wal/wal.h"
 #include <vector>
 
 using namespace std;
@@ -32,13 +32,11 @@ public:
 
 	virtual void put(const string& key, const string& value) = 0;
 	virtual void remove(const string& key) = 0;
-	virtual optional<string> get(const string& key) const = 0;
+	virtual optional<string> get(const string& key, bool& deleted) const = 0;
 
 	virtual size_t size() const = 0;
 	virtual void setMaxSize(size_t maxSize) = 0;
-
-	virtual void loadFromWal(const string& walFilePath) = 0;
-
+	
 	// Ova funkcija mi vraca sve rekorde iz svih wal (segmenata) fajlova
 	// virtual void loadFromRecords(const vector<Record>& records) = 0;
 
@@ -51,4 +49,6 @@ public:
 	virtual std::optional<MemtableEntry> getEntry(const std::string& key) const = 0;
 	virtual void updateEntry(const std::string& key, const MemtableEntry& entry) = 0;
 
+	// Vraca sve MemtableEntry zapise sortirane po kljucu
+	virtual std::vector<MemtableEntry> getSortedEntries() const = 0;
 };

@@ -7,6 +7,7 @@
 #include <map>
 #include <algorithm>
 #include <iomanip>
+
 using namespace std;
 
 void extractDataFromCSV(const string& filename, vector<string>& zip_codes, vector<string>& states) {

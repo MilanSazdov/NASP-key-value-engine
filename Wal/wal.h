@@ -1,7 +1,8 @@
 #pragma once
 #include <string>
-#include "block-manager.h"
-using namespace std;
+#include "../block-manager/block-manager.h"
+#include "wal_types.h"
+#include "../Config/Config.h"
 
 /*
 	koristi se little endian! (znaci 260 = 0x0104, ali po bajtovima je 04 01)!!!
@@ -32,41 +33,39 @@ using namespace std;
 	datasize bytova data
 
 */
-const string first_segment = "wal_logs/wal_001.log";
-typedef long long ll;
-typedef unsigned long long ull;
-typedef unsigned int uint;
-
-struct Record {
-	uint crc;
-	byte flag;	//0, 'F', 'M', 'L'
-	ull timestamp;
-	byte tombstone;
-	ull key_size;
-	ull value_size;
-	string key;
-	string value;
-};
 
 class Wal {
 private:
-	int segment_size;
-	string min_segment;
-	Block_manager bm;
-	const string first_segment = "wal_logs/wal_001.log";
+	string log_directory;
 
-	Block find_next_empty_block(Block b);
+	// this is where writing happens, "points" always to the last empty key (block)
+	static composite_key current_block;
+	
+	// block manager for IO operations on disc
+	Block_manager& bm;
+
+	// private attribute for segment size
+	int segment_size;
+
+	// first segment to read when "get_all_records"
+	string min_segment;
+	void next_block(composite_key& key);
+
 	void write_record(string key, string value, byte tombstone = (byte)0);
 
+	void update_current_block();
+
+	void ensure_wal_folder_exists();
 public:
-	Wal();
-	Wal(int segment_size);
+	Wal(Block_manager& bm);
 
 	void put(string key, string data);
 	void del(string key);
+
+	// returns ALL records that are in wal structure
 	vector<Record> get_all_records();
-	//void debug_records();
-	string find_min_segment();
-	void update_min_segment();
+
+	// Low Water Mark (valjda) function to delete all wal segments (files) before target_file
 	void delete_old_logs(string target_file);
+	// void debug_records();
 };

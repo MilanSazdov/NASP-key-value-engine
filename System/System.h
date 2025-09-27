@@ -1,20 +1,65 @@
 #pragma once
 
-#include "wal.h"
-#include "MemtableManager.h"
-#include <iostream>
+
+#include "../Wal/wal.h"
+#include "../Memtable/MemtableManager.h"
+#include "../Config/Config.h"
+#include "TypesManager.h"
+#include "../TokenBucket/TokenBucket.h"
+#include "../SSTable/SSTManager.h"
+#include "../LSM/LSMManager.h"
+#include "../SSTableIter/SSTableCursor.h"
 
 class System {
-	
-public:
 
+public:
 	Wal* wal;
 	MemtableManager* memtable;
+	SSTManager* sstable;
+	Block_manager* sharedInstanceBM;
+	Cache<string>* cache;
+	TokenBucket* tokenBucket;
+	TypesManager* typesManager;
+	LSMManager* lsmManager_;
 
 public:
-
 	System();
 
-	void put(std::string key, std::string value, bool tombstone);
+	~System();
+
+	void put(const std::string& key, const std::string& value);
+	void del(const std::string& key);
+	std::optional<std::string> get(const std::string& key);
+
+	TypesManager* getTypesManager();
+
+	void debugWal() const;
+	void debugMemtable() const;
+
+	void resetSystem(string folder);
+
+	// sluzi za testiranje, ne znam jel treba system ovo da poziva...?
+	void removeSSTables();
+
+	void prefixScan(const std::string& prefix, int page_size);
+	void rangeScan(const std::string& min_Key, const std::string& max_key, int page_size);
+	void validateSSTables(int level);
+
+
+private:
+
+	// Onemogucavamo kopiranje da bismo izbegli probleme sa vlasnistvom pokazivaca
+	System(const System&) = delete; // Prevent copying
+	System& operator=(const System&) = delete; // Prevent assignment
+	void add_records_to_cache(vector<Record> records);
+
+	// Rate limiting 
+	int requestCounter;
+	static const int SAVE_INTERVAL = 10; // Cuvanje stanja svakih 10 zahtjeva
+	static const std::string RATE_LIMIT_KEY;
+
+	void saveTokenBucket();
+	void loadTokenBucket();
+	bool checkRateLimit(); // Vraca true ako je prihvacen
 
 };

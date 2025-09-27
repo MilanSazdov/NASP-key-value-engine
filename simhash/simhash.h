@@ -4,17 +4,16 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
-
-using namespace std;
+#include <cstdint>
 
 class SimHash {
 private:
-    map<string, bool> stopWords;
-    uint64_t hashWord(const string& word) const;
-    uint64_t computeFingerprint(const vector<string>& words) const;
+    std::map<std::string, bool> stopWords;
+    uint64_t hashWord(const std::string& word) const;
+    uint64_t computeFingerprint(const std::vector<std::string>& words) const;
 public:
-    vector<string> parseText(const string& text) const;
+    std::vector<std::string> parseText(const std::string& text) const;
     SimHash();
-    int hammingDistance(const string& text1, const string& text2) const;
-    uint64_t getFingerprint(const string& text) const;
+    int hammingDistance(const std::string& text1, const std::string& text2) const;
+    uint64_t getFingerprint(const std::string& text) const;
 };

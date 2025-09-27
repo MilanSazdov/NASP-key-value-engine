@@ -3,12 +3,16 @@
 #include <fstream>
 #include <vector>
 #include <filesystem> 
-//#include "block-manager.h"
-
+#include "block-manager.h"
 #include "wal.h"
+
 namespace fs = std::filesystem;
 using namespace std;
-const string fn = "wal_logs/wal_001.log";
+const string WAL_FOLDER = "../data/wal_logs";
+
+void info(const string s) {
+    cout << "[INFO]" + s + "\n";
+}
 
 /*
     STA TREBA DODATI?
@@ -18,11 +22,25 @@ const string fn = "wal_logs/wal_001.log";
     Neka podesavanja, recimo padding_character, sada je podesen na '0' radi debugovanja, treba da bude 0, cahche size, block size ...
 */
 
+void debug_record2(Record r) {
+    cout << "CRC: " << r.crc << endl;
+    cout << "TIMESTAMP: " << r.timestamp << endl;
+    cout << "TOMBSTONE: " << int(r.tombstone) << endl;
+    cout << "KEYSIZE: " << r.key_size << endl;
+    cout << "VALUESIZE: " << r.value_size << endl;
+    cout << "KEY: " << r.key << endl;
+    cout << "VALUE: " << r.value << endl;
+}
+
 void input_test_data(Wal& w1) {
-    w1.put("apple", "fruit");
+    info("Added 40 records");
+    /* w1.put("apple", "fruit");
     w1.put("dog", "animal");
+    
     w1.put("rose", "flower");
-    w1.put("carrot", "vegetable");
+    w1.put("ja sam mali paradajz i zivim u basti", "bas bi bilo lepo kad bi se prepustio masti");
+
+    return;*/
     w1.put("oak", "tree");
     w1.put("sparrow", "bird");
     w1.put("shark", "fish");
@@ -60,7 +78,9 @@ void input_test_data(Wal& w1) {
     w1.put("music", "art");
     w1.put("dream", "thought");
 }
+
 void input_test_data2(Wal& w1) {
+    info("Added 10 records");
     w1.put("the sun rises in the east", "natural phenomenon");
     w1.put("a journey of a thousand miles begins with a single step", "philosophical saying");
     w1.put("the pen is mightier than the sword", "proverb");
@@ -74,6 +94,7 @@ void input_test_data2(Wal& w1) {
 }
 
 void delete_more(Wal& w1) {
+    info("Deleted 6 records");
     w1.del("apple");
     w1.del("cloud");
     w1.del("time");
@@ -81,7 +102,9 @@ void delete_more(Wal& w1) {
 	w1.del("energy");
     w1.del("mountain");
 }
+
 void delete_more2(Wal& w1) {
+    info("Deleted 3 records");
     w1.del("actions speak louder than words");
     w1.del("the pen is mightier than the sword");
     w1.del("you miss 100% of the shots you don't take");
@@ -101,55 +124,98 @@ void print_files_in_folder(const string& folder_path) {
     }
 }
 
-int main() {
-    string folder_path = "wal_logs";
+void delete_all_files(string folderPath) {
+    try {
+        // Check if the folder exists
+        if (fs::exists(folderPath) && fs::is_directory(folderPath)) {
+            for (const auto& entry : fs::directory_iterator(folderPath)) {
+                if (fs::is_regular_file(entry)) { // Check if it's a file
+                    fs::remove(entry); // Delete the file
+                    //std::cout << "Deleted: " << entry.path() << std::endl;
+                }
+            }
+            std::cout << "All files in the folder have been deleted." << std::endl << std::endl;
+        }
+        else {
+            std::cout << "Folder does not exist or is not a directory." << std::endl;
+        }
+    }
+    catch (const fs::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+}
 
-    // Step 1: Display files in 'wal_logs' before execution
-    cout << "Files in '" << folder_path << "' before execution:\n";
-    print_files_in_folder(folder_path);
-    cout << endl;
+//ovo je zbog maina, nema veze sa projekom!
+string log_directory = "../data/wal_logs";
+
+int main() {
+    cout << "creating wal\n";
+    Block_manager bm;
+
+    Wal w1(bm);
+    
+    vector<Record> ret1 = w1.get_all_records();
+    for (Record r : ret1) {
+        debug_record2(r);
+        cout << endl;
+    }
+    //w1.put("djuka", "puska");
+
+    //ensure_wal_folder_exists();
+
 
     // Step 2: Create a Wal object and test its methods
-    cout << "Testing Wal class methods...\n";
-    Wal w1;
+    cout << "Step 2: Testing Wal class methods...\n";
+   
 
-    cout << "Inputting test data...\n";
+    info("Inputting test data...");
+
     input_test_data(w1);
+
     input_test_data2(w1);
 
-    cout << "Deleting records using delete_more functions...\n";
+    info("Deleting some records using delete_more functions...");
     delete_more(w1);
     delete_more2(w1);
 
+    w1.put("apple", "FRUIT");
+
     // Step 3: Display files in 'wal_logs' after Wal methods execution
-    cout << "\nFiles in '" << folder_path << "' after Wal methods execution:\n";
-    print_files_in_folder(folder_path);
+    cout << "\nStep 3: Files in '" << WAL_FOLDER << "' after Wal methods execution:\n";
+    print_files_in_folder(WAL_FOLDER);
     cout << endl;
 
     // Step 4: Retrieve and display all records from Wal
     vector<Record> ret = w1.get_all_records();
-    cout << "Total records in Wal: " << ret.size() << endl;
+    cout << "Step 4: Total records in Wal: " << ret.size() << endl;
     for (const Record& r : ret) {
-        cout << r.key << " " << r.value << endl;
+        cout << (char)r.tombstone << " " << r.key << " " << r.value << endl;
     }
     cout << endl;
+    
 
     // Step 5: Test find_min_segment and delete_old_logs functionality
-    cout << "Testing find_min_segment and delete_old_logs...\n";
-    cout << "Minimum segment: " << w1.find_min_segment() << endl;
+    cout << "Step 5: Testing find_min_segment and delete_old_logs...\n";
+    //cout << "Minimum segment: " << w1.find_min_segment() << endl;
 
-    cout << "Deleting logs older than 'wal_002.log'...\n";
+    cout << "\nDeleting logs older than 'wal_002.log'...\n";
     w1.delete_old_logs("wal_002.log");
-    cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
-
+    //cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
+    
+    print_files_in_folder(log_directory);
+    cout << endl;
     cout << "Deleting logs older than 'wal_004.log'...\n";
     w1.delete_old_logs("wal_004.log");
-    cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
+    //cout << "Minimum segment after deletion: " << w1.find_min_segment() << endl;
 
     // Step 6: Final display of files in 'wal_logs'
-    cout << "\nFiles in '" << folder_path << "' after all operations:\n";
-    print_files_in_folder(folder_path);
+    cout << "\nFiles in '" << log_directory << "' after all operations:\n";
+    print_files_in_folder(log_directory);
 
 
     return 0;
+    
 }

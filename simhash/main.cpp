@@ -2,6 +2,8 @@
 #include <iostream>
 #include <iomanip>
 
+using namespace std;
+
 void printFingerprint(const uint64_t fingerprint) {
     cout << "Fingerprint: ";
     for (int i = 63; i >= 0; i--) {

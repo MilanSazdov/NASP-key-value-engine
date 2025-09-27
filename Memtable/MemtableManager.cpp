@@ -1,193 +1,169 @@
-﻿#include "MemtableManager.h"
-#include "MemtableFactory.h"
+﻿
 #include <memory>
+#include <iostream>
+#include <map>
+#include <fstream>
+#include <stdexcept>
+#include "MemtableManager.h"
+#include "MemtableFactory.h"
 
-MemtableManager::MemtableManager(const std::string& type,
-    size_t N,
-    size_t maxSizePerTable,
-    const std::string& directory)
-    : type_(type),
-    N_(N),
-    maxSize_(maxSizePerTable),
-    sstManager(directory)
+MemtableManager::MemtableManager(SSTManager* sst)
+    : sstManager_(sst),
+    type_(Config::memtable_type),
+    N_(Config::memtable_instances),
+    maxSize_(Config::memtable_max_size),
+    directory_(Config::data_directory),
+    activeIndex_(0)
 {
-    memtables_.reserve(N_);
-    // Kreiramo prvu memtable (aktivnu)
-    auto first = std::unique_ptr<IMemtable>(createNewMemtable());
-    first->setMaxSize(maxSizePerTable);
-    memtables_.push_back(std::move(first));
-    activeIndex_ = 0;
-}
+    // Kreiraj SSTManager
 
-MemtableManager::MemtableManager(const std::string& type, size_t N, size_t maxSizePerTable)
-    : type_(type),
-    N_(N),
-    maxSize_(maxSizePerTable),
-    sstManager("./")
-{
+    // TODO: Kreiraj odabranu strategiju kompakcije na osnovu vrednosti iz Config klase
+
+    // TODO: Kreiraj LSMManager i prosledi mu kreiranu strategiju i kreirani sstmanager
+
+    // Inicijalizuj prvu (aktivnu) Memtable
     memtables_.reserve(N_);
-    // Kreiramo prvu memtable (aktivnu)
     auto first = std::unique_ptr<IMemtable>(createNewMemtable());
-    first->setMaxSize(maxSizePerTable);
+    first->setMaxSize(maxSize_);
     memtables_.push_back(std::move(first));
-    activeIndex_ = 0;
 
 }
 
 MemtableManager::~MemtableManager() {
-    flushAll();
+    // flushujemo sve preostale memtable pre gasenja da ne izgubimo podatke
+    while (!memtables_.empty()) {
+        flushOldest();
+    }
 }
 
 void MemtableManager::put(const std::string& key, const std::string& value) {
-    // Ubacujemo u aktivnu
-    auto& active = memtables_[activeIndex_];
-    active->put(key, value);
-
-	std::cout << "[MemtableManager] Key '" << key << "' added.\n";
-
-    // Ako predje maxSize -> prelazimo na nov memtable
-    if (active->size() >= maxSize_) {
-        if (memtables_.size() < N_) {
-            switchToNewMemtable();
-        }
-        else {
-            // TODO: Kada popunimo svih N, FLUSUHJEMO PRVU NAPRAVLJENU (NAJSTARIJU) i od nje pravimo novi SSTable
-            // Popunili smo svih N -> flushAll
-            flushAll();
-            // i ponovo kreiramo jednu memtable
-            memtables_.clear();
-            auto fresh = std::unique_ptr<IMemtable>(createNewMemtable());
-            fresh->setMaxSize(maxSize_);
-            memtables_.push_back(std::move(fresh));
-            activeIndex_ = 0;
-        }
-    }
+    memtables_[activeIndex_]->put(key, value);
+    std::cout << "[MemtableManager] Key '" << key << "' added.\n";
 }
 
 void MemtableManager::remove(const std::string& key) {
-    auto& active = memtables_[activeIndex_];
-    active->remove(key);
+    memtables_[activeIndex_]->remove(key);
+    std::cout << "[MemtableManager] Key '" << key << "' marked for deletion.\n";
+    if (checkFlushIfNeeded()) {
+        flushMemtable();
+    }
+}
 
-    if (active->size() >= maxSize_) {
+bool MemtableManager::checkFlushIfNeeded() {
+    if (memtables_[activeIndex_]->size() >= maxSize_) {
         if (memtables_.size() < N_) {
+            std::cout << "[MemtableManager] Active memtable is full. Switching to a new one.\n";
             switchToNewMemtable();
+            return false;
         }
         else {
-            flushAll();
-            memtables_.clear();
-            auto fresh = std::unique_ptr<IMemtable>(createNewMemtable());
-            fresh->setMaxSize(maxSize_);
-            memtables_.push_back(std::move(fresh));
-            activeIndex_ = 0;
+            std::cout << "[MemtableManager] All memtable slots are full. Flushing the oldest one to make space.\n";
+            //flushOldest
+            //switchToNewMemtable
+            return true;
+        }
+    }
+    return false;
+}
+
+void MemtableManager::flushMemtable() {
+    flushOldest();
+    switchToNewMemtable();
+}
+
+void MemtableManager::switchToNewMemtable() {
+    auto newMem = std::unique_ptr<IMemtable>(createNewMemtable());
+    newMem->setMaxSize(maxSize_);
+    memtables_.push_back(std::move(newMem));
+    activeIndex_ = memtables_.size() - 1; // Nova aktivna tabela je poslednja dodata
+}
+
+void MemtableManager::flushOldest() {
+    if (memtables_.empty()) {
+        return;
+    }
+
+    // uzimamo najstariju memtable (ona koja je na pocetku vektora)
+    auto& oldestMemtable = memtables_.front();
+    std::vector<MemtableEntry> entries = oldestMemtable->getSortedEntries();
+
+    if (entries.empty()) {
+        std::cout << "[MemtableManager] Oldest memtable is empty, removing it without flushing." << std::endl;
+    }
+    else {
+        std::vector<Record> records;
+        records.reserve(entries.size());
+        for (const auto& entry : entries) {
+            Record r;
+            r.key = entry.key;
+            r.key_size = entry.key.size();
+            r.value = entry.value;
+            r.value_size = entry.value.size();
+            r.tombstone = entry.tombstone ? std::byte{ 1 } : std::byte{ 0 };
+            r.timestamp = entry.timestamp;
+            records.push_back(r);
+        }
+        std::cout << "[MemtableManager] Flushing " << records.size() << " records to Level 0...\n";
+        for(const auto& rec : records) {
+            std::cout << "  " << rec.key
+                << ", " << rec.value
+                << ", " << (rec.tombstone == std::byte{1} ? "true" : "false")
+                << ", " << rec.timestamp << "\n";
+		}
+        // flushhovanje
+        sort(records.begin(), records.end(), [](const Record& a, const Record& b) {return a.key < b.key; }); // Sortiramo po kljucevima
+        sstManager_->write(records, 1);
+    }
+
+    // brisemo najstariju memtable iz memorije
+    memtables_.erase(memtables_.begin());
+
+    // Posto smo obrisali element sa pocetka, svi indeksi su se pomerili ulevo
+    if (activeIndex_ > 0) {
+        activeIndex_--;
+    }
+    else {
+        // ako je bila samo jedna tabela, sada je vektor prazan
+        // Naredni put ce kreirati novu tabelu
+        if (memtables_.empty()) {
+            activeIndex_ = 0; // Reset
         }
     }
 }
 
-std::optional<std::string> MemtableManager::get(const std::string& key) const {
-    // Provera da li je u memtable, ako ne, prosleduje sstManageru
+std::optional<std::string> MemtableManager::get(const std::string& key, bool& deleted) const {
+    // prvo pretrazujemo memtable, od najnovije ka najstarijoj
+    deleted = false;
     for (int i = static_cast<int>(memtables_.size()) - 1; i >= 0; i--) {
-        auto val = memtables_[i]->get(key);
+        auto val = memtables_[i]->get(key, deleted);
+        if (deleted) {
+            return nullopt;
+        }
         if (val.has_value()) {
             return val;
         }
     }
 
-    // Ako nije ni u jednoj -> probamo u SSTable
-    auto result = sstManager.get(key);
-    if (!result.empty()) {
-        return result;
-    }
-
     return std::nullopt;
 }
 
-void MemtableManager::flushAll() {
-    if (memtables_.empty()) {
-        return; // Nema aktivnih memtables za flush
-    }
-
-    // Uzimamo najstariju memtable (prva u vektoru)
-    auto& oldestMemtable = memtables_.front();
-
-    // Pretvaramo njene unose u zapise za SSTable
-    std::vector<Record> records;
-    for (const auto& entry : oldestMemtable->getAllMemtableEntries()) {
-        Record r;
-        //TODO: CRC treba dodati
-        r.key = entry.key;
-        r.key_size = entry.key.size();
-        r.value = entry.value;
-        r.value_size = entry.value.size();
-        r.tombstone = (entry.tombstone ? std::byte{ 1 } : std::byte{ 0 });
-        r.timestamp = entry.timestamp;
-        records.push_back(r);
-    }
-
-    // Pišemo ove zapise u SSTable koristeći sstManager
-    sstManager.write(records);
-
-    // Brišemo najstariju memtable iz memorije
-    memtables_.erase(memtables_.begin());
-}
-
-
 IMemtable* MemtableManager::createNewMemtable() const {
-    return MemtableFactory::createMemtable(type_);
+    return MemtableFactory::createMemtable();
 }
 
-void MemtableManager::switchToNewMemtable() {
-    // kreiramo novu i stavljamo je kao aktivnu
-    auto newMem = std::unique_ptr<IMemtable>(createNewMemtable());
-    newMem->setMaxSize(maxSize_);
-    memtables_.push_back(std::move(newMem));
-    activeIndex_ = memtables_.size() - 1;
-}
-
-// Trazenje kljuca u aktivnoj tabeli, ako ga ne nadjemo => dodajemo
-// Ako ga nadjem, menjam tombstone i timestamp
-// TODO: LANMI MAJAMI
 void MemtableManager::loadFromWal(const std::vector<Record>& records) {
     for (const auto& record : records) {
-
-        // Proveravamo da li kljuc vec postoji u aktivnoj memtable
-        auto existingValue = memtables_[activeIndex_]->get(record.key);
-
-        if (existingValue.has_value()) {
-            // Dobijamo trenutni zapis iz opcionalnog rezultata
-            MemtableEntry currentEntry = memtables_[activeIndex_]->getEntry(record.key).value();
-            currentEntry.tombstone = static_cast<bool>(record.tombstone);
-            currentEntry.timestamp = record.timestamp;
-
-            // Čuvamo ažurirani zapis nazad u Memtable
-            memtables_[activeIndex_]->updateEntry(record.key, currentEntry);
-            std::cout << "[MemtableManager] Key '" << record.key << "' updated with new tombstone and timestamp.\n";
+        if (static_cast<bool>(record.tombstone)) {
+            memtables_[activeIndex_]->remove(record.key);
         }
         else {
-            // Ako ključ ne postoji, dodajemo ga
-            std::string compositeValue = record.value;
-            memtables_[activeIndex_]->put(record.key, compositeValue);
-            std::cout << "[MemtableManager] Key '" << record.key << "' added.\n";
+            memtables_[activeIndex_]->put(record.key, record.value);
         }
-
-        // Provera da li je aktivna Memtable popunjena
-        if (memtables_[activeIndex_]->size() >= maxSize_) {
-            if (memtables_.size() < N_) {
-                switchToNewMemtable();
-				std::cout << "[MemtableManager] Switched to new Memtable.\n";
-            }
-            else {
-                // Ako su sve Memtable popunjene, flushujemo najstariju i kreiramo novu
-				std::cout << "[MemtableManager] Flushing all Memtables.\n";
-                flushAll();
-                auto newMemtable = std::unique_ptr<IMemtable>(createNewMemtable());
-                newMemtable->setMaxSize(maxSize_);
-                memtables_.push_back(std::move(newMemtable));
-                activeIndex_ = memtables_.size() - 1;
-            }
+        if (checkFlushIfNeeded()) {
+            flushMemtable();
         }
     }
-
-    std::cout << "[MemtableManager] Records from WAL loaded into Memtable.\n";
+    std::cout << "[MemtableManager] " << records.size() << " records from WAL loaded into Memtable.\n";
 }
 
 void MemtableManager::printAllData() const {
@@ -195,10 +171,64 @@ void MemtableManager::printAllData() const {
         std::cout << "Memtable " << i << (i == activeIndex_ ? " (READ WRITE)" : " (READ ONLY)") << ":\n";
         std::vector<MemtableEntry> entries = memtables_[i]->getAllMemtableEntries();
         for (const auto& entry : entries) {
-            std::cout << "  Key: " << entry.key
-                << ", Value: " << entry.value
-                << ", Tombstone: " << entry.tombstone
+            std::cout << "\033[31m" << "  Key: " << entry.key
+                << "\033[0m" << ", " << "\033[32m" << "Value: " << entry.value
+                << "\033[0m" << ", Tombstone: " << entry.tombstone
                 << ", Timestamp: " << entry.timestamp << "\n";
         }
     }
+// red: << "\033[31m" << "This text is red!" << "\033[0m" <<
+// greem" "\033[32m" << "This text is green!" << "\033[0m"
+}
+
+std::vector<MemtableEntry> MemtableManager::getAllEntries() const {
+    std::vector<MemtableEntry> result;
+
+    for (const auto& mt_ptr : memtables_) {
+        if (!mt_ptr) continue;
+
+        auto entries = mt_ptr->getAllMemtableEntries();
+        result.insert(
+            result.end(),
+            std::make_move_iterator(entries.begin()),
+            std::make_move_iterator(entries.end()) // da ne bi kopirali opet
+        );
+    }
+
+    return result;
+}
+
+
+//returns records from oldest memtable
+vector<Record> MemtableManager::getRecordsFromOldest() {
+    auto& oldestMemtable = memtables_.front();
+    std::vector<MemtableEntry> entries = oldestMemtable->getAllMemtableEntries();
+
+    if (entries.empty()) {
+        std::cout << "[MemtableManager] Oldest memtable is empty, removing it without flushing." << std::endl;
+    }
+    else {
+        std::vector<Record> records;
+        records.reserve(entries.size());
+        for (const auto& entry : entries) {
+            Record r;
+            r.key = entry.key;
+            r.key_size = entry.key.size();
+            r.value = entry.value;
+            r.value_size = entry.value.size();
+            r.tombstone = entry.tombstone ? std::byte{ 1 } : std::byte{ 0 };
+            r.timestamp = entry.timestamp;
+            records.push_back(r);
+        }
+        return records;
+    }
+}
+
+void MemtableManager::printSSTables(int level) {
+    std::cout << "[MemtableManager] Printing SSTables from level " << level << ":\n";
+    auto tables = sstManager_->getTablesFromLevel(level);
+    for (auto& table : tables) {
+        table->printFileNames();
+        std::cout << "\n";
+	}
 }

@@ -1,24 +1,26 @@
 #pragma once
-#include "cache.h"
+#include "../Cache/cache.h"
 #include <vector>
 #include <string>
+#include "../Config/Config.h"
 using namespace std;
 
-//typedef pair<int, string> composite_key;
+struct pair_hash {
+	size_t operator()(const pair<int, string>& p) const {
+		return hash<int>()(p.first) ^ hash<string>()(p.second);
+	}
+};
 
 class Block_manager {
-	Cache c;
+	int block_size;
+	Cache<composite_key, pair_hash>* c;
+
+	void fill_in_padding(vector<byte>& bad_data);
+
 public:
-	//Block_manager();
-	void write_data(string file_name, vector<char> data);
-	vector<char> read_data(string file_name);
+	Block_manager();
+	void write_block(composite_key key, vector<byte> data);
+	void write_block(composite_key key, string data);
 
-	Block read_block(composite_key key, bool& error);
-	Block read_block(int id, string file_name, bool& error);	 //same as above
-
-	//void write_block(composite_key key, vector<char> data);
-	void write_block(Block b);										//update of block
-	//void write_block(int id, string file_name, vector<char> data);	//same as above
-
-	//void write_new_block(string file_name, vector<char> data);	//append data, it can be more than one block
+	vector<byte> read_block(composite_key key, bool& error);
 };
