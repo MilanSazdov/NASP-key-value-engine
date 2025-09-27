@@ -147,6 +147,8 @@ void MainApp::test_leveled() {
     }
     cout << "[TEST] Inserted 20 more users (user011 to user030)\n";
 	cout << "[TEST] This should have triggered compaction if memtable limit was reached.\n\n\n";
+
+
 }
 
 void MainApp::test_case() {
