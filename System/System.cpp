@@ -110,6 +110,8 @@ TypesManager* System::getTypesManager() {
 
 bool System::checkRateLimit() {
     bool isRefilled;
+    return true;
+
     if (!tokenBucket->allowRequest(&isRefilled)) {
         cout << "\033[31m[RATE LIMIT] Request denied - rate limit exceeded. Try again later.\033[0m\n";
         return false;
@@ -256,7 +258,6 @@ void System::put(const string& key, const string& value) {
 
 }
 
-// NIJE TESTIRANO!!
 optional<string> System::get(const string& key) {
     /*
         VRACA NULLOPT AKO KLJUC NE POSTOJI

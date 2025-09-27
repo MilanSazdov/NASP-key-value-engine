@@ -504,6 +504,7 @@ void SSTableRaw::writeSummaryToFile() {
 void SSTableRaw::readMetaFromFile() {
     rootHash_.clear();
     originalLeafHashes_.clear();
+    prepare();
 
     uint64_t offset = toc.meta_offset;
 
@@ -524,7 +525,6 @@ void SSTableRaw::readMetaFromFile() {
 
         string leaf;
         leaf.resize(leafSize);
-        leaf.reserve(leafSize);
         readBytes(&leaf[0], leafSize, offset, metaFile_);
 
         originalLeafHashes_.push_back(leaf);
@@ -588,6 +588,11 @@ void SSTableRaw::writeMetaToFile() { // (ili SSTableComp::writeMetaToFile)
     // Zapisujemo ceo payload u meta fajl (ova logika je vaša postojeća)
     int block_id = toc.meta_offset / block_size;
     size_t offset = 0;
+    std::cout << "      Upisujem Payload za : " << metaFile_ << " : ";
+    for (char c : payload) {
+        std::cout << hex << c;
+    }
+    std::cout << endl;
     while (offset < payload.length()) {
         string chunk = payload.substr(offset, block_size);
         bmp->write_block({ block_id++, metaFile_ }, chunk);
