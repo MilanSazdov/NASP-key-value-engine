@@ -126,6 +126,29 @@ void MainApp::handleValidate() {
     system->validateSSTables(level);
 }
 
+void MainApp::test_leveled() {
+    for (int i = 1; i <= 10; i++) {
+        string key = "user" + (i < 10 ? "00" + to_string(i) : (i < 100 ? "0" + to_string(i) : to_string(i)));
+        string value = "data" + to_string(i % 5); // ponavljanje vrednosti da pravi duplikate 
+        system->put(key, value);
+        cout << "[PUT] Inserted key: " << key << " => " << value << "\n";
+    }
+	system->del("user005");
+    system->del("user007");
+    system->del("user009");
+
+    cout << "\n\n\n[TEST] Inserted 10 users, deleted 3 (user005, user007, user009)\n";
+    cout << "[TEST] Now inserting more users to trigger compaction...\n";
+    for (int i = 11; i <= 30; i++) {
+        string key = "user" + (i < 10 ? "00" + to_string(i) : (i < 100 ? "0" + to_string(i) : to_string(i)));
+        string value = "data" + to_string(i % 5); // ponavljanje vrednosti da pravi duplikate 
+        system->put(key, value);
+        cout << "[PUT] Inserted key: " << key << " => " << value << "\n";
+    }
+    cout << "[TEST] Inserted 20 more users (user011 to user030)\n";
+	cout << "[TEST] This should have triggered compaction if memtable limit was reached.\n\n\n";
+}
+
 void MainApp::test_case() {
     int n = 100;
 	cout << "\n\n\n[TEST CASE] Inserting "<< n <<" key-value pairs...\n";
@@ -181,16 +204,17 @@ void MainApp::test_case() {
 void MainApp::run() {
     int choice;
     //cin.ignore();
-    test_case();
+    test_leveled();
     
 	
     //system->removeSSTables();
 
     while (true) {
         showMenu();
+        
         cin >> choice;
         cin.ignore();
-
+        
         switch (choice) {
         case 1: handlePut(); break;
         case 2: handleDelete(); break;
@@ -207,7 +231,8 @@ void MainApp::run() {
             debugMemtable();
             break;
         default:
-            cout << "Invalid choice.\n";
+            cout << "Invalid choice." << endl;
+            break;
         }
         cout << endl;
     }

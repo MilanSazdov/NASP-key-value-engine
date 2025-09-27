@@ -20,6 +20,7 @@ public:
 	MainApp();
 	~MainApp();
 
+	void test_leveled();
 	void run();
 	void showMenu();
 	void handlePut();

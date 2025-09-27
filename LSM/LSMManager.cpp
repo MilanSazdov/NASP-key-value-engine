@@ -132,7 +132,7 @@ static inline bool overlapsInclusive(const KeyRange& a, const KeyRange& b)
 static long long fileLimitForLevel(int level, int l0_trigger, int multiplier)
 {
     if (level <= 0) return std::max(1, l0_trigger);
-    long long cap = std::max(1, l0_trigger);
+    long long cap = 1;
     for (int i = 1; i <= level; ++i) {
         cap *= std::max(1, multiplier);
         if (cap > (1LL << 30)) break; // Zaštita od prelivanja

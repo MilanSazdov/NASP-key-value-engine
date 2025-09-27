@@ -63,7 +63,7 @@ vector<byte> Block_manager::read_block(composite_key key, bool& error) {
 		return ret;
 	}
 
-	cout << "Reading block: " << key.first << " " << key.second << endl;
+	//cout << "Reading block: " << key.first << " " << key.second << endl;
 	
 	ifstream file(key.second, ios::in | ios::binary);
 

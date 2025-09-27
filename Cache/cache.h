@@ -1,4 +1,4 @@
-// source: https://www.geeksforgeeks.org/lru-cache-implementation-using-double-linked-lists/Add commentMore actions
+﻿// source: https://www.geeksforgeeks.org/lru-cache-implementation-using-double-linked-lists/Add commentMore actions
 #pragma once
 #pragma once
 #include <string>
@@ -61,6 +61,125 @@ struct pair_hash {
 
 template <typename key_type, typename hash = hash<key_type>>
 
+class Cache {
+public:
+	Node<key_type>* tail;
+	Node<key_type>* head;
+
+	int capacity;
+	unordered_map<key_type, Node<key_type>*, hash> cache_map;
+
+	Cache() {
+		head = nullptr;
+		tail = nullptr;
+		capacity = Config::cache_capacity;
+	}
+
+	~Cache() {
+		// Oslobodi sve nodove
+		Node<key_type>* curr = head;
+		while (curr) {
+			Node<key_type>* next = curr->next;
+			delete curr;
+			curr = next;
+		}
+		cache_map.clear();
+	}
+
+	// ukloni node iz liste
+	void remove_node(Node<key_type>* node) {
+		if (node == nullptr) return;
+
+		Node<key_type>* prev = node->prev;
+		Node<key_type>* next = node->next;
+
+		if (prev == nullptr && next == nullptr) {
+			head = tail = nullptr;
+		}
+		else if (node == tail) {
+			if (prev) prev->next = nullptr;
+			tail = prev;
+		}
+		else if (node == head) {
+			if (next) next->prev = nullptr;
+			head = next;
+		}
+		else {
+			if (prev) prev->next = next;
+			if (next) next->prev = prev;
+		}
+
+		// reset pointere, da izbegnemo dangling
+		node->prev = node->next = nullptr;
+	}
+
+	// dodaj node na head (najnoviji)
+	void add_node(Node<key_type>* node) {
+		if (head == nullptr) {
+			head = tail = node;
+			node->prev = node->next = nullptr;
+			return;
+		}
+		node->next = head;
+		node->prev = nullptr;
+		head->prev = node;
+		head = node;
+	}
+
+	// ubaci (key, value) u cache
+	void put(key_type key, vector<byte> value) {
+		if (cache_map.find(key) != cache_map.end()) {
+			Node<key_type>* old_node = cache_map[key];
+			remove_node(old_node);
+			cache_map.erase(key);
+			delete old_node;
+		}
+
+		Node<key_type>* node = new Node<key_type>(key, value);
+		cache_map[key] = node;
+		add_node(node);
+
+		if ((int)cache_map.size() > capacity) {
+			// brišemo tail
+			key_type key_to_delete = tail->key;
+			Node<key_type>* to_delete = tail;
+			remove_node(to_delete);
+			cache_map.erase(key_to_delete);
+			delete to_delete;
+		}
+	}
+
+	// obriši key iz cache-a
+	void del(key_type key) {
+		auto it = cache_map.find(key);
+		if (it != cache_map.end()) {
+			Node<key_type>* old_node = it->second;
+			remove_node(old_node);
+			cache_map.erase(it);
+			delete old_node;
+		}
+	}
+
+	// dohvati vrednost
+	vector<byte> get(key_type key, bool& exists) {
+		auto it = cache_map.find(key);
+		if (it == cache_map.end()) {
+			exists = false;
+			return {};
+		}
+		exists = true;
+
+		Node<key_type>* ret = it->second;
+
+		// pomeri node na head (jer je korišćen)
+		remove_node(ret);
+		add_node(ret);
+
+		return ret->value;
+	}
+};
+
+/*
 class Cache {
 public:
 	Node<key_type>* tail;
@@ -167,8 +286,9 @@ public:
 
 		return ret->value;
 	}
+};
 
-	/*void print_cache() {
+/*void print_cache() {
 		cout << " Cache (head -> tail) [" << cache_map.size()  << "]:\n";
 
 		Node<key_type>* temp = head;
@@ -179,4 +299,3 @@ public:
 
 		cout << "_________\n";
 	}*/
-};

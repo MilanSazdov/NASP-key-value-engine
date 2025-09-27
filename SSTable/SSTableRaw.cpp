@@ -504,20 +504,28 @@ void SSTableRaw::writeSummaryToFile() {
 void SSTableRaw::readMetaFromFile() { // (ili SSTableComp::readMetaFromFile)
     rootHash_.clear();
     originalLeafHashes_.clear();
+    prepare();
+
+    //readBytes(&rootHash_., total_meta_size, offset, metaFile_)
 
     uint64_t offset = toc.meta_offset;
-    uint64_t meta_end_offset = toc.filter_offset; // Pretpostavka da je filter sledeći
+    //uint64_t meta_end_offset = toc.filter_offset; // Pretpostavka da je filter sledeći
 
-    if (offset >= meta_end_offset) return; // Nema meta podataka
-
-    size_t total_meta_size = meta_end_offset - offset;
+    size_t total_meta_size = std::filesystem::file_size(metaFile_) - offset;
     std::string payload;
     payload.resize(total_meta_size);
 
     // Čitamo ceo meta segment odjednom
     if (!readBytes(&payload[0], total_meta_size, offset, metaFile_)) {
+		std::cout << "Nisam ga ucitao jebem li ga" << std::endl;
         return;
     }
+    
+    std::cout << "   Ucitan Payload za : " << metaFile_ << " : ";
+    for (char c : payload) {
+        std::cout << hex << c;
+    }
+    std::cout << endl;
 
     size_t current_pos = 0;
 
@@ -606,6 +614,11 @@ void SSTableRaw::writeMetaToFile() { // (ili SSTableComp::writeMetaToFile)
     // Zapisujemo ceo payload u meta fajl (ova logika je vaša postojeća)
     int block_id = toc.meta_offset / block_size;
     size_t offset = 0;
+    std::cout << "      Upisujem Payload za : " << metaFile_ << " : ";
+    for (char c : payload) {
+        std::cout << hex << c;
+    }
+    std::cout << endl;
     while (offset < payload.length()) {
         string chunk = payload.substr(offset, block_size);
         bmp->write_block({ block_id++, metaFile_ }, chunk);
