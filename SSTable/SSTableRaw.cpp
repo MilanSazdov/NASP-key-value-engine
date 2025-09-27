@@ -501,46 +501,33 @@ void SSTableRaw::writeSummaryToFile() {
 
 // U SSTableRaw.cpp i SSTableComp.cpp
 
-void SSTableRaw::readMetaFromFile() { // (ili SSTableComp::readMetaFromFile)
+void SSTableRaw::readMetaFromFile() {
     rootHash_.clear();
     originalLeafHashes_.clear();
 
     uint64_t offset = toc.meta_offset;
-    uint64_t meta_end_offset = toc.filter_offset; // Pretpostavka da je filter sledeći
 
-    if (offset >= meta_end_offset) return; // Nema meta podataka
+    size_t rootHashSize;
+    readBytes(&rootHashSize, sizeof(rootHashSize), offset, metaFile_);
 
-    size_t total_meta_size = meta_end_offset - offset;
-    std::string payload;
-    payload.resize(total_meta_size);
+    rootHash_.resize(rootHashSize);
+    readBytes(&rootHash_[0], rootHashSize, offset, metaFile_);
 
-    // Čitamo ceo meta segment odjednom
-    if (!readBytes(&payload[0], total_meta_size, offset, metaFile_)) {
-        return;
-    }
+    size_t leafCount;
+    readBytes(&leafCount, sizeof(leafCount), offset, metaFile_);
 
-    size_t current_pos = 0;
-
-    // 1. Čitamo root hash
-    size_t rootHashSize = 0;
-    std::memcpy(&rootHashSize, &payload[current_pos], sizeof(size_t));
-    current_pos += sizeof(size_t);
-    rootHash_ = payload.substr(current_pos, rootHashSize);
-    current_pos += rootHashSize;
-
-    // 2. Čitamo broj listova
-    size_t leafCount = 0;
-    std::memcpy(&leafCount, &payload[current_pos], sizeof(size_t));
-    current_pos += sizeof(size_t);
     originalLeafHashes_.reserve(leafCount);
 
-    // 3. Čitamo svaki list
-    for (size_t i = 0; i < leafCount; ++i) {
-        size_t leafSize = 0;
-        std::memcpy(&leafSize, &payload[current_pos], sizeof(size_t));
-        current_pos += sizeof(size_t);
-        originalLeafHashes_.push_back(payload.substr(current_pos, leafSize));
-        current_pos += leafSize;
+    for(int i = 0; i < leafCount; i++) {
+        size_t leafSize;
+        readBytes(&leafSize, sizeof(leafSize), offset, metaFile_);
+
+        string leaf;
+        leaf.resize(leafSize);
+        leaf.reserve(leafSize);
+        readBytes(&leaf[0], leafSize, offset, metaFile_);
+
+        originalLeafHashes_.push_back(leaf);
     }
 }
 
@@ -578,11 +565,6 @@ void SSTableRaw::writeBloomToFile()
 
     if(is_single_file_mode_) toc.meta_offset = (block_id+1)*block_size;
 }
-
-// NOVI FORMAT U Meta fajlu:
-// Prva linija: root_hash
-// Svaka sledeća linija: [leaf_hash_1, leaf_hash_2, ..., leaf_hash_n]
-// U SSTableRaw.cpp i SSTableComp.cpp
 
 void SSTableRaw::writeMetaToFile() { // (ili SSTableComp::writeMetaToFile)
     string payload;
@@ -953,9 +935,7 @@ bool SSTableRaw::validate() {
             std::cerr << "[Validate] Greška pri čitanju rekorda tokom validacije." << std::endl;
             return false;
         }
-        if (!eof) {
-            records.push_back(rec);
-        }
+        records.push_back(rec);
     }
 
     // 4. Kreiramo novo Merkle stablo od trenutnih vrednosti u fajlu

@@ -19,8 +19,9 @@ void SSTable::build(std::vector<Record>&records)
     for (size_t i = 0; i < indexAll.size(); i += index_sparsity) {
         index_.push_back(indexAll[i]);
     }
+
     if (!indexAll.empty() &&
-        ((indexAll.size() - 1) % summary_sparsity) != 0) {
+        ((indexAll.size() - 1) % index_sparsity ) != 0) { // PROVERI OVO!!!
         index_.push_back(indexAll.back());
     }
 
