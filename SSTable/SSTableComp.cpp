@@ -899,61 +899,49 @@ void SSTableComp::writeSummaryToFile()
     if (is_single_file_mode_) toc.filter_offset = (block_id + 1) * block_size;
 }
 
-void SSTableComp::readMetaFromFile() {
-    // Resetujemo stanje pre citanja
+// U SSTableRaw.cpp i SSTableComp.cpp
+
+void SSTableComp::readMetaFromFile() { // (ili SSTableComp::readMetaFromFile)
     rootHash_.clear();
     originalLeafHashes_.clear();
 
-    bool error = false;
-    int block_id = 0;
-    std::string content;
+    uint64_t offset = toc.meta_offset;
+    uint64_t meta_end_offset = toc.filter_offset; // Pretpostavka da je filter sledeći
 
-    // citamo sve blokove iz meta fajla dok ne dodjemo do kraja
-    while (true) {
-        std::vector<byte> block_data = bmp->read_block({ block_id++, metaFile_ }, error);
-        if (error) { // Ako read_block vrati gresku (npr. nema vise blokova), prekidamo
-            break;
-        }
-        content.append(reinterpret_cast<const char*>(block_data.data()), block_data.size());
+    if (offset >= meta_end_offset) return; // Nema meta podataka
+
+    size_t total_meta_size = meta_end_offset - offset;
+    std::string payload;
+    payload.resize(total_meta_size);
+
+    // Čitamo ceo meta segment odjednom
+    if (!readBytes(&payload[0], total_meta_size, offset, metaFile_)) {
+        return;
     }
 
-    if (content.empty()) {
-        return; // Nema sadrzaja, nema sta da se parsira
+    size_t current_pos = 0;
+
+    // 1. Čitamo root hash
+    size_t rootHashSize = 0;
+    std::memcpy(&rootHashSize, &payload[current_pos], sizeof(size_t));
+    current_pos += sizeof(size_t);
+    rootHash_ = payload.substr(current_pos, rootHashSize);
+    current_pos += rootHashSize;
+
+    // 2. Čitamo broj listova
+    size_t leafCount = 0;
+    std::memcpy(&leafCount, &payload[current_pos], sizeof(size_t));
+    current_pos += sizeof(size_t);
+    originalLeafHashes_.reserve(leafCount);
+
+    // 3. Čitamo svaki list
+    for (size_t i = 0; i < leafCount; ++i) {
+        size_t leafSize = 0;
+        std::memcpy(&leafSize, &payload[current_pos], sizeof(size_t));
+        current_pos += sizeof(size_t);
+        originalLeafHashes_.push_back(payload.substr(current_pos, leafSize));
+        current_pos += leafSize;
     }
-
-    // Ukloni padding karaktere sa kraja celokupnog sadrzaja
-    size_t end_pos = content.find(static_cast<char>(padding_character));
-    if (end_pos != std::string::npos) {
-        content.erase(end_pos);
-    }
-
-    // Parsiramo procitani sadrzaj liniju po liniju
-    std::stringstream ss(content);
-    std::string line;
-
-    // Prva linija je uvek root hash.
-    if (std::getline(ss, line)) {
-        // Ukloni eventualni '\r' karakter za Windows kompatibilnost
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-        if (!line.empty()) {
-            rootHash_ = line;
-        }
-    }
-
-    // Sve ostale linije su hesevi listova
-    while (std::getline(ss, line)) {
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-        if (!line.empty()) {
-            originalLeafHashes_.push_back(line);
-        }
-    }
-
-    std::cout << "[SSTable] Metapodaci ucitani. Root: " << rootHash_.size()
-        << " bajtova, Broj listova: " << originalLeafHashes_.size() << std::endl;
 }
 
 void SSTableComp::writeBloomToFile()
@@ -993,40 +981,35 @@ void SSTableComp::writeBloomToFile()
     if (is_single_file_mode_) toc.meta_offset = (block_id + 1) * block_size;
 }
 
-void SSTableComp::writeMetaToFile() {
+// U SSTableRaw.cpp i SSTableComp.cpp
 
-    uint64_t start_offset = 0;
-    if (is_single_file_mode_) {
-        start_offset = toc.meta_offset; // Set in summary writer
-    }
+void SSTableComp::writeMetaToFile() { // (ili SSTableComp::writeMetaToFile)
+    string payload;
 
-    if (rootHash_.empty() || originalLeafHashes_.empty()) {
-        std::cout << "[SSTable] No complete Merkle tree data to write for " << metaFile_ << std::endl;
-        return;
-    }
-    // Kreiramo ceo payload sa prelascima u novi red radi lakseg parsiranja kasnije
-    std::string payload = rootHash_ + "\n";
+    // 1. Upisujemo dužinu root hasha, pa sam hash
+    size_t rootHashSize = rootHash_.size();
+    payload.append(reinterpret_cast<const char*>(&rootHashSize), sizeof(rootHashSize));
+    payload.append(rootHash_);
+
+    // 2. Upisujemo broj listova (leaf hashes)
+    size_t leafCount = originalLeafHashes_.size();
+    payload.append(reinterpret_cast<const char*>(&leafCount), sizeof(leafCount));
+
+    // 3. Upisujemo svaki list (njegovu dužinu, pa sam hash)
     for (const auto& leaf : originalLeafHashes_) {
-        payload += leaf + "\n";
+        size_t leafSize = leaf.size();
+        payload.append(reinterpret_cast<const char*>(&leafSize), sizeof(leafSize));
+        payload.append(leaf);
     }
 
-    // upisujemo payload u blokove
-    int block_id = start_offset / block_size;
+    // Zapisujemo ceo payload u meta fajl (ova logika je vaša postojeća)
+    int block_id = toc.meta_offset / block_size;
     size_t offset = 0;
     while (offset < payload.length()) {
-        size_t chunk_size = std::min((size_t)block_size, payload.length() - offset);
-        std::string chunk_str = payload.substr(offset, chunk_size);
-
-        std::vector<byte> data_chunk;
-        std::transform(chunk_str.begin(), chunk_str.end(), std::back_inserter(data_chunk),
-            [](char c) { return std::byte(c); });
-
-        // Pozivamo Block Manager za svaki blok
-        bmp->write_block({ block_id++, metaFile_ }, data_chunk);
-        offset += chunk_size;
+        string chunk = payload.substr(offset, block_size);
+        bmp->write_block({ block_id++, metaFile_ }, chunk);
+        offset += chunk.size();
     }
-    std::cout << "[SSTable] Merkle root and " << originalLeafHashes_.size()
-        << " leaves written to " << metaFile_ << std::endl;
 }
 
 void SSTableComp::readBloomFromFile()
