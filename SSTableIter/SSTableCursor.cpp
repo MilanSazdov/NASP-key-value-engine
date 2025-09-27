@@ -67,10 +67,6 @@ vector<Record> SSTableCursor::prefix_scan(const std::string& prefix, int page_si
 
     while(true) {
         auto &cref = candidates.front();
-        std::cerr << "DEBUG: key_size=" << cref.curr_record.key_size
-          << " key.str.size()=" << cref.curr_record.key.size()
-          << " value_size=" << cref.curr_record.value_size
-          << " value.str.size()=" << cref.curr_record.value.size() << "\n";
 
         Candidate candidate_temp = candidates.front();
         std::string min_key = candidate_temp.curr_record.key;
@@ -134,6 +130,7 @@ vector<Record> SSTableCursor::prefix_scan(const std::string& prefix, int page_si
                 r.key = memtableCandidates.back().key;
                 r.value = memtableCandidates.back().value;
                 r.timestamp = memtableCandidates.back().timestamp;
+                r.tombstone = static_cast<std::byte>(memtableCandidates.back().tombstone);
                 ret.push_back(r);
                 memtableCandidates.pop_back();
                 
@@ -394,7 +391,7 @@ void SSTableCursor::prepare_prefix_scan(const std::string& prefix) {
     vector<MemtableEntry> temp;
 
     for(auto r : memtableCandidates) {
-        if(r.key.rfind(prefix, 0) == 0 && !r.tombstone) {
+        if(r.key.rfind(prefix, 0) == 0) {
             temp.push_back(move(r));
         }
     }
@@ -441,7 +438,7 @@ void SSTableCursor::prepare_range_scan(const std::string& min_key,const std::str
     vector<MemtableEntry> temp;
 
     for(auto r : memtableCandidates) {
-        if(r.key <= max_key && r.key >= min_key && !r.tombstone) {
+        if(r.key <= max_key && r.key >= min_key) {
             temp.push_back(move(r));
         }
     }
