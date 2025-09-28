@@ -139,7 +139,7 @@ void MainApp::test_leveled() {
 
     cout << "\n\n\n[TEST] Inserted 10 users, deleted 3 (user005, user007, user009)\n";
     cout << "[TEST] Now inserting more users to trigger compaction...\n";
-    for (int i = 11; i <= 30; i++) {
+    for (int i = 11; i <= 45; i++) {
         string key = "user" + (i < 10 ? "00" + to_string(i) : (i < 100 ? "0" + to_string(i) : to_string(i)));
         string value = "data" + to_string(i % 5); // ponavljanje vrednosti da pravi duplikate 
         system->put(key, value);
