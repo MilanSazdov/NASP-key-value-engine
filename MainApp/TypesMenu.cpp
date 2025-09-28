@@ -1,5 +1,6 @@
 #include "TypesMenu.h"
 #include <iostream>
+#include <limits>
 
 using namespace std;
 
@@ -12,6 +13,39 @@ TypesMenu::TypesMenu(System* sys) {
     }
 }
 
+int TypesMenu::getIntInput(const string& prompt) {
+    int value;
+    while (true) {
+        cout << prompt;
+        if (cin >> value) {
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            return value;
+        }
+        else {
+            cout << "Invalid input. Please enter a valid integer.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
+}
+
+double TypesMenu::getDoubleInput(const string& prompt) {
+    double value;
+    while (true) {
+        cout << prompt;
+        if (cin >> value) {
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            return value;
+        }
+        else {
+            cout << "Invalid input. Please enter a valid number.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
+}
+
+
 void TypesMenu::showMenu() {
     int choice;
     do {
@@ -22,9 +56,8 @@ void TypesMenu::showMenu() {
         cout << "4. SimHash Operations\n";
         cout << "5. Back to Main Menu\n";
         cout << "======================================\n";
-        cout << "Enter choice: ";
-        cin >> choice;
-        cin.ignore();
+        
+		choice = getIntInput("Enter choice: ");
 
         switch (choice) {
         case 1: handleBloomFilter(); break;
@@ -51,30 +84,18 @@ void TypesMenu::handleBloomFilter() {
     int choice;
     do {
         showBloomFilterMenu();
-        cout << "Enter choice: ";
-        cin >> choice;
-        cin.ignore();
+        choice = getIntInput("Enter choice: ");
 
         switch (choice) {
         case 1: {
             string key;
-            int n;
-            double p;
-
             cout << "Enter key: ";
             getline(cin, key);
 
-            // TODO: Check for int values
-            cout << "Enter number of elements (n): ";
-            cin >> n;
+            int n = getIntInput("Enter number of elements (n): ");
+            double p = getDoubleInput("Enter false positivity probability (p): ");
 
-            cout << "Enter false positivity probability (p): ";
-            cin >> p;
-            cin.ignore(); // To consume the newline
-
-			typesManager->createBloomFilter(key, n, p);
-            cout << "Bloom Filter created with key: " << key
-                << ", n: " << n << ", p: " << p << endl;
+            typesManager->createBloomFilter(key, n, p);
             break;
         }
         case 2: {
@@ -82,8 +103,7 @@ void TypesMenu::handleBloomFilter() {
             cout << "Enter key to delete: ";
             getline(cin, key);
 
-			typesManager->deleteBloomFilter(key);
-            cout << "Bloom Filter with key: " << key << " deleted" << endl;
+            typesManager->deleteBloomFilter(key);
             break;
         }
         case 3: {
@@ -93,8 +113,7 @@ void TypesMenu::handleBloomFilter() {
             cout << "Enter value to add: ";
             getline(cin, value);
 
-			typesManager->addToBloomFilter(key, value);
-			cout << "Value '" << value << "' added to Bloom Filter '" << key << "'.\n";
+            typesManager->addToBloomFilter(key, value);
             break;
         }
         case 4: {
@@ -104,16 +123,17 @@ void TypesMenu::handleBloomFilter() {
             cout << "Enter value to check: ";
             getline(cin, value);
 
-			bool exist =  typesManager->hasKeyInBloomFilter(key, value);
-            cout << "Value '" << value << "' is "
-				<< (exist ? "present" : "not present") << " in Bloom Filter '" << key << "'.\n";
+            typesManager->hasKeyInBloomFilter(key, value);
             break;
         }
-        case 5: return;
-        default: cout << "Invalid choice.\n";
+        case 5:
+            return;
+        default:
+            cout << "Invalid choice.\n";
         }
     } while (choice != 5);
 }
+
 
 void TypesMenu::showCountMinSketchMenu() {
     cout << "\n========== Count-Min Sketch ==========\n";
@@ -129,9 +149,8 @@ void TypesMenu::handleCountMinSketch() {
     int choice;
     do {
         showCountMinSketchMenu();
-        cout << "Enter choice: ";
-        cin >> choice;
-        cin.ignore();
+		choice = getIntInput("Enter choice: ");
+
         switch (choice) {
         case 1:
         {
@@ -139,16 +158,10 @@ void TypesMenu::handleCountMinSketch() {
             double epsilon, delta;
             cout << "Enter key: ";
             getline(cin, key);
-            cout << "Enter epsilon: ";
-            cin >> epsilon;
-            cout << "Enter delta: ";
-            cin >> delta;
-            cin.ignore(); 
-
+            epsilon = getDoubleInput("Enter epsilon: ");
+			delta = getDoubleInput("Enter delta: ");
 
             typesManager->createCountMinSketch(key, epsilon, delta);
-            cout << "Count-Min Sketch created with key: " << key
-                << ", epsilon: " << epsilon << ", delta: " << delta << endl;
             break;
         }
         case 2: {
@@ -157,7 +170,6 @@ void TypesMenu::handleCountMinSketch() {
             getline(cin, key);
 
 			typesManager->deleteCountMinSketch(key);
-            cout << "Count-Min Sketch with key: " << key << " deleted" << endl;
             break;
         }
         case 3: {
@@ -168,7 +180,6 @@ void TypesMenu::handleCountMinSketch() {
             getline(cin, value);
 
 			typesManager->addToCountMinSketch(key, value);
-			cout << "Value '" << value << "' added to Count-Min Sketch '" << key << "'.\n";
             break;
         }
         case 4: {
@@ -178,13 +189,7 @@ void TypesMenu::handleCountMinSketch() {
             cout << "Enter value to get: ";
             getline(cin, value);
 
-			auto frequency = typesManager->getFromCountMinSketch(key, value);
-            if (frequency.has_value()) {
-                cout << "Estimated frequency of '" << value << "' in Count-Min Sketch '" << key << "': "
-                     << frequency.value() << endl;
-            } else {
-                cout << "Value '" << value << "' not found in Count-Min Sketch '" << key << "'.\n";
-			}
+			typesManager->getFromCountMinSketch(key, value);
             break;
         }
         case 5: return;
@@ -207,21 +212,17 @@ void TypesMenu::handleHyperLogLog() {
     int choice;
     do {
         showHyperLogLogMenu();
-        cout << "Enter choice: ";
-        cin >> choice;
-        cin.ignore();
+		choice = getIntInput("Enter choice: ");
+
         switch (choice) {
         case 1: {
             string key;
             int p;
             cout << "Enter key: ";
             getline(cin, key);
-            cout << "Enter precision (p): ";
-            cin >> p;
-            cin.ignore(); // To consume the newline
+			p = getIntInput("Enter precision (p) [4-16]: ");
 
 			typesManager->createHyperLogLog(key, p);
-            cout << "HyperLogLog created with key: " << key << ", p: " << p << endl;
             break;
         }
         case 2: {
@@ -230,8 +231,6 @@ void TypesMenu::handleHyperLogLog() {
             getline(cin, key);
 
 			typesManager->deleteHyperLogLog(key);
-            cout << "HyperLogLog with key: " << key << " deleted" << endl;
-
             break;
         }
         case 3: {
@@ -242,7 +241,6 @@ void TypesMenu::handleHyperLogLog() {
             getline(cin, value);
 
 			typesManager->addToHyperLogLog(key, value);
-			cout << "Value '" << value << "' added to HyperLogLog '" << key << "'.\n";
             break;
         }
         case 4: {
@@ -250,14 +248,7 @@ void TypesMenu::handleHyperLogLog() {
             cout << "Enter key to estimate: ";
             getline(cin, key);
 
-			auto cardinality = typesManager->estimateHyperLogLog(key);
-            if (cardinality.has_value()) {
-                cout << "Estimated cardinality of HyperLogLog '" << key << "': "
-                     << cardinality.value() << endl;
-            } else {
-                cout << "HyperLogLog with key '" << key << "' does not exist.\n";
-			}
-
+			typesManager->estimateHyperLogLog(key);
             break;
         }
         case 5: return;
@@ -279,9 +270,8 @@ void TypesMenu::handleSimHash() {
     int choice;
     do {
         showSimHashMenu();
-        cout << "Enter choice: ";
-        cin >> choice;
-        cin.ignore();
+		choice = getIntInput("Enter choice: ");
+
         switch (choice) {
         case 1: {
             string key, text;
@@ -291,7 +281,6 @@ void TypesMenu::handleSimHash() {
             getline(cin, text);
 
             typesManager->addSimHashFingerprint(key, text);
-            cout << "Fingerprint for key '" << key << "' added successfully.\n";
             break;
         }
         case 2: {
@@ -300,7 +289,6 @@ void TypesMenu::handleSimHash() {
             getline(cin, key);
 
             typesManager->deleteSimHashFingerprint(key);
-            cout << "Fingerprint with key: " << key << " deleted" << endl;
             break;
         }
         case 3: {
@@ -310,16 +298,7 @@ void TypesMenu::handleSimHash() {
             cout << "Enter second key: ";
             getline(cin, key2);
 
-            auto distance = typesManager->getHammingDistance(key1, key2);
-            if (distance.has_value()) {
-                cout << "Hamming distance between '" << key1 << "' and '" << key2 << "': "
-                    << distance.value() << endl;
-            }
-            else {
-                cout << "One or both fingerprints do not exist.\n";
-                break;
-            }
-
+            typesManager->getHammingDistance(key1, key2);
             break;
         }
         case 4: return;

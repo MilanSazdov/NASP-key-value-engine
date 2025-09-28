@@ -140,7 +140,7 @@ void testPrecisionEstimates(const std::vector<std::string>& elements) {
     }
 }
 
-int main() {
+int mainc() {
     std::cout << "Testiranje HyperLogLog funkcionalnosti...\n";
 
     uint8_t precision = 4; // Prilagoditi preciznost po potrebi

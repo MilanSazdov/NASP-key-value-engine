@@ -15,5 +15,6 @@ public:
     std::vector<std::string> parseText(const std::string& text) const;
     SimHash();
     int hammingDistance(const std::string& text1, const std::string& text2) const;
+	int getHammingDistance(const std::string& fp1_str, const std::string& fp2_str) const;
     uint64_t getFingerprint(const std::string& text) const;
 };

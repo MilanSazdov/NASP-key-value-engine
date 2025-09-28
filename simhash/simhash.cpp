@@ -104,3 +104,24 @@ int SimHash::hammingDistance(const string& text1, const string& text2) const {
     
     return distance;
 }
+
+int SimHash::getHammingDistance(const string& fp1_str, const string& fp2_str) const {
+    // Convert string back to uint64_t
+    if (fp1_str.length() != sizeof(uint64_t) || fp2_str.length() != sizeof(uint64_t)) {
+        throw invalid_argument("Invalid fingerprint string length");
+    }
+
+    uint64_t fp1, fp2;
+    memcpy(&fp1, fp1_str.data(), sizeof(uint64_t));
+    memcpy(&fp2, fp2_str.data(), sizeof(uint64_t));
+
+    uint64_t xor_result = fp1 ^ fp2;
+
+    int distance = 0;
+    while (xor_result) {
+        distance += xor_result & 1;
+        xor_result >>= 1;
+    }
+
+    return distance;
+}

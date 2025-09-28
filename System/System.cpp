@@ -133,14 +133,11 @@ void System::saveTokenBucket() {
     try {
         vector<byte> serializedData = tokenBucket->serialize();
 
-        // Convert byte vector to string for storage
-        //string serializedString(serializedData.begin(), serializedData.end());
         string serializedString(
             reinterpret_cast<const char*>(serializedData.data()),
             serializedData.size()
         );
 
-        // Store directly in the key-value engine using internal storage
         // We need to directly access WAL and memtable to avoid recursive rate limiting
         wal->put(RATE_LIMIT_KEY, serializedString);
         memtable->put(RATE_LIMIT_KEY, serializedString);
@@ -173,9 +170,7 @@ void System::loadTokenBucket() {
         auto value = memtable->get(RATE_LIMIT_KEY, deleted);
 
         if (!deleted && value.has_value()) {
-            // Convert string back to byte vector
             string serializedString = value.value();
-            //vector<byte> data(serializedString.begin(), serializedString.end());
             vector<byte> data(
                 reinterpret_cast<const byte*>(serializedString.data()),
                 reinterpret_cast<const byte*>(serializedString.data() + serializedString.size())

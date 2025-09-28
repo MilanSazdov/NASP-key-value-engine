@@ -57,7 +57,7 @@ void testCMS() {
         CountMinSketch cms_states(0.01, 0.01);      // Za države
         vector<string> zip_codes;
         vector<string> states;
-        string filename = "../../data/olist_customers_dataset.csv";
+        string filename = "../../test_data/olist_customers_dataset.csv";
 
         extractDataFromCSV(filename, zip_codes, states);
         cout << "Dodavanje podataka u Count-Min Sketch..." << endl;
@@ -91,7 +91,7 @@ void testCMS() {
     }
 }
 
-int mainl() {
+int main() {
     testCMS();
     return 0;
 }

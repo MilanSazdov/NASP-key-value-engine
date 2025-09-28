@@ -1,6 +1,4 @@
 #pragma once
-
-//#include "TypesManager.h"
 #include "../System/System.h"
 
 class TypesMenu {
@@ -12,6 +10,9 @@ public:
     void handleCountMinSketch();
     void handleHyperLogLog();
     void handleSimHash();
+
+	int getIntInput(const std::string& prompt);
+	double getDoubleInput(const std::string& prompt);
 
 private:
     System* system;

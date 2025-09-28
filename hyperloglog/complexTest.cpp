@@ -84,7 +84,7 @@ void testHLL() {
         vector<string> customer_ids;
         vector<string> zip_codes;
         vector<string> states;
-        string filename = "../../data/olist_customers_dataset.csv";//https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
+        string filename = "../../test_data/olist_customers_dataset.csv";//https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
         extractDataFromCSV(filename, customer_ids, zip_codes, states);
 
         for (const auto& id : customer_ids) {
@@ -114,7 +114,7 @@ void testHLL() {
     }
 }
 
-int mainc() {
+int main() {
     testHLL();
     return 0;
 }

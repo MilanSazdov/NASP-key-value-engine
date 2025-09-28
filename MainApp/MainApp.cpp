@@ -1,4 +1,6 @@
 ﻿#include "MainApp.h"
+#include <limits>
+
 using namespace std;
 
 MainApp::MainApp() {
@@ -33,7 +35,22 @@ void MainApp::showMenu() {
     std::cout << "7. VALIDATE SSTABLES - Validate data integrity for a level\n";
     std::cout << "8. EXIT              - Exit program\n";
     std::cout << "======================================\n";
-    std::cout << "Enter choice: ";
+}
+
+static int getIntInput(const string& prompt) {
+    int value;
+    while (true) {
+        cout << prompt;
+        if (cin >> value) {
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            return value;
+        }
+        else {
+            cout << "Invalid input. Please enter a valid integer.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
 }
 
 string key, value;
@@ -214,8 +231,7 @@ void MainApp::run() {
     while (true) {
         showMenu();
         
-        cin >> choice;
-        cin.ignore();
+		choice = getIntInput("Enter choice: ");
         
         switch (choice) {
         case 1: handlePut(); break;
