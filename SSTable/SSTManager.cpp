@@ -123,13 +123,12 @@ int SSTManager::findNextIndex(const std::string& levelDir) const {
         for(int i = filename.size()-1; i >= 0; i--) {
             if (isdigit(filename[i])) {
                 // pronasli smo poslednji broj u nazivu fajla
-                digit = std::stoi(filename.substr(i));
+                digit = std::stoi(filename.substr(i, 1));
 				current += base * digit;
                 base *= 10;
             }
 		}
 		max_id = max(max_id, current);
-        
     }
     return max_id + 1;
 }
@@ -287,7 +286,8 @@ void SSTManager::write(std::vector<Record> sortedRecords, int level) {
     }
 
     int fileId = findNextIndex(levelDir);
-	cout << "[SSTManager] Writing SSTable to level " << level << " with file ID: " << fileId << endl;
+    cout << "\033[34m[SSTManager] Writing SSTable to level "
+        << level << " with file ID: " << fileId << "\033[0m" << endl;
 
     std::string numStr = std::to_string(fileId);
 
