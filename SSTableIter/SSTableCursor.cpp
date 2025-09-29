@@ -65,24 +65,23 @@ vector<Record> SSTableCursor::prefix_scan(const std::string& prefix, int page_si
         return ret;
     }
 
-    while(true) {
-        auto &cref = candidates.front();
 
-        Candidate candidate_temp = candidates.front();
-        std::string min_key = candidate_temp.curr_record.key;
+    while(!candidates.empty()) {
+        std::string min_key(256, char(0xFF));
 
         vector<Candidate*> min_candidates;
-        min_candidates.push_back(&(candidates.front()));
+        // min_candidates.push_back(&(candidates.front()));
         // Candidate& min_candidate = candidates.front();
 
         vector<list<Candidate>::iterator> min_iterators;
-        min_iterators.push_back(candidates.begin());
+        // min_iterators.push_back(candidates.begin());
         // auto min_iterator = candidates.begin();
 
         for (auto it = candidates.begin(); it != candidates.end();) { // Trazimo min kljuc
             std::string key = (*it).curr_record.key;
             if(key.rfind(prefix, 0) != 0) { // Ako kljuc ne pocinje sa prefiksom, ne gledamo vise sstabelu
                 it = candidates.erase(it);
+                continue;
             }
 
             if (key < min_key) {
@@ -95,7 +94,7 @@ vector<Record> SSTableCursor::prefix_scan(const std::string& prefix, int page_si
                 // min_iterator = it;
             }
 
-            if (key == min_key) {
+            else if (key == min_key) {
                 Candidate& candidate = *it;
                 SSTableIterator& cand_iter = candidate.sst_iter;
 
@@ -116,6 +115,9 @@ vector<Record> SSTableCursor::prefix_scan(const std::string& prefix, int page_si
                         break;
                     };
                 }
+
+                min_candidates.push_back(&candidate);
+                min_iterators.push_back(it);
             }
 
             ++it;
@@ -178,13 +180,20 @@ vector<Record> SSTableCursor::prefix_scan(const std::string& prefix, int page_si
 
         // Pomeramo sve iteratore za kandidate koji su imali min kljuc
         for(int i = 0; i < min_candidates.size(); ++i) {
+            if (min_candidates[i]->sst_iter.reached_end) {
+                candidates.erase(min_iterators[i]);
+                continue;
+            }
+
             ++(min_candidates[i]->sst_iter);
-            if (!min_candidates[i]->sst_iter.reached_end) min_candidates[i]->curr_record = *(min_candidates[i]->sst_iter);
+            if (!min_candidates[i]->sst_iter.reached_end) {
+                min_candidates[i]->curr_record = *(min_candidates[i]->sst_iter);
+                if(min_candidates[i]->curr_record.key.rfind(prefix, 0) != 0) {
+                    candidates.erase(min_iterators[i]);
+                }
+            }
             else candidates.erase(min_iterators[i]);
             
-            if(min_candidates[i]->curr_record.key.rfind(prefix, 0) != 0) {
-                candidates.erase(min_iterators[i]);
-            }
         }
  
         if(ret.size() == page_size && (!candidates.empty() || memtableCandidates.empty())) {
@@ -195,26 +204,25 @@ vector<Record> SSTableCursor::prefix_scan(const std::string& prefix, int page_si
         if(candidates.empty() && memtableCandidates.empty()){
             end = true;
             return ret;
-        }
-
-        if(candidates.empty()) {
-            size_t needed = page_size - ret.size();
-            size_t take = min(needed, memtableCandidates.size());
-            if (take <= needed) end = true;
-
-            for(int i = 0; i < take; ++i) {
-                auto memEntry = memtableCandidates.back();
-                Record r;
-                r.key = memEntry.key;
-                r.value = memEntry.value;
-                r.timestamp = memEntry.timestamp;
-                ret.push_back(r);
-                memtableCandidates.pop_back();
-            }
-
-            return ret;
-        }
+        } 
     }
+
+    size_t needed = page_size - ret.size();
+    size_t take = min(needed, memtableCandidates.size());
+
+    for(int i = 0; i < take; ++i) {
+        auto memEntry = memtableCandidates.back();
+        Record r;
+        r.key = memEntry.key;
+        r.value = memEntry.value;
+        r.timestamp = memEntry.timestamp;
+        ret.push_back(r);
+        memtableCandidates.pop_back();
+    }
+
+    end = memtableCandidates.empty();
+
+    return ret;
 }
 
 vector<Record> SSTableCursor::range_scan(const std::string& min_key, const std::string& max_key, int page_size, bool& end) {
@@ -228,21 +236,23 @@ vector<Record> SSTableCursor::range_scan(const std::string& min_key, const std::
         return ret;
     }
 
-    while(true) {
-        std::string min_key_sst = candidates.front().curr_record.key;
+    while(!candidates.empty()) {
+        // std::string min_key_sst = candidates.front().curr_record.key;
+        std::string min_key_sst(256, char(0xFF));
 
         vector<Candidate*> min_candidates;
-        min_candidates.push_back(&(candidates.front()));
+        // min_candidates.push_back(&(candidates.front()));
         // Candidate& min_candidate = candidates.front();
 
         vector<list<Candidate>::iterator> min_iterators;
-        min_iterators.push_back(candidates.begin());
+        // min_iterators.push_back(candidates.begin());
         // auto min_iterator = candidates.begin();
 
         for (auto it = candidates.begin(); it != candidates.end();) { // Trazimo min kljuc
             std::string key = (*it).curr_record.key;
             if(key > max_key) { // Ako kljuc veci od maks, izasli smo iz opsega
                 it = candidates.erase(it);
+                continue;
             }
 
             if(key < min_key_sst) {
@@ -254,7 +264,7 @@ vector<Record> SSTableCursor::range_scan(const std::string& min_key, const std::
                 min_iterators.push_back(it); // TODO: proveri da li kasnije ++it pomera min_iterator
             }
 
-            if (key == min_key_sst) {
+            else if (key == min_key_sst) {
                 Candidate& candidate = *it;
                 SSTableIterator& cand_iter = candidate.sst_iter;
 
@@ -275,6 +285,9 @@ vector<Record> SSTableCursor::range_scan(const std::string& min_key, const std::
                         break;
                     };
                 }
+
+                min_candidates.push_back(&candidate);
+                min_iterators.push_back(it);
             }
 
             ++it;
@@ -339,15 +352,20 @@ vector<Record> SSTableCursor::range_scan(const std::string& min_key, const std::
 
         // Pomeramo sve iteratore za kandidate koji su imali min kljuc
         for(int i = 0; i < min_candidates.size(); ++i) {
+            if (min_candidates[i]->sst_iter.reached_end) {
+                candidates.erase(min_iterators[i]);
+                continue;
+            }
+
 
             ++(min_candidates[i]->sst_iter);
-            if (!min_candidates[i]->sst_iter.reached_end)
+            if (!min_candidates[i]->sst_iter.reached_end) {
                 min_candidates[i]->curr_record = *(min_candidates[i]->sst_iter);
-            else candidates.erase(min_iterators[i]);
-
-            if(min_candidates[i]->curr_record.key > max_key) {
-                candidates.erase(min_iterators[i]);
+                if(min_candidates[i]->curr_record.key > max_key) {
+                    candidates.erase(min_iterators[i]);
+                }
             }
+            else candidates.erase(min_iterators[i]);
         }
 
         if(ret.size() == page_size && (!candidates.empty() || memtableCandidates.empty())) {
@@ -359,25 +377,24 @@ vector<Record> SSTableCursor::range_scan(const std::string& min_key, const std::
             end = true;
             return ret;
         }
-
-        if(candidates.empty()) {
-            size_t needed = page_size - ret.size();
-            size_t take = min(needed, memtableCandidates.size());
-            if (take <= needed) end = true;
-    
-            for(int i = 0; i < take; ++i) {
-                auto memEntry = memtableCandidates.back();
-                Record r;
-                r.key = memEntry.key;
-                r.value = memEntry.value;
-                r.timestamp = memEntry.timestamp;
-                ret.push_back(r);
-                memtableCandidates.pop_back();
-            }
-    
-            return ret;
-        }
     }
+
+    size_t needed = page_size - ret.size();
+    size_t take = min(needed, memtableCandidates.size());
+
+    for(int i = 0; i < take; ++i) {
+        auto memEntry = memtableCandidates.back();
+        Record r;
+        r.key = memEntry.key;
+        r.value = memEntry.value;
+        r.timestamp = memEntry.timestamp;
+        ret.push_back(r);
+        memtableCandidates.pop_back();
+    }
+
+    end = memtableCandidates.empty();
+
+    return ret;
     
 }
 

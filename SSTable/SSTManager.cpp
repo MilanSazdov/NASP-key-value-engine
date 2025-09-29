@@ -61,7 +61,8 @@ void SSTManager::readMap() {
             return;
         };
         string key;
-        if (!readBytes(&key, key_size, fileOffset, key_map_file)) {
+        key.resize(key_size);
+        if (!readBytes(&key[0], key_size, fileOffset, key_map_file)) {
             return;
         };
 
@@ -81,13 +82,19 @@ void SSTManager::writeMap() const {
 
     payload.append(reinterpret_cast<const char*>(&count), sizeof(count));
 
-    int i = 0;
-    for(auto kv : key_map) {
-        cout << "kvfirstsize == " << kv.first.size() << endl;
+    // int i = 0;
+    // for(auto kv : key_map) {
+    //     cout << "kvfirstsize == " << kv.first.size() << endl;
 
-        size_t len = kv.first.size();  // get the size
-        payload.append(reinterpret_cast<const char*>(&len), sizeof(len));  // append size in bytes
-        payload.append(kv.first);  // append the string data
+    //     size_t len = kv.first.size();  // get the size
+    //     payload.append(reinterpret_cast<const char*>(&len), sizeof(len));  // append size in bytes
+    //     payload.append(kv.first);  // append the string data
+    // }
+
+    for(string key : id_to_key) {
+        uint64_t len = key.size();
+        payload.append(reinterpret_cast<const char*>(&len), sizeof(len));
+        payload.append(key);
     }
 
     int block_id = 0;

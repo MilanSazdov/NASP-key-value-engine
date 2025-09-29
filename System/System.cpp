@@ -39,8 +39,8 @@ System::System() : requestCounter(0) {
     }
 
     // ovo stoji dok radim testiranje, posle treba samo ovo od gore
-    resetSystem(Config::data_directory);
-    resetSystem(Config::wal_directory);
+    // resetSystem(Config::data_directory);
+    // resetSystem(Config::wal_directory);
 
     sharedInstanceBM = new Block_manager();
 
