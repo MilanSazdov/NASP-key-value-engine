@@ -13,7 +13,7 @@
   "level_size_multiplier": 3,
   "index_sparsity": 5,
   "summary_sparsity": 5,
-  "compress_sstable": 1,
+  "compress_sstable": 0,
   "sstable_single_file": 0,
   "max_tokens": 20,
   "refill_interval": 10

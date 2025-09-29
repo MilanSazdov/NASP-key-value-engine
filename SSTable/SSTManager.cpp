@@ -82,15 +82,6 @@ void SSTManager::writeMap() const {
 
     payload.append(reinterpret_cast<const char*>(&count), sizeof(count));
 
-    // int i = 0;
-    // for(auto kv : key_map) {
-    //     cout << "kvfirstsize == " << kv.first.size() << endl;
-
-    //     size_t len = kv.first.size();  // get the size
-    //     payload.append(reinterpret_cast<const char*>(&len), sizeof(len));  // append size in bytes
-    //     payload.append(kv.first);  // append the string data
-    // }
-
     for(string key : id_to_key) {
         uint64_t len = key.size();
         payload.append(reinterpret_cast<const char*>(&len), sizeof(len));
@@ -404,7 +395,7 @@ void SSTManager::write(std::vector<Record> sortedRecords, int level) {
     writeMap();
 
     std::cout << "[SSTManager] Successfully wrote SSTable " << fileId << " to level " << level
-        << " (Total Size: [NISAM IZRACUNO]" << " bytes)." << std::endl;
+        << std::endl;
     return;
 }
 

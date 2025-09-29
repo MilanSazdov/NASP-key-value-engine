@@ -23,7 +23,6 @@ void ensureDirectory(const string& path) {
     }
 }
 
-//TODO: sstable is uninitialized. fix?
 System::System() : requestCounter(0) {
     cout << "[SYSTEM] Starting initialization... \n";
 
@@ -62,7 +61,7 @@ System::System() : requestCounter(0) {
 
     // --- Memtable setup ---
     cout << "[Debug] Initializing MemtableManager...\n";
-    memtable = new MemtableManager(sstable);
+    memtable = new MemtableManager(sstable, *wal);
 
 
     cout << "[Debug] Initializing LSMManager...\n";
@@ -208,7 +207,6 @@ void System::del(const string& key) {
     memtable->remove(key);
 }
 
-// NIJE TESTIRANO
 void System::add_records_to_cache(vector<Record> records) {
     int lenght;
     for (Record r : records) {

@@ -7,8 +7,8 @@
 #include "MemtableManager.h"
 #include "MemtableFactory.h"
 
-MemtableManager::MemtableManager(SSTManager* sst)
-    : sstManager_(sst),
+MemtableManager::MemtableManager(SSTManager* sst, Wal wal)
+    : sstManager_(sst), wal(wal),
     type_(Config::memtable_type),
     N_(Config::memtable_instances),
     maxSize_(Config::memtable_max_size),
@@ -16,10 +16,6 @@ MemtableManager::MemtableManager(SSTManager* sst)
     activeIndex_(0)
 {
     // Kreiraj SSTManager
-
-    // TODO: Kreiraj odabranu strategiju kompakcije na osnovu vrednosti iz Config klase
-
-    // TODO: Kreiraj LSMManager i prosledi mu kreiranu strategiju i kreirani sstmanager
 
     // Inicijalizuj prvu (aktivnu) Memtable
     memtables_.reserve(N_);
@@ -69,6 +65,25 @@ bool MemtableManager::checkFlushIfNeeded() {
 void MemtableManager::flushMemtable() {
     flushOldest();
     switchToNewMemtable();
+    namespace fs = std::filesystem;
+    try {
+        for (const auto& entry : fs::directory_iterator(Config::wal_directory)) {
+            const std::string fileName = entry.path().filename().string();
+            fs::remove(entry.path());
+        }
+    }
+    catch (const fs::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+    }
+
+    vector<MemtableEntry> vec = getAllEntries();
+    for(const auto& entry : vec) {
+        if(entry.tombstone) {
+            wal.del(entry.key);
+            continue;
+		}
+		wal.put(entry.key, entry.value);
+	}
 }
 
 void MemtableManager::switchToNewMemtable() {
@@ -152,6 +167,8 @@ IMemtable* MemtableManager::createNewMemtable() const {
 }
 
 void MemtableManager::loadFromWal(const std::vector<Record>& records) {
+    
+    
     for (const auto& record : records) {
         if (static_cast<bool>(record.tombstone)) {
             memtables_[activeIndex_]->remove(record.key);

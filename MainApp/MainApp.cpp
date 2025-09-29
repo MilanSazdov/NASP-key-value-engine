@@ -223,7 +223,7 @@ void MainApp::test_case() {
 void MainApp::run() {
     int choice;
     //cin.ignore();
-    // test_leveled();
+    //test_leveled();
     
 	
     //system->removeSSTables();

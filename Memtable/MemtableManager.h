@@ -15,7 +15,8 @@ public:
      * @param maxSizePerTable koliko elemenata moze stati u svaku memtable
      * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./".
      **/
-    MemtableManager(SSTManager* sst);
+    MemtableManager(SSTManager* sst, Wal wal);
+    Wal wal;
 
     ~MemtableManager();
 
