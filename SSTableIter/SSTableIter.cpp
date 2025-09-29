@@ -42,5 +42,6 @@ Record SSTableIterator::operator*(){
 void SSTableIterator::seek(uint64_t offset){
     this->offset = offset;
     next_offset = NO_OFFSET;
+    reached_end = false;
 }
 
