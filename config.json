@@ -3,5 +3,5 @@
   "memtable_max_size": 2,
   "compress_sstable": 0,
   "sstable_single_file": 0,
-  "compaction_strategy": "leveled"
+  "compaction_strategy": "tiered"
 }

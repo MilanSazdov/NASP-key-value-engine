@@ -7,7 +7,7 @@
   "memtable_type": "hash_map",
   "memtable_instances": 2,
   "memtable_max_size": 2,
-  "compaction_strategy": "leveled",
+  "compaction_strategy": "tiered",
   "max_levels": 4,
   "l0_compaction_trigger": 4,
   "level_size_multiplier": 3,

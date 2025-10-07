@@ -351,47 +351,6 @@ void SSTManager::write(std::vector<Record> sortedRecords, int level) {
 
     sst->build(sortedRecords);
 
-    /*
-    // Nakon sto su fajlovi upisani, kreiramo i popunjavamo metapodatke.
-    SSTableMetadata meta;
-    meta.level = level;
-    meta.file_id = fileId;
-    meta.min_key = sortedRecords.front().key; // Vektor je vec sortiran
-    meta.max_key = sortedRecords.back().key;  // Vektor je vec sortiran
-
-    // Sracunaj ukupnu velicinu fajla sabiranjem velicina svih komponenti
-    uint64_t total_size = 0;
-    try {
-        if (use_single_file) {
-            // U single-file modu, samo uzimamo veličinu tog jednog fajla
-            total_size = fs::file_size(data_path);
-        }
-        else {
-            // U multi-file modu, sabiramo veličine svih 5 fajlova
-            total_size += fs::file_size(data_path);
-            total_size += fs::file_size(index_path);
-            total_size += fs::file_size(summary_path);
-            total_size += fs::file_size(filter_path);
-            total_size += fs::file_size(meta_path);
-        }
-    }
-    catch (const fs::filesystem_error& e) {
-        std::cerr << "Error getting file size for SSTable " << fileId << ": " << e.what() << std::endl;
-        total_size = 0;
-    }
-    meta.file_size = total_size;
-
-    // Sacuvaj pune putanje do fajlova u metapodacima
-    meta.data_path = data_path;
-    meta.index_path = index_path;
-    meta.summary_path = summary_path;
-    meta.filter_path = filter_path;
-    meta.meta_path = meta_path;
-
-
-    delete sst; // Oslobodi memoriju
-    */
-
     writeMap();
 
     std::cout << "[SSTManager] Successfully wrote SSTable " << fileId << " to level " << level
