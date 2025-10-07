@@ -1,0 +1,71 @@
+#pragma once
+
+#include <vector>
+#include <memory>
+#include <string>
+#include <optional>
+#include "IMemtable.h"
+#include "../SSTable/SSTManager.h"
+
+class MemtableManager {
+public:
+    /**
+     * @param type tip Memtable ("hash", "skiplist", "btree")
+     * @param N maksimalan broj memtable instanci u memoriji
+     * @param maxSizePerTable koliko elemenata moze stati u svaku memtable
+     * @param directory direktorijum - ako je relative, mora "./", i mora da se zavrsava sa /. Ako se izostavi, default je "./".
+     **/
+    MemtableManager(SSTManager* sst, Wal wal);
+    Wal wal;
+
+    ~MemtableManager();
+
+    // Upis kljuca i vrednosti u aktivnu memtable
+    void put(const std::string& key, const std::string& value);
+
+    void remove(const std::string& key);
+
+    // Dohvatanje vrednosti iz memtable (po potrebi i iz sstable)
+    std::optional<std::string> get(const std::string& key, bool& deleted) const;
+    
+    // Kada se sistem pokrene, Memtable treba popuniti zapisima iz WAL-a
+    void loadFromWal(const std::vector<Record>& records);
+
+    // Print all data from memtables
+    void printAllData() const;
+
+    void flushMemtable();
+
+    bool checkFlushIfNeeded(); // proverava da li je potrebno preci na novu tabelu ili uraditi flush
+
+    vector<Record> getRecordsFromOldest();
+
+    // ovo sam koristio za testiranje, moze se obrisati kasnije
+    void printSSTables(int level);
+
+    // Za kursore
+    std::vector<MemtableEntry> getAllEntries() const;
+
+private:
+    std::string type_;   // sacuvamo koji tip je korisnik izabrao
+    size_t N_;           // max broj memtable
+    size_t maxSize_;     // max broj elemenata u svakoj
+    std::string directory_;
+
+    SSTManager* sstManager_;
+
+    // N instanci memtable
+    std::vector<std::unique_ptr<IMemtable>> memtables_;
+
+    // Indeks "aktivne" (read-write) memtable
+    size_t activeIndex_ = 0;
+
+    // Pomocna: kreira novu memtable (koristeci MemtableFactory)
+    IMemtable* createNewMemtable() const;
+
+    // Ako se aktivna memtable popuni, prelazimo na novu
+    void switchToNewMemtable();
+
+    void flushOldest(); // prazni samo najstariju memtable (prvu napravljenu)
+};
+
